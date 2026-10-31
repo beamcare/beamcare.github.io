@@ -263,7 +263,17 @@ A.login = async e => {
   const email = u.includes('@') ? u : `${u.toLowerCase()}@${EMAIL_DOMAIN}`;
   busy(btn, true, 'جاري الدخول...');
   try { await signInWithEmailAndPassword(auth, email, f.p.value); }
-  catch { busy(btn, false, 'دخول'); renderLogin('اسم المستخدم أو كلمة السر غلط'); }
+  catch (err) {
+    console.error(err);
+    const code = err.code || err.message || '';
+    const msg = code.includes('api-key') ? 'مشكلة في إعدادات الربط (API key)'
+      : code.includes('unauthorized-domain') ? 'الدومين ده مش مضاف في Firebase'
+      : code.includes('too-many-requests') ? 'محاولات كتير، استنى شوية وجرّب تاني'
+      : code.includes('network') ? 'مفيش اتصال بالإنترنت'
+      : 'اسم المستخدم أو كلمة السر غلط';
+    busy(btn, false, 'دخول');
+    renderLogin(`${msg} (${code})`);
+  }
 };
 
 onAuthStateChanged(auth, async u => {
