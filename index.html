@@ -77,6 +77,13 @@ label.chk input{width:20px;height:20px;min-height:0;accent-color:var(--brand)}
 .chip.bad{background:var(--red-bg);color:var(--red)}
 .chip.warn{background:var(--warn-bg);color:var(--warn)}
 .chip.mute{background:var(--bg);color:var(--muted)}
+.themes{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.theme-o{display:flex;align-items:center;gap:8px;border:1.5px solid var(--line);border-radius:10px;padding:6px 10px;cursor:pointer;font-size:13px;min-height:44px}
+.theme-o:has(input:checked){border-color:var(--brand);background:var(--ok-bg)}
+.theme-o input{position:absolute;opacity:0;pointer-events:none}
+.theme-o:has(input:focus-visible){outline:3px solid var(--gold);outline-offset:2px}
+.theme-o .sw{display:flex;gap:3px;padding:4px;border-radius:8px;border:1px solid var(--line);flex:none}
+.theme-o .sw i{width:12px;height:18px;border-radius:4px;display:block}
 .tabs{display:flex;gap:6px;border-bottom:1.5px solid var(--line);overflow-x:auto}
 .tabs button{background:transparent;border:0;padding:10px 16px;font-weight:700;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-1.5px;white-space:nowrap;min-height:44px}
 .tabs button.on{color:var(--brand);border-bottom-color:var(--gold)}
@@ -121,7 +128,7 @@ th{color:var(--muted);font-size:13px;font-weight:700;background:#FAFCFB}
 <script type="module">
 import { initializeApp, deleteApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, doc, getDoc, getDocs, setDoc, updateDoc, addDoc, deleteDoc, collection, query, where, Timestamp, serverTimestamp, writeBatch, increment, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, doc, getDoc, getDocs, setDoc, updateDoc, addDoc, deleteDoc, collection, query, where, orderBy, limit, Timestamp, serverTimestamp, writeBatch, increment, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 /* =========================================================
    1) حط بيانات مشروع Firebase هنا
@@ -439,6 +446,7 @@ function remoteFieldsHTML(t) {
       <label class="f">بعد السماح<select name="mode"><option value="read" ${t?.mode !== 'full' ? 'selected' : ''}>قراءة بس</option><option value="full" ${t?.mode === 'full' ? 'selected' : ''}>قفل كامل</option></select></label>
     </div>
     <label class="f">رقم Beam Care اللي يظهر لهم للتجديد<input name="rphone" dir="ltr" inputmode="tel" value="${esc(t?.renewPhone || '')}"></label>
+    ${themeFieldsHTML(t)}
     <div class="section-t">أجزاء السيستم المفتوحة</div>
     <div class="grid2">${PIONEER_PARTS.map(([k, l]) => `<label class="chk"><input type="checkbox" name="part_${k}" ${mods[k] === false ? '' : 'checked'}> ${esc(l)}</label>`).join('')}</div>`;
 }
@@ -451,6 +459,8 @@ function remoteFieldsRead(f, data) {
   data.warn = Math.max(0, Number(f.warn.value) || 0);
   data.mode = f.mode.value;
   data.renewPhone = f.rphone.value.trim();
+  data.theme = f.querySelector('[name=theme]:checked')?.value || '';
+  data.layout = f.layout?.value || '';
   data.mods = {};
   PIONEER_PARTS.forEach(([k]) => { if (!f['part_' + k].checked) data.mods[k] = false; });
 }
@@ -481,7 +491,7 @@ function subDocOf(t) {
     maxUsers: Number(t.plan?.maxUsers) || 0, maxClients: Number(t.plan?.maxCustomers) || 0,
     mods: t.mods || {}, whiteLabel: !!t.whiteLabel, ownerPerms: !!t.features?.ownerManagesPerms,
     contact: t.renewPhone || '', vendor: 'Beam Care', product: PRODUCTS.maint.name, planName: t.planName || '',
-    upd: !!t.upd, updMsg: t.updMsg || '', updUntil: t.updUntil || '',
+    upd: !!t.upd, updMsg: t.updMsg || '', updUntil: t.updUntil || '', theme: t.theme || '', layout: t.layout || '',
     lockAt: Timestamp.fromDate(lock), updatedAt: new Date().toISOString(), by: 'panel',
   };
 }
@@ -591,6 +601,409 @@ A.updSave = async (e, id) => {
 A.updOff = async id => { const bad = await updSet([{ id }], false); toast(bad ? 'مقدرتش أوصل لسيستم الشركة' : 'السيستم رجع يشتغل ✓'); A.openTenant('maint', id); };
 A.updOffAll = async () => { const ts = (await loadAllTenants()).filter(t => t.product === 'maint' && t.upd); const bad = await updSet(ts, false); toast(bad ? `${bad} شركة مقدرتش أوصلها` : 'كل الشركات رجعت تشتغل ✓'); A.dev('t:maint'); };
 A.pwShow = btn => { const s = btn.parentElement.querySelector('.pwv'); const on = s.textContent === '••••••'; s.textContent = on ? s.dataset.pw : '••••••'; btn.textContent = on ? 'إخفاء' : 'إظهار'; };
+
+/* =========================================================
+   أدوات المطوّر لكل شركة صيانة (اتنقلت من جوه سيستم الشركة):
+   النسخ الاحتياطية (GitHub) · سجل التعديلات · الأرشيف · الإعلانات · الثيم
+   ========================================================= */
+const PM_THEMES = [['navy', 'كحلي وذهبي', '#eceef2', '#3f4b6e', '#d8b07c'], ['soft', 'رمادي مزرق', '#454c5c', '#9cb7ff', '#f3a3dc'], ['classic', 'بنفسجي غامق', '#110e33', '#7457ff', '#a347ff'], ['clean', 'أبيض نظيف', '#f5f7fb', '#5b6cff', '#8b5cf6'], ['sky', 'سماوي هادي', '#eef6fb', '#0ea5c6', '#22c1a8'], ['pastel', 'باستيل مبهج', '#fbf8f4', '#f0627d', '#ff9f6b'], ['brand', 'ألوان اللوجو', '#f2f5f8', '#1e9be0', '#36b6f0'], ['emerald', 'زمردي وذهبي', '#eaf0ed', '#1f6b57', '#d9a74a'], ['wine', 'عنابي ونحاسي', '#f1ebeb', '#7b2d3c', '#d39b62'], ['teal', 'بترولي وبرتقالي', '#e8eff1', '#0e6779', '#ee9a4d'], ['lavender', 'بنفسجي لافندر', '#eeedf5', '#5a4a9e', '#f0a48c'], ['sand', 'بيج وبني دافي', '#f2eee7', '#86562a', '#4f7f6d'], ['night', 'ليلي (غامق)', '#11151d', '#4f6fe0', '#f0c068'], ['gold', 'أسود وذهبي فاخر', '#0e0e10', '#c9a24a', '#8c6d2f'], ['corp', 'أزرق مؤسسي', '#eef2f7', '#1f5fbf', '#13a3a3'], ['rose', 'وردي ناعم', '#f6eef0', '#b5476b', '#7c8fb8'], ['slate', 'رمادي وأخضر ليموني', '#e9ebee', '#2e3640', '#9bc53d'], ['red', 'أبيض وأحمر', '#f4f4f5', '#d0342c', '#27272a'], ['ocean', 'متدرج محيطي', '#eaf0f7', '#4338ca', '#06b6d4']];
+const PM_LAYOUTS = [['side', 'قايمة جانبية'], ['icons', 'أيقونات بس — وعلى الموبايل شريط تحت'], ['top', 'قايمة فوق — عرض كامل'], ['app', 'تطبيق موبايل — شريط تحت في الموبايل'], ['compact', 'مدمج — بيانات أكتر في الشاشة']];
+function themeFieldsHTML(t) {
+  const cur = t?.theme || '';
+  return `<div class="section-t">شكل السيستم عندهم</div>
+    <div class="themes">${[['', 'زي ما هو (اختيار الشركة القديم)', '#fff', '#c8d3d0', '#e6ece9'], ...PM_THEMES].map(([k, l, bg, a1, a2]) => `<label class="theme-o"><input type="radio" name="theme" value="${k}" ${cur === k ? 'checked' : ''}><span class="sw" style="background:${bg}"><i style="background:${a1}"></i><i style="background:${a2}"></i></span><span>${esc(l)}</span></label>`).join('')}</div>
+    <label class="f">شكل القايمة<select name="layout"><option value="">زي ما هو (اختيار الشركة القديم)</option>${PM_LAYOUTS.map(([k, l]) => `<option value="${k}" ${t?.layout === k ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>`;
+}
+
+/* ----- أسماء البيانات بالعربي ----- */
+const PM_COLS = { clients: 'العيادات (العملاء)', reports: 'تقارير الصيانة', payments: 'التحصيلات', partSales: 'فواتير البيع', contracts: 'عقود الصيانة', contractReqs: 'طلبات العقود', requests: 'الطلبات', users: 'المستخدمين', parts: 'قطع الغيار', units: 'وحدات المخزن', returns: 'المرتجعات', partReturns: 'مرتجع القطع', suppliers: 'الموردين', purchases: 'فواتير الشراء', supplierPayments: 'دفعات الموردين', sales: 'بيع أجهزة', rentals: 'إيجار أجهزة', stockcounts: 'جرد المخزن', freon: 'الفريون', frret: 'مرتجع الفريون', stockDevices: 'أجهزة الشركة', offers: 'العروض', meetings: 'الاجتماعات', catalog: 'الكتالوج', orders: 'طلبات المستهلكات', notifs: 'التنبيهات', ratings: 'التقييمات', punches: 'البصمات', attendance: 'الحضور', tests: 'الاختبارات', testKeys: 'إجابات الاختبارات النموذجية', testAnswers: 'إجابات الموظفين', empFiles: 'ملفات الموظفين', empDocs: 'مستندات الموظفين', salaries: 'المرتبات الأساسية', payroll: 'المرتبات', payslips: 'قسايم المرتب', bonuses: 'المكافآت', evals: 'التقييم', penalties: 'الجزاءات', inspections: 'التفتيش', secrets: 'كلمات السر', weekrep: 'التقارير الدورية', audit: 'سجل التعديلات', verify: 'التحقق بالـ QR', archive: 'الأرشيف', notes: 'النوت', handovers: 'التوريدات', policies: 'سياسة العمل', comps: 'التعويضات', treasury: 'الخزينة', capsnaps: 'رأس المال', vouchers: 'أذونات الصرف', custody: 'العهد', hr: 'الإجازات والسلف', days: 'الأيام' };
+const pmCol = c => PM_COLS[c] || c;
+const AUD_LBL = { reports: 'تقرير صيانة', payments: 'تحصيل', partSales: 'فاتورة بيع', contracts: 'عقد صيانة', custody: 'عهدة', payroll: 'مرتبات', salaries: 'مرتب موظف', vouchers: 'إذن صرف', treasury: 'خزينة', handovers: 'توريد', purchases: 'فاتورة شراء', supplierPayments: 'دفعة مورد', sales: 'بيع جهاز', rentals: 'إيجار جهاز', clients: 'عيادة', parts: 'قطعة غيار', hr: 'إجازة / سلفة', bonuses: 'مكافأة', penalties: 'جزاء', comps: 'تعويض', freon: 'فريون' };
+const AUD_ACTS = { create: ['إضافة', 'ok'], update: ['تعديل', 'warn'], delete: ['حذف', 'bad'] };
+
+/* ----- GitHub ----- */
+let GHC = null;
+async function ghCfg(fresh) {
+  if (GHC && !fresh) return GHC;
+  const s = await getDoc(doc(db, 'devcfg', 'github')).catch(() => null);
+  GHC = s && s.exists() ? s.data() : {};
+  return GHC;
+}
+async function gh(path, opt = {}) {
+  const c = await ghCfg();
+  if (!c.token) throw new Error('لسه ما ربطتش GitHub — دوس "إعداد النسخ الاحتياطية"');
+  const r = await fetch(`https://api.github.com/repos/${c.owner}/${c.repo}/${path}`, {
+    method: opt.method || 'GET', body: opt.body, cache: 'no-store',
+    headers: { Authorization: 'Bearer ' + c.token, Accept: opt.raw ? 'application/vnd.github.raw' : 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' },
+  });
+  if (r.status === 404 && opt.soft) return null;
+  if (!r.ok) {
+    let m = ''; try { m = (await r.json()).message || ''; } catch (e) {}
+    throw new Error(r.status === 401 ? 'مفتاح GitHub غلط أو خلص — اعمل واحد جديد من "إعداد النسخ الاحتياطية"' : r.status === 404 ? 'مش لاقي مخزن النسخ على GitHub — راجع الاسم في "إعداد النسخ الاحتياطية"' : `GitHub: ${r.status} ${m}`);
+  }
+  if (opt.raw) return r;
+  return r.status === 204 ? null : r.json();
+}
+async function ghGz(path) {
+  const r = await gh(`contents/${path}?ref=data`, { raw: true });
+  const buf = await r.arrayBuffer();
+  const txt = await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+  return JSON.parse(txt);
+}
+async function bkLoadDay(id, date) {
+  const files = await gh(`contents/backups/${id}/${date}?ref=data`);
+  const out = { cols: {}, meta: {} };
+  for (const f of files.filter(f => f.name.endsWith('.json.gz'))) {
+    const o = await ghGz(`backups/${id}/${date}/${f.name}`);
+    if (f.name === 'meta.json.gz') out.meta = o; else out.cols[f.name.replace('.json.gz', '')] = o;
+  }
+  return out;
+}
+const decTs = v => {
+  if (v === null || v === undefined) return v;
+  if (Array.isArray(v)) return v.map(decTs);
+  if (typeof v === 'object') { if (Object.keys(v).length === 1 && typeof v.__ts === 'number') return Timestamp.fromMillis(v.__ts); const o = {}; for (const k in v) o[k] = decTs(v[k]); return o; }
+  return v;
+};
+const encTs = v => {
+  if (v === null || v === undefined) return v;
+  if (v instanceof Timestamp || (v && typeof v.toMillis === 'function')) return { __ts: v.toMillis() };
+  if (Array.isArray(v)) return v.map(encTs);
+  if (typeof v === 'object') { const o = {}; for (const k in v) o[k] = encTs(v[k]); return o; }
+  return v;
+};
+function saveBlob(blob, name) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000); }
+
+/* ----- تاب النسخ الاحتياطية ----- */
+async function loadBackups() {
+  const c = S.dc; S.dBk = { err: '', gh: false, days: [], last: null, run: null };
+  try { const s = await getDoc(doc(db, PRODUCTS.maint.col, c.id, 'meta', 'backup')); S.dBk.last = s.exists() ? s.data() : null; } catch (e) {}
+  const g = await ghCfg(true);
+  if (!g.token) return;
+  S.dBk.gh = true;
+  try {
+    const idx = await gh('contents/index.json?ref=data', { raw: true, soft: true });
+    const j = idx ? await idx.json() : { companies: {} };
+    S.dBk.days = j.companies?.[c.id]?.days || [];
+    if (!S.dBk.last && j.companies?.[c.id]?.last) S.dBk.last = j.companies[c.id].last;
+    const runs = await gh('actions/runs?per_page=1').catch(() => null);
+    const r = runs?.workflow_runs?.[0];
+    if (r && r.status !== 'completed') S.dBk.run = r;
+  } catch (e) { console.error(e); S.dBk.err = e.message; }
+}
+const kb = n => n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+function backupsBody() {
+  const B = S.dBk || {}, c = S.dc;
+  if (!B.gh) return `<div class="card" style="display:flex;flex-direction:column;gap:12px">
+    <h3>النسخ الاحتياطية لسه متربطتش</h3>
+    <p class="meta">النسخ بتتعمل كل يوم الساعة 12 بالليل وبتتحفظ في مخزن خاص بيك على GitHub (آخر 7 أيام). محتاج تربطه مرة واحدة بس.</p>
+    <button class="btn gold sm" style="align-self:flex-start" onclick="A.ghSetup()">إعداد النسخ الاحتياطية</button></div>`;
+  const L = B.last;
+  const top = ['clients', 'reports', 'partSales', 'payments', 'users'];
+  return `
+  ${B.err ? `<div class="notice warn">${esc(B.err)}</div>` : ''}
+  <div class="card" style="display:flex;flex-direction:column;gap:12px">
+    <div class="head"><h3 style="flex:1">النسخ الأوتوماتيك</h3>${B.run ? '<span class="chip warn">بتتعمل دلوقتي…</span>' : L ? (L.ok ? '<span class="chip ok">شغالة</span>' : '<span class="chip bad">آخر مرة فيها مشكلة</span>') : '<span class="chip mute">لسه ما اتعملتش</span>'}</div>
+    <div class="meta"><span>بتتعمل كل يوم <b>حوالي الساعة 12 بالليل</b></span><span>بتتحفظ في <b>GitHub</b></span><span>محفوظ <b>آخر 7 أيام</b></span>${L ? `<span>آخر مرة: <b>${esc(new Date(L.at).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' }))}</b></span><span>قرت ${Number(L.reads || 0).toLocaleString('ar-EG')} حاجة من Firebase</span>` : ''}</div>
+    ${L && L.err ? `<div class="notice warn" style="font-weight:500">${esc(L.err)}</div>` : ''}
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn sm" onclick="A.bkNow(false)" ${B.run ? 'disabled' : ''}>خد نسخة دلوقتي</button>
+      <button class="btn ghost sm" onclick="A.bkNow(true)" ${B.run ? 'disabled' : ''}>نسخة كاملة دلوقتي</button>
+      <button class="btn ghost sm" onclick="A.tenantTab('backups')">تحديث</button>
+      <button class="btn ghost sm" onclick="A.ghSetup()">إعداد GitHub</button>
+    </div>
+  </div>
+  ${B.days.length ? `<div class="card tbl-wrap" style="padding:0"><table>
+    <thead><tr><th>اليوم</th><th>النوع</th><th>فيها إيه</th><th>الحجم</th><th></th></tr></thead>
+    <tbody>${B.days.map(d => `<tr>
+      <td><b>${esc(new Date(d.date + 'T12:00:00').toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'numeric' }))}</b></td>
+      <td>${d.mode === 'full' ? '<b style="color:var(--brand)">كاملة</b>' : 'يومية'}${d.errs ? ' <span class="chip warn">ناقص حاجات</span>' : ''}</td>
+      <td class="meta" style="display:table-cell">${top.filter(k => d.counts?.[k]).map(k => `${Number(d.counts[k]).toLocaleString('ar-EG')} ${esc(pmCol(k).split(' (')[0])}`).join(' · ')}</td>
+      <td>${kb(d.size || 0)}</td>
+      <td><div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">
+        <button class="btn ghost sm" onclick="A.bkDown('${d.date}','xlsx',this)">Excel</button>
+        <button class="btn ghost sm" onclick="A.bkDown('${d.date}','json',this)">ملف كامل</button>
+        <button class="btn ghost sm" style="color:var(--gold);border-color:var(--gold)" onclick="A.bkRestoreModal('${d.date}')">استرجاع</button>
+      </div></td></tr>`).join('')}</tbody></table></div>`
+    : '<div class="card empty">لسه مفيش نسخ محفوظة للشركة دي. دوس "خد نسخة دلوقتي" أو استنى لبالليل.</div>'}
+  <div class="notice info" style="font-weight:500"><b>الاسترجاع:</b> بيرجّع بيانات الشركة زي ما كانت في اليوم اللي تختاره. قبلها بينزّل عندك ملف بالوضع الحالي علشان لو غيّرت رأيك. سجل التعديلات وكلمات السر واليوزرات الجديدة مش بيتمسحوا.</div>`;
+}
+A.ghSetup = async () => {
+  const g = await ghCfg(true);
+  openModal(`<h3>إعداد النسخ الاحتياطية (GitHub)</h3>
+  <p class="meta">ده بيتعمل مرة واحدة بس. اكتب اسم الحساب واسم المخزن والمفتاح زي ما عملناهم.</p>
+  <form onsubmit="A.ghSave(event)" class="fcol">
+    <div class="grid2">
+      <label class="f">اسم حساب GitHub<input name="owner" dir="ltr" required value="${esc(g.owner || 'beamcare')}"></label>
+      <label class="f">اسم المخزن<input name="repo" dir="ltr" required value="${esc(g.repo || 'beamcare-backups')}"></label>
+    </div>
+    <label class="f">المفتاح (Token) ${g.token ? '(سيبه فاضي لو مش هتغيره)' : ''}<input name="token" dir="ltr" autocomplete="off" ${g.token ? '' : 'required'} placeholder="github_pat_..."></label>
+    ${formActs('حفظ واختبار')}
+  </form>`);
+};
+A.ghSave = async e => {
+  e.preventDefault();
+  const f = e.target; busy(f.querySelector('[type=submit]'), true, 'بيختبر...');
+  const old = await ghCfg(true);
+  const data = { owner: f.owner.value.trim(), repo: f.repo.value.trim(), token: f.token.value.trim() || old.token || '' };
+  GHC = data;
+  try {
+    await gh('');
+    await setDoc(doc(db, 'devcfg', 'github'), data);
+    A.closeModal(); toast('اتربط ✓');
+    if (S.dc) A.tenantTab('backups');
+  } catch (err) {
+    GHC = null; busy(f.querySelector('[type=submit]'), false, 'حفظ واختبار');
+    toast(err.message);
+  }
+};
+A.bkNow = async full => {
+  try {
+    await gh('actions/workflows/backup.yml/dispatches', { method: 'POST', body: JSON.stringify({ ref: 'main', inputs: { company: S.dc.id, full: full ? 'true' : 'false' } }) });
+    toast('النسخة بدأت — هتخلص خلال دقيقة أو اتنين، ودوس "تحديث"');
+    setTimeout(() => { if (S.dTab === 'backups') A.tenantTab('backups'); }, 6000);
+  } catch (e) { toast(e.message); }
+};
+function flatRow(x) {
+  const o = {};
+  for (const k in x) {
+    const v = x[k];
+    if (['photo', 'photos', 'receipt', 'payPhoto', 'sigEng', 'sigClient', 'logo', 'image', 'img', '_u'].includes(k)) continue;
+    if (v == null) o[k] = '';
+    else if (typeof v === 'object') o[k] = v.__ts ? new Date(v.__ts).toISOString() : JSON.stringify(v).slice(0, 3000);
+    else o[k] = typeof v === 'string' && v.startsWith('data:') ? '[صورة]' : v;
+  }
+  return o;
+}
+A.bkDown = async (date, kind, btn) => {
+  const t = btn.textContent; busy(btn, true, '...');
+  try {
+    const d = await bkLoadDay(S.dc.id, date);
+    const name = `${S.dc.name || S.dc.id}-backup-${date}`;
+    if (kind === 'json') saveBlob(new Blob([JSON.stringify({ company: S.dc.name, date, ...d })], { type: 'application/json' }), name + '.json');
+    else {
+      const X = await loadXLSX(); const wb = X.utils.book_new(); wb.Workbook = { Views: [{ RTL: true }] };
+      const used = new Set();
+      Object.entries(d.cols).forEach(([c, m]) => {
+        const rows = Object.entries(m).filter(([id]) => c !== 'secrets').map(([id, x]) => flatRow({ id, ...x }));
+        if (!rows.length) return;
+        let nm = pmCol(c).slice(0, 28).replace(/[\\/?*[\]:]/g, ' '); while (used.has(nm)) nm += ' '; used.add(nm);
+        const ws = X.utils.json_to_sheet(rows); X.utils.book_append_sheet(wb, ws, nm);
+      });
+      X.writeFile(wb, name + '.xlsx');
+    }
+  } catch (e) { console.error(e); toast(e.message); }
+  busy(btn, false, t);
+};
+const RESTORE_SKIP = ['secrets', 'audit'];
+A.bkRestoreModal = date => {
+  openModal(`<h3 style="color:var(--red)">استرجاع نسخة ${esc(date)}</h3>
+  <p>بيانات <b>${esc(S.dc.name)}</b> هترجع زي ما كانت يوم <b>${esc(date)}</b>. أي حاجة اتعملت بعد اليوم ده هتتشال.</p>
+  <ul class="meta" style="display:block;padding-inline-start:18px;line-height:1.9">
+    <li>قبل الاسترجاع هينزل عندك ملف بالوضع الحالي (احتفظ بيه).</li>
+    <li>سجل التعديلات وكلمات السر مش بيتغيروا، واليوزرات الجديدة مش بتتمسح.</li>
+    <li>الأفضل توقف السيستم للتحديث الأول علشان محدش يكون شغال.</li>
+  </ul>
+  <form onsubmit="A.bkRestore(event,'${date}')" class="fcol">
+    <label class="f">اكتب كلمة <b>استرجع</b> للتأكيد<input name="ok" autocomplete="off"></label>
+    <div id="rsProg" class="meta"></div>
+    ${formActs('استرجع')}
+  </form>`);
+};
+A.bkRestore = async (e, date) => {
+  e.preventDefault();
+  const f = e.target; if (f.ok.value.trim() !== 'استرجع') { toast('اكتب كلمة استرجع'); return; }
+  const btn = f.querySelector('[type=submit]'); busy(btn, true, 'جاري...');
+  const prog = t => { const p = document.getElementById('rsProg'); if (p) p.textContent = t; };
+  const c = S.dc;
+  try {
+    prog('بيحمّل النسخة من GitHub…');
+    const bk = await bkLoadDay(c.id, date);
+    const r = await remoteConn(c);
+    prog('بياخد نسخة من الوضع الحالي…');
+    const cols = [...new Set([...Object.keys(bk.cols), ...BK_ALL_COLS])].filter(x => !RESTORE_SKIP.includes(x));
+    const cur = {}, curMeta = {};
+    for (const col of cols) {
+      try { const s = await getDocs(collection(r.db, col)); cur[col] = {}; s.docs.forEach(d => { cur[col][d.id] = encTs(d.data()); }); }
+      catch (err) { cur[col] = null; }
+    }
+    for (const m of ['settings', 'nav', 'gs', 'counter']) { try { const s = await getDoc(doc(r.db, 'meta', m)); if (s.exists()) curMeta[m] = encTs(s.data()); } catch (err) {} }
+    saveBlob(new Blob([JSON.stringify({ company: c.name, date: 'قبل-الاسترجاع-' + todayStr(), cols: cur, meta: curMeta })], { type: 'application/json' }), `${c.name || c.id}-before-restore-${todayStr()}.json`);
+    prog('بيرجّع البيانات…');
+    const ops = [];
+    for (const col of cols) {
+      if (cur[col] === null) continue;
+      const want = bk.cols[col] || {}, have = cur[col] || {};
+      const strip = o => { const { _u, ...rest } = o || {}; return JSON.stringify(rest); };
+      for (const [id, x] of Object.entries(want)) if (!have[id] || strip(have[id]) !== strip(x)) ops.push(['set', col, id, { ...decTs(x), _u: serverTimestamp() }]);
+      if (col !== 'users') for (const id of Object.keys(have)) if (!want[id]) ops.push(['del', col, id]);
+    }
+    for (const m of ['nav', 'gs', 'counter']) if (bk.meta[m]) ops.push(['set', 'meta', m, decTs(bk.meta[m])]);
+    const st = { ...(bk.meta.settings || curMeta.settings || {}) };
+    st.dsEpoch = Math.max(Number(curMeta.settings?.dsEpoch || 0), Number(st.dsEpoch || 0)) + 1;
+    if (curMeta.settings?.announcements) st.announcements = curMeta.settings.announcements;
+    ops.push(['set', 'meta', 'settings', decTs(st)]);
+    let done = 0;
+    for (let i = 0; i < ops.length; i += 400) {
+      const b = writeBatch(r.db);
+      ops.slice(i, i + 400).forEach(([k, col, id, x]) => { const ref = doc(r.db, col, id); if (k === 'set') b.set(ref, x); else b.delete(ref); });
+      await b.commit(); done = Math.min(ops.length, i + 400); prog(`بيرجّع البيانات… ${done} من ${ops.length}`);
+    }
+    A.closeModal();
+    toast(`اترجعت نسخة ${date} ✓ (${ops.length} تغيير) — كل الأجهزة هتحمّل البيانات من جديد لوحدها`);
+  } catch (err) {
+    console.error(err); busy(btn, false, 'استرجع'); prog('');
+    toast('الاسترجاع وقف: ' + (err.message || err.code));
+  }
+};
+const BK_ALL_COLS = ['days', 'users', 'clients', 'parts', 'units', 'returns', 'reports', 'contractReqs', 'contracts', 'payments', 'partReturns', 'requests', 'suppliers', 'purchases', 'supplierPayments', 'sales', 'rentals', 'stockcounts', 'freon', 'stockDevices', 'partSales', 'offers', 'meetings', 'catalog', 'orders', 'notifs', 'ratings', 'punches', 'tests', 'testKeys', 'testAnswers', 'empFiles', 'empDocs', 'attendance', 'salaries', 'payroll', 'payslips', 'bonuses', 'evals', 'penalties', 'inspections', 'weekrep', 'verify', 'archive', 'notes', 'handovers', 'policies', 'comps', 'treasury', 'capsnaps', 'frret', 'vouchers', 'custody', 'hr'];
+
+/* ----- تاب سجل التعديلات ----- */
+async function loadAudit(more) {
+  S.dAudN = more ? (S.dAudN || 300) + 300 : 300;
+  S.dAudF = more ? (S.dAudF || {}) : {};
+  S.dAudErr = '';
+  try {
+    const r = await remoteConn(S.dc);
+    const s = await getDocs(query(collection(r.db, 'audit'), orderBy('at', 'desc'), limit(S.dAudN)));
+    S.dAud = s.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) { console.error(e); S.dAud = []; S.dAudErr = e.message || e.code; }
+}
+function auditBody() {
+  if (S.dAudErr) return `<div class="notice warn">${esc(S.dAudErr)}</div>`;
+  const F = S.dAudF || {}, all = S.dAud || [];
+  const L = all.filter(e => (!F.u || e.uid === F.u) && (!F.c || e.col === F.c) && (!F.a || e.act === F.a) && (!F.d || (e.at || '').startsWith(F.d)));
+  const users = [...new Map(all.map(e => [e.uid, e.name])).entries()];
+  const sel = (k, opts, lbl) => `<label class="f" style="min-width:150px">${lbl}<select onchange="A.audF('${k}',this.value)"><option value="">الكل</option>${opts.map(([v, l]) => `<option value="${esc(v)}" ${F[k] === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>`;
+  const cell = ch => (ch || []).slice(0, 4).map(x => `<div><span class="meta" style="display:inline">${esc(x.k)}:</span> <s style="color:var(--red)">${esc(x.from || '—')}</s> ← <b style="color:var(--ok)">${esc(x.to || '—')}</b></div>`).join('') + ((ch || []).length > 4 ? `<div class="meta">+ ${ch.length - 4} كمان</div>` : '');
+  return `
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+    ${sel('u', users.map(([id, n]) => [id, n || id]), 'المستخدم')}
+    ${sel('c', Object.entries(AUD_LBL), 'النوع')}
+    ${sel('a', Object.entries(AUD_ACTS).map(([k, v]) => [k, v[0]]), 'الحركة')}
+    <label class="f">اليوم<input type="date" value="${esc(F.d || '')}" onchange="A.audF('d',this.value)"></label>
+    <span class="meta" style="margin-inline-start:auto">${L.length.toLocaleString('ar-EG')} حركة ${all.length >= (S.dAudN || 300) ? `(آخر ${all.length.toLocaleString('ar-EG')})` : ''}</span>
+  </div>
+  ${L.length ? `<div class="card tbl-wrap" style="padding:0"><table>
+    <thead><tr><th>الوقت</th><th>المستخدم</th><th>الحركة</th><th>النوع</th><th>البيان</th><th>اللي اتغير</th></tr></thead>
+    <tbody>${L.map(e => { const a = AUD_ACTS[e.act] || [e.act, 'mute']; return `<tr>
+      <td class="meta" style="display:table-cell;white-space:nowrap">${esc(new Date(e.at).toLocaleString('ar-EG', { day: 'numeric', month: 'numeric', hour: 'numeric', minute: '2-digit' }))}</td>
+      <td><b>${esc(e.name || '')}</b></td><td><span class="chip ${a[1]}">${a[0]}</span></td><td>${esc(AUD_LBL[e.col] || e.col)}</td>
+      <td>${esc(e.label || '')}</td><td style="font-size:13px">${e.act === 'delete' ? `<span class="meta" style="display:inline">${esc((e.snap || '').slice(0, 160))}</span>` : cell(e.changes)}</td></tr>`; }).join('')}</tbody></table></div>`
+    : '<div class="card empty">مفيش حركات.</div>'}
+  ${all.length >= (S.dAudN || 300) ? '<button class="btn ghost sm" style="align-self:flex-start" onclick="A.audMore()">حمّل أقدم</button>' : ''}
+  <p class="meta">كل إضافة أو تعديل أو حذف على الفواتير والتحصيلات والعهد والمرتبات والخزينة والتقارير بيتسجل لوحده. الصفحة دي عندك إنت بس.</p>`;
+}
+A.audF = (k, v) => { S.dAudF = { ...(S.dAudF || {}), [k]: v }; renderTenant(); };
+A.audMore = async () => { await loadAudit(true); renderTenant(); };
+
+/* ----- تاب الأرشيف ----- */
+function archiveBody() {
+  const c = S.dc, A2 = S.dArc;
+  const types = ['reports', 'partSales', 'contracts', 'payments', 'requests', 'hr', 'vouchers', 'inspections', 'punches'];
+  return `
+  <div class="grid2">
+    <div class="card" style="display:flex;flex-direction:column;gap:12px">
+      <h3>أرشفة البيانات القديمة + بداية جديدة</h3>
+      <p class="meta">دول بيحتاجوا يحسبوا الفلوس والضمانات والعقود السارية، فبيشتغلوا من جوه سيستم الشركة. الزرار ده بيفتح صفحة مخفية محدش في الشركة يقدر يوصلها غير حساب المطوّر.</p>
+      <ol class="meta" style="display:block;padding-inline-start:18px;line-height:1.9;margin:0">
+        <li>اتأكد إنك داخل على سيستم الشركة بحساب المطوّر (admin).</li>
+        <li>دوس الزرار، هتفتح صفحة الأرشيف ومسح العمليات على طول.</li>
+      </ol>
+      ${c.url ? `<a class="btn sm" style="align-self:flex-start;text-decoration:none;display:inline-flex;align-items:center" target="_blank" rel="noopener" href="${esc(c.url.replace(/#.*$/, '') + '#dev-archive')}">افتح صفحة الأرشيف</a>` : '<div class="notice warn">ضيف رابط سيستم الشركة من "تعديل البيانات والباكدج".</div>'}
+    </div>
+    <div class="card" style="display:flex;flex-direction:column;gap:12px">
+      <h3>اللي في الأرشيف</h3>
+      <div style="display:flex;gap:8px;align-items:flex-end">
+        <label class="f">النوع<select id="arcT">${types.map(k => `<option value="${k}" ${A2?.col === k ? 'selected' : ''}>${esc(pmCol(k))}</option>`).join('')}</select></label>
+        <button class="btn ghost sm" onclick="A.arcLoad(this)">اعرض</button>
+      </div>
+      ${A2 ? (A2.err ? `<div class="notice warn">${esc(A2.err)}</div>` : A2.list.length ? `<div class="meta">${A2.list.length.toLocaleString('ar-EG')} سجل${A2.list.length >= 500 ? ' (أول 500)' : ''}</div>
+        <div style="max-height:420px;overflow:auto">${A2.list.map(x => `<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px"><span style="flex:1">${esc(x.date || '')} — ${esc(x.label)}</span><span class="meta">${esc(x.who || '')}</span></div>`).join('')}</div>` : '<div class="empty">الأرشيف فاضي للنوع ده</div>') : ''}
+    </div>
+  </div>`;
+}
+A.arcLoad = async btn => {
+  const col = document.getElementById('arcT').value; busy(btn, true, '...');
+  try {
+    const r = await remoteConn(S.dc);
+    const s = await getDocs(query(collection(r.db, 'archive'), where('col', '==', col), limit(500)));
+    const list = s.docs.map(d => { const a = d.data(); let x = {}; try { x = JSON.parse(a.data); } catch (e) {} return { date: x.date || x.from || (x.createdAt || '').slice(0, 10) || a.date || '', label: [x.no ? '#' + String(x.no).padStart(4, '0') : '', x.clientName || x.buyer || x.name || x.description || x.reason || ''].filter(Boolean).join(' — '), who: x.engineer || x.byName || '' }; })
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    S.dArc = { col, list };
+  } catch (e) { console.error(e); S.dArc = { col, list: [], err: e.message || e.code }; }
+  renderTenant();
+};
+
+/* ----- تاب الإعلانات ----- */
+const ANN_KIND = { beta: 'نسخة تجريبية', update: 'تحديث جديد', info: 'إعلان', warn: 'تنبيه' };
+const ANN_TO = { all: 'الكل', staff: 'الموظفين بس', clinics: 'العيادات بس' };
+const ANN_PRE = { beta: 'دي نسخة تجريبية من السيستم — لو لاقيت أي مشكلة بلّغ الإدارة.', update: 'فيه تحديث جديد في السيستم — اقفل الأبلكيشن أو الصفحة وافتحها تاني علشان تشتغل على آخر نسخة.' };
+async function loadAnn() {
+  S.dAnnErr = '';
+  try { const r = await remoteConn(S.dc); const s = await getDoc(doc(r.db, 'meta', 'settings')); S.dAnn = (s.exists() && s.data().announcements) || []; }
+  catch (e) { console.error(e); S.dAnn = []; S.dAnnErr = e.message || e.code; }
+}
+function annBody() {
+  if (S.dAnnErr) return `<div class="notice warn">${esc(S.dAnnErr)}</div>`;
+  const L = S.dAnn || [];
+  return `<div class="head"><p class="meta" style="flex:1">الإعلان بيظهر في الصفحة الرئيسية عند يوزرات الشركة، وتقدر تظهره أو تخفيه وقت ما تحب.</p><button class="btn gold sm" onclick="A.annModal()">+ إعلان</button></div>
+  ${L.length ? `<div class="card" style="padding:0">${L.map((a, i) => `<div style="display:flex;gap:12px;align-items:center;padding:14px 20px;${i ? 'border-top:1px solid var(--line)' : ''};flex-wrap:wrap">
+    <div style="flex:1;min-width:220px"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b>${esc(a.title || ANN_KIND[a.kind] || 'إعلان')}</b><span class="chip mute">${esc(ANN_TO[a.target] || 'الكل')}</span>${a.until ? `<span class="meta">لحد ${esc(a.until)}</span>` : ''}</div><div class="meta" style="white-space:pre-wrap">${esc((a.text || '').slice(0, 200))}</div></div>
+    ${a.on ? '<span class="chip ok">ظاهر</span>' : '<span class="chip mute">مخفي</span>'}
+    <button class="btn ghost sm" onclick="A.annTog('${esc(a.id)}')">${a.on ? 'إخفاء' : 'إظهار'}</button>
+    <button class="btn ghost sm" onclick="A.annModal('${esc(a.id)}')">تعديل</button>
+    <button class="btn ghost sm" style="color:var(--red)" onclick="A.annDel('${esc(a.id)}')">مسح</button></div>`).join('')}</div>`
+    : '<div class="card empty">مفيش إعلانات.</div>'}`;
+}
+A.annModal = id => {
+  const a = id ? (S.dAnn || []).find(x => x.id === id) : { kind: 'update', target: 'all', title: '', text: ANN_PRE.update, on: true, until: '' };
+  openModal(`<h3>${id ? 'تعديل إعلان' : 'إعلان جديد'}</h3>
+  <form onsubmit="A.annSave(event,'${esc(id || '')}')" class="fcol">
+    <div class="grid2">
+      <label class="f">النوع<select name="kind" onchange="if(!this.form.text.value.trim()||Object.values(ANN_PRE_G).includes(this.form.text.value.trim()))this.form.text.value=ANN_PRE_G[this.value]||''">${Object.entries(ANN_KIND).map(([k, l]) => `<option value="${k}" ${a.kind === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+      <label class="f">يظهر لـ<select name="target">${Object.entries(ANN_TO).map(([k, l]) => `<option value="${k}" ${a.target === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+    </div>
+    <label class="f">العنوان (اختياري)<input name="title" value="${esc(a.title || '')}" placeholder="لو فاضي هيتكتب نوع الإعلان"></label>
+    <label class="f">الرسالة<textarea name="text" rows="4">${esc(a.text || '')}</textarea></label>
+    <div class="grid2">
+      <label class="f">يختفي لوحده بعد يوم (اختياري)<input type="date" name="until" value="${esc(a.until || '')}"></label>
+      <label class="chk" style="align-self:end"><input type="checkbox" name="on" ${a.on ? 'checked' : ''}> يظهر دلوقتي</label>
+    </div>
+    ${id ? '' : `<label class="chk"><input type="checkbox" name="all"> ابعته لكل شركات الصيانة مرة واحدة</label>`}
+    ${formActs()}
+  </form>`);
+};
+window.ANN_PRE_G = ANN_PRE;
+async function annWrite(t, fn) {
+  const r = await remoteConn(t);
+  const ref = doc(r.db, 'meta', 'settings');
+  const s = await getDoc(ref);
+  const L = fn([...((s.exists() && s.data().announcements) || [])]);
+  if (s.exists()) await updateDoc(ref, { announcements: L }); else await setDoc(ref, { announcements: L }, { merge: true });
+  return L;
+}
+A.annSave = async (e, id) => {
+  e.preventDefault();
+  const f = e.target; busy(f.querySelector('[type=submit]'), true, 'جاري الحفظ...');
+  const d = { kind: f.kind.value, target: f.target.value, title: f.title.value.trim(), text: f.text.value.trim(), until: f.until.value, on: f.on.checked };
+  if (!d.text && !d.title) { busy(f.querySelector('[type=submit]'), false, 'حفظ'); toast('اكتب الرسالة'); return; }
+  const nid = 'a' + Date.now().toString(36);
+  const upd = L => { if (id) return L.map(x => x.id === id ? { ...x, ...d } : x); return [{ id: nid, ...d, createdAt: new Date().toISOString() }, ...L]; };
+  try {
+    if (!id && f.all?.checked) {
+      const ts = (await loadAllTenants()).filter(t => t.product === 'maint' && t.fb?.apiKey);
+      let bad = 0;
+      for (const t of ts) { try { await annWrite(t, upd); } catch (err) { console.error(err); bad++; } }
+      toast(bad ? `اتبعت، بس ${bad} شركة مقدرتش أوصلها` : `اتبعت لـ ${ts.length} شركة ✓`);
+    } else { await annWrite(S.dc, upd); toast('اتحفظ ✓'); }
+    A.closeModal(); A.tenantTab('ann');
+  } catch (err) { console.error(err); busy(f.querySelector('[type=submit]'), false, 'حفظ'); toast(err.message || err.code); }
+};
+A.annTog = async id => { try { await annWrite(S.dc, L => L.map(x => x.id === id ? { ...x, on: !x.on } : x)); } catch (e) { toast(e.message); } A.tenantTab('ann'); };
+A.annDel = async id => { if (!confirm('تمسح الإعلان ده؟')) return; try { await annWrite(S.dc, L => L.filter(x => x.id !== id)); } catch (e) { toast(e.message); } A.tenantTab('ann'); };
+
+const TAB_LOAD = { backups: loadBackups, audit: () => loadAudit(false), ann: loadAnn };
 
 /* ----- الهيكل ----- */
 function devShell(view, content) {
@@ -912,15 +1325,23 @@ A.openTenant = async (pk, id, tab = 'sub') => {
   devShell('tenant', LOADING);
   try {
     await loadTenant(pk, id);
-    S.dTab = tab;
-    renderTenant();
+    S.dArc = null; S.dBk = null; S.dAud = null; S.dAnn = null;
+    await A.tenantTab(tab);
   } catch (e) {
     console.error(e);
     devShell('tenant', `<div class="notice warn">مقدرتش أفتح البيانات (${esc(e.code || e.message)})</div>`);
   }
 };
 A.openClinic = (id, tab) => A.openTenant('clinic', id, tab);
-A.tenantTab = t => { S.dTab = t; renderTenant(); };
+A.tenantTab = async t => {
+  S.dTab = t;
+  const ld = S.dp?.remote && typeof TAB_LOAD !== 'undefined' && TAB_LOAD[t];
+  if (!ld) { renderTenant(); return; }
+  S.dTabBusy = true; renderTenant();
+  try { await ld(); } catch (e) { console.error(e); }
+  S.dTabBusy = false;
+  if (S.dTab === t) renderTenant();
+};
 
 function usageOf(l) {
   if (l.count === 'branches') return S.dBranches.length;
@@ -934,7 +1355,12 @@ function renderTenant() {
   const maxUsers = c.plan?.maxUsers ?? 0, maxBr = c.plan?.maxBranches ?? 0;
   const staff = S.dUsers.filter(u => !isLinked(P, u)).length;
   let body = '';
-  if (P.remote && tab === 'users') body = remoteUsersBody(P);
+  if (P.remote && S.dTabBusy) body = LOADING;
+  else if (P.remote && tab === 'users') body = remoteUsersBody(P);
+  else if (P.remote && tab === 'backups') body = backupsBody();
+  else if (P.remote && tab === 'audit') body = auditBody();
+  else if (P.remote && tab === 'archive') body = archiveBody();
+  else if (P.remote && tab === 'ann') body = annBody();
   else if (tab === 'sub') {
     const link = P.remote ? (c.url || '') : `${location.origin}${location.pathname}?c=${c.id}`;
     const usage = (n, max) => `<div class="bar"><i class="${n >= max ? 'full' : ''}" style="width:${Math.min(100, max ? n / max * 100 : 0)}%"></i></div>`;
@@ -1004,7 +1430,7 @@ function renderTenant() {
         </div></td></tr>`).join('')}</tbody></table></div>`
       : `<div class="card empty">مفيش يوزرات لسه. ابدأ بصاحب ${esc(P.one)}.</div>`}`;
   }
-  const tabs = P.remote ? [['sub', 'الاشتراك'], ['users', 'اليوزرات وكلمات السر']] : [['sub', 'الاشتراك'], ['branches', 'الفروع'], ['users', 'اليوزرات وكلمات السر']];
+  const tabs = P.remote ? [['sub', 'الاشتراك'], ['users', 'اليوزرات وكلمات السر'], ['backups', 'النسخ الاحتياطية'], ['audit', 'سجل التعديلات'], ['archive', 'الأرشيف'], ['ann', 'الإعلانات']] : [['sub', 'الاشتراك'], ['branches', 'الفروع'], ['users', 'اليوزرات وكلمات السر']];
   if (P.importer) tabs.push(['import', 'استيراد من إكسل']);
   devShell('tenant', `
     <div><button class="btn ghost sm" onclick="A.dev('t:${P.key}')">→ كل ${esc(P.short)}</button></div>
