@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Beam Care Clinic</title>
 <meta name="theme-color" content="#2F6F68">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 220'%3E%3Crect width='220' height='220' rx='52' fill='%232F6F68'/%3E%3Cpath d='M110 40 L122 98 L180 110 L122 122 L110 180 L98 122 L40 110 L98 98 Z' fill='%23DDA86E'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -106,12 +109,14 @@ th{color:var(--muted);font-size:13px;font-weight:700;background:#FAFCFB}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 20px;border-radius:12px;font-weight:600;z-index:30}
 .loading{display:flex;align-items:center;justify-content:center;min-height:60vh;color:var(--muted)}
 .locked{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;text-align:center}
+@media print{.top,.side,.btn,#installBtn,.tabs{display:none!important}.main{padding:0}}
 .locked .card{max-width:440px;display:flex;flex-direction:column;gap:14px;align-items:center}
 </style>
 </head>
 <body>
 <div id="app"><div class="loading">جاري التحميل...</div></div>
 <div id="modal"></div>
+<button id="installBtn" class="btn gold sm" style="display:none;position:fixed;bottom:16px;left:16px;z-index:15;box-shadow:0 6px 20px rgba(0,0,0,.2)" onclick="A.install()">ثبّت الأبليكيشن على جهازك</button>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -420,6 +425,7 @@ A.openClinic = async (id, tab = 'sub') => {
   S.dBranches = bs.docs.map(d => ({ id: d.id, ...d.data() }));
   S.dUsers = us.docs.map(d => ({ id: d.id, ...d.data() }));
   S.dTab = tab;
+  try { S.dClientList = (await getDocs(collection(db, 'clinics', id, 'clients'))).docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ar')); } catch { S.dClientList = []; }
   try {
     const ctr = await getDoc(doc(db, 'clinics', id, 'meta', 'counters'));
     S.dClients = ctr.exists() ? (ctr.data().clients || 0) : 0;
@@ -581,6 +587,10 @@ A.userModal = id => {
       ${S.dBranches.length ? `<div style="display:flex;gap:16px;flex-wrap:wrap">${S.dBranches.map(b => `<label class="chk"><input type="checkbox" name="br" value="${b.id}" ${(u?.branchIds || []).includes(b.id) ? 'checked' : ''}> ${esc(b.name)}</label>`).join('')}</div>`
         : `<div class="notice info">مفيش فروع لسه.</div>`}
     </div>
+    <div id="clWrap" style="display:${role === 'client' ? 'flex' : 'none'};flex-direction:column;gap:8px">
+      <label class="f">ملف العميل المربوط بالحساب<select name="clientId"><option value="">اختار العميل</option>${(S.dClientList || []).map(x => `<option value="${x.id}" ${u?.clientId === x.id ? 'selected' : ''}>${esc(x.name)} - ${esc(x.phone)}</option>`).join('')}</select></label>
+      ${(S.dClientList || []).length ? '' : '<div class="notice info">العيادة لازم تسجّل العميل الأول من قسم العملاء.</div>'}
+    </div>
     <div id="permWrap" style="display:${role === 'client' ? 'none' : 'flex'};flex-direction:column;gap:8px">
       <div class="head"><div class="section-t" style="flex:1">الصلاحيات</div><button type="button" class="btn ghost sm" onclick="A.resetPerms(this.form)">رجّع صلاحيات الدور الافتراضية</button></div>
       ${permsGrid(perms)}
@@ -593,6 +603,7 @@ A.roleChanged = sel => {
   const f = sel.form, r = sel.value;
   document.getElementById('brWrap').style.display = ROLES[r].scope === 'all' ? 'none' : 'flex';
   document.getElementById('permWrap').style.display = r === 'client' ? 'none' : 'flex';
+  document.getElementById('clWrap').style.display = r === 'client' ? 'flex' : 'none';
   setPerms(f, ROLE_PERMS[r]);
 };
 A.resetPerms = f => setPerms(f, ROLE_PERMS[f.role.value]);
@@ -603,10 +614,12 @@ A.saveUser = async (e, id) => {
   const role = f.role.value;
   const branchIds = ROLES[role].scope === 'all' ? [] : [...f.querySelectorAll('[name=br]:checked')].map(x => x.value);
   if (ROLES[role].scope !== 'all' && !branchIds.length) return toast('اختار فرع واحد على الأقل');
+  const clientId = role === 'client' ? f.clientId.value : '';
+  if (role === 'client' && !clientId) return toast('اختار ملف العميل المربوط بالحساب');
   const wasStaff = id ? S.dUsers.find(x => x.id === id).role !== 'client' : false;
   const staffCount = S.dUsers.filter(u => u.role !== 'client').length;
   if (role !== 'client' && !wasStaff && staffCount >= (c.plan?.maxUsers ?? 0)) return toast('وصلت لحد اليوزرات في الباكدج');
-  const data = { name: f.name.value.trim(), role, branchIds, perms: role === 'client' ? ROLE_PERMS.client : readPerms(f), active: f.act.checked, clinicId: c.id };
+  const data = { name: f.name.value.trim(), role, branchIds, perms: role === 'client' ? ROLE_PERMS.client : readPerms(f), active: f.act.checked, clinicId: c.id, clientId };
   busy(btn, true, 'جاري الحفظ...');
   try {
     if (id) {
@@ -739,7 +752,7 @@ A.go = async view => {
     if (view === 'team') return await renderTeam();
     const m = MODULES.find(x => x.key === view);
     if (!m || !can(m.key + '_view')) return await renderHome();
-    const R = { clients: renderClients, bookings: renderBookings, sessions: renderSessions, packages: renderPackages, payments: renderPayments }[view];
+    const R = { clients: renderClients, bookings: renderBookings, sessions: renderSessions, packages: renderPackages, payments: renderPayments, inventory: renderInventory, staff: renderStaff, devices: renderDevices, reports: renderReports }[view];
     if (R) {
       if (!S.branch && view !== 'clients') return clinicShell(view, `<div class="card empty">مفيش فرع متاح ليك. كلّم مدير العيادة.</div>`);
       return await R();
@@ -754,6 +767,7 @@ A.go = async view => {
 
 /* ----- الرئيسية ----- */
 async function renderHome() {
+  if (S.profile.role === 'client') return renderPortal();
   clinicShell('home', LOADING);
   const c = S.clinic, d = daysLeft(c), today = todayStr();
   const seesSub = ['owner', 'accounts'].includes(S.profile.role);
@@ -848,7 +862,7 @@ A.saveClient = async (e, id) => {
         const n = cs.exists() ? (cs.data().clients || 0) : 0;
         if (n >= max) throw Object.assign(new Error('limit'), { code: 'limit' });
         tx.set(ctr, { clients: n + 1 }, { merge: true });
-        tx.set(nref, { ...data, branchId: S.branch || '', createdAt: serverTimestamp(), createdBy: S.profile.id });
+        tx.set(nref, { ...data, branchId: S.branch || '', month: todayStr().slice(0, 7), createdAt: serverTimestamp(), createdBy: S.profile.id });
       });
       id = nref.id;
     }
@@ -965,7 +979,7 @@ A.saveBooking = async (e, id) => {
   const cl = findClient(f.client.value);
   if (!cl) return toast('اختار العميل من القايمة، أو سجّله الأول');
   const dr = (S.staff || []).find(x => x.id === f.doctor.value);
-  const data = { clientId: cl.id, clientName: cl.name, clientPhone: cl.phone || '', date: f.date.value, time: f.time.value, doctorId: dr?.id || '', doctorName: dr?.name || '', service: f.service.value.trim(), notes: f.notes.value.trim(), branchId: S.branch };
+  const data = { clientId: cl.id, clientName: cl.name, clientPhone: cl.phone || '', date: f.date.value, time: f.time.value, doctorId: dr?.id || '', doctorName: dr?.name || '', service: f.service.value.trim(), notes: f.notes.value.trim(), branchId: S.branch, month: f.date.value.slice(0, 7) };
   if (dr && data.date === (S.bDate || todayStr()) && (S.bookings || []).some(x => x.id !== id && x.doctorId === dr.id && x.time === data.time && !['cancelled', 'noshow'].includes(x.status))
     && !confirm(`${dr.name} عنده حجز تاني في نفس الساعة. تكمّل؟`)) return;
   busy(btn, true, 'جاري الحفظ...');
@@ -998,6 +1012,7 @@ async function renderSessions() {
 }
 A.sessionModal = async (o = {}) => {
   await ensureData();
+  await loadDevices();
   let bk = null;
   if (o.bookingId) {
     bk = (S.bookings || []).find(x => x.id === o.bookingId);
@@ -1021,7 +1036,8 @@ A.sessionModal = async (o = {}) => {
       <label class="f" id="priceWrap">سعر الجلسة<input name="price" type="number" min="0" step="any" value="0"></label>
     </div>
     ${servDatalist()}
-    <label class="f">الجهاز<input name="device" placeholder="مثلاً: Candela GentleLase Pro"></label>
+    ${(S.devices || []).length ? `<label class="f">الجهاز<select name="deviceId"><option value="">من غير تحديد</option>${S.devices.map((d, i) => `<option value="${d.id}" ${S.devices.length === 1 ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</select></label>`
+      : `<label class="f">الجهاز<input name="device" placeholder="مثلاً: Candela GentleLase Pro"></label>`}
     <div class="section-t">إعدادات الجهاز</div>
     <div class="grid3">
       <label class="f">Fluence (J/cm²)<input name="fluence" type="number" step="any" min="0" dir="ltr"></label>
@@ -1074,7 +1090,10 @@ A.saveSession = async (e, bookingId) => {
     doctorId: dr?.id || '', doctorName: dr?.name || '',
     packageId: pkg?.id || '', packageName: pkg?.name || '', sessionNo: pkg ? (pkg.usedSessions || 0) + 1 : null,
     price: pkg ? 0 : (Number(f.price.value) || 0),
-    area: f.area.value.trim(), device: f.device.value.trim(),
+    area: f.area.value.trim(),
+    deviceId: f.deviceId ? f.deviceId.value : '',
+    device: f.deviceId ? ((S.devices || []).find(d => d.id === f.deviceId.value)?.name || '') : f.device.value.trim(),
+    month: f.date.value.slice(0, 7),
     fluence: num(f.fluence.value), pulse: num(f.pulse.value), spot: num(f.spot.value), shots: num(f.shots.value),
     notes: f.notes.value.trim(), bookingId: bookingId || '',
     createdAt: serverTimestamp(), createdBy: S.profile.id, createdByName: S.profile.name,
@@ -1085,6 +1104,7 @@ A.saveSession = async (e, bookingId) => {
     const sref = doc(ccol('sessions'));
     batch.set(sref, data);
     if (pkg) batch.update(cdoc('cpackages', pkg.id), { usedSessions: increment(1) });
+    if (data.deviceId && data.shots > 0) batch.update(cdoc('devices', data.deviceId), { shots: increment(data.shots) });
     if (bookingId) batch.update(cdoc('bookings', bookingId), { status: 'done', sessionId: sref.id });
     await batch.commit();
     A.closeModal();
@@ -1193,7 +1213,7 @@ A.saveSell = async e => {
   try {
     const batch = writeBatch(db);
     const pref = doc(ccol('cpackages'));
-    batch.set(pref, { clientId: cl.id, clientName: cl.name, branchId: S.branch, name: f.name.value.trim(), totalSessions: Number(f.total.value) || 1, usedSessions: 0, price, date: today, notes: f.notes.value.trim(), createdAt: serverTimestamp(), createdBy: S.profile.id, createdByName: S.profile.name });
+    batch.set(pref, { clientId: cl.id, clientName: cl.name, branchId: S.branch, name: f.name.value.trim(), totalSessions: Number(f.total.value) || 1, usedSessions: 0, price, date: today, month: today.slice(0, 7), notes: f.notes.value.trim(), createdAt: serverTimestamp(), createdBy: S.profile.id, createdByName: S.profile.name });
     if (paid > 0) batch.set(doc(ccol('payments')), { clientId: cl.id, clientName: cl.name, branchId: S.branch, amount: paid, method: f.method.value, date: today, month: today.slice(0, 7), note: 'مقدم باكدج: ' + f.name.value.trim(), packageId: pref.id, createdAt: serverTimestamp(), createdBy: S.profile.id, createdByName: S.profile.name });
     await batch.commit();
     A.closeModal(); toast('اتباع الباكدج');
@@ -1202,33 +1222,7 @@ A.saveSell = async e => {
   } catch (err) { console.error(err); busy(btn, false, 'حفظ البيع'); toast('مقدرتش أحفظ: ' + err.code); }
 };
 
-/* ----- الحسابات والخزنة ----- */
-async function renderPayments() {
-  const d = S.payDate || todayStr(), month = d.slice(0, 7);
-  clinicShell('payments', LOADING);
-  await ensureData();
-  const [dayS, monS] = await Promise.all([
-    getDocs(query(ccol('payments'), where('branchId', '==', S.branch), where('date', '==', d))),
-    getDocs(query(ccol('payments'), where('branchId', '==', S.branch), where('month', '==', month))),
-  ]);
-  const day = dayS.docs.map(x => ({ id: x.id, ...x.data() })).sort((a, b) => (toDate(a.createdAt) || 0) - (toDate(b.createdAt) || 0));
-  const monTotal = monS.docs.reduce((a, x) => a + (x.data().amount || 0), 0);
-  const dayTotal = day.reduce((a, x) => a + (x.amount || 0), 0);
-  const byM = {};
-  day.forEach(p => { byM[p.method] = (byM[p.method] || 0) + (p.amount || 0); });
-  clinicShell('payments', `
-    <div class="head"><h2>الحسابات والخزنة</h2>${can('payments_edit') ? `<button class="btn gold" onclick="A.payModal()">+ تحصيل</button>` : ''}</div>
-    ${dateBar('payDate', d)}
-    <div class="cards">
-      <div class="card stat"><b>${money(dayTotal)}</b><span>تحصيل اليوم (${day.length} عملية)</span></div>
-      ${Object.entries(byM).map(([k, v]) => `<div class="card stat"><b>${money(v)}</b><span>${METHODS[k] || esc(k)}</span></div>`).join('')}
-      <div class="card stat"><b>${money(monTotal)}</b><span>إجمالي شهر ${month}</span></div>
-    </div>
-    ${day.length ? `<div class="card tbl-wrap" style="padding:0"><table><thead><tr><th>الوقت</th><th>العميل</th><th>المبلغ</th><th>الطريقة</th><th>ملاحظة</th><th>استلمه</th><th></th></tr></thead>
-      <tbody>${day.map(p => `<tr><td>${timeOf(p.createdAt)}</td><td><a href="#" onclick="event.preventDefault();A.openClient('${p.clientId}')">${esc(p.clientName)}</a></td><td><b>${money(p.amount)}</b></td><td>${METHODS[p.method] || esc(p.method)}</td><td>${esc(p.note)}</td><td>${esc(p.createdByName)}</td>
-        <td>${isOwner() ? `<button class="btn ghost sm" onclick="A.delPayment('${p.id}')">حذف</button>` : ''}</td></tr>`).join('')}</tbody></table></div>`
-      : `<div class="card empty">مفيش تحصيل في اليوم ده.</div>`}`);
-}
+/* ----- التحصيل ----- */
 A.payModal = async clientId => {
   await ensureData();
   openModal(`<h3>تحصيل</h3>
@@ -1320,6 +1314,475 @@ A.saveTeamPerms = async (e, id) => {
   try { await updateDoc(doc(db, 'users', id), { perms: readPerms(e.target) }); A.closeModal(); toast('اتحفظت الصلاحيات'); renderTeam(); }
   catch (err) { console.error(err); toast('مقدرتش أحفظ: ' + err.code); }
 };
+
+/* =========================================================
+   المرحلة التالتة
+   ========================================================= */
+const monthStr = () => todayStr().slice(0, 7);
+const sumAmt = l => l.reduce((a, x) => a + (Number(x.amount) || 0), 0);
+const qBranch = (col, f, v) => getDocs(query(ccol(col), where('branchId', '==', S.branch), where(f, '==', v))).then(s => s.docs.map(x => ({ id: x.id, ...x.data() })));
+const qAll = (col, f, v) => getDocs(query(ccol(col), where(f, '==', v))).then(s => s.docs.map(x => ({ id: x.id, ...x.data() })));
+const EXP_CATS = ['مرتبات', 'إيجار', 'كهرباء ومياه', 'مستهلكات وخامات', 'صيانة', 'تسويق وإعلانات', 'نثريات', 'أخرى'];
+function monthBar(key, m) {
+  return `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><label class="f" style="flex-direction:row;align-items:center;gap:8px">الشهر<input type="month" value="${m}" style="width:auto" onchange="A.setDate('${key}',this.value)"></label></div>`;
+}
+const barRow = (label, val, max, txt) => `<div style="display:flex;flex-direction:column;gap:4px"><div style="display:flex;justify-content:space-between;gap:8px;font-size:14px"><span>${esc(label)}</span><b>${txt}</b></div><div class="bar"><i style="width:${max ? Math.max(2, val / max * 100) : 0}%"></i></div></div>`;
+
+/* ----- الحسابات والخزنة (تحصيل + مصروفات) ----- */
+async function renderPayments() {
+  const tab = S.payTab || 'in';
+  const d = S.payDate || todayStr(), month = d.slice(0, 7);
+  clinicShell('payments', LOADING);
+  await ensureData();
+  const [pDay, pMon, eDay, eMon] = await Promise.all([
+    qBranch('payments', 'date', d), qBranch('payments', 'month', month),
+    qBranch('expenses', 'date', d).catch(() => []), qBranch('expenses', 'month', month).catch(() => []),
+  ]);
+  const byT = (a, b) => (toDate(a.createdAt) || 0) - (toDate(b.createdAt) || 0);
+  pDay.sort(byT); eDay.sort(byT);
+  const cashIn = sumAmt(pDay.filter(p => p.method === 'cash')), cashOut = sumAmt(eDay.filter(p => (p.method || 'cash') === 'cash'));
+  const byM = {};
+  pDay.forEach(p => { byM[p.method] = (byM[p.method] || 0) + (p.amount || 0); });
+  let body;
+  if (tab === 'in') {
+    body = pDay.length ? `<div class="card tbl-wrap" style="padding:0"><table><thead><tr><th>الوقت</th><th>العميل</th><th>المبلغ</th><th>الطريقة</th><th>ملاحظة</th><th>استلمه</th><th></th></tr></thead>
+      <tbody>${pDay.map(p => `<tr><td>${timeOf(p.createdAt)}</td><td><a href="#" onclick="event.preventDefault();A.openClient('${p.clientId}')">${esc(p.clientName)}</a></td><td><b>${money(p.amount)}</b></td><td>${METHODS[p.method] || esc(p.method)}</td><td>${esc(p.note)}</td><td>${esc(p.createdByName)}</td>
+        <td>${isOwner() ? `<button class="btn ghost sm" onclick="A.delPayment('${p.id}')">حذف</button>` : ''}</td></tr>`).join('')}</tbody></table></div>`
+      : `<div class="card empty">مفيش تحصيل في اليوم ده.</div>`;
+  } else {
+    body = eDay.length ? `<div class="card tbl-wrap" style="padding:0"><table><thead><tr><th>الوقت</th><th>البند</th><th>المبلغ</th><th>الطريقة</th><th>ملاحظة</th><th>سجّله</th><th></th></tr></thead>
+      <tbody>${eDay.map(p => `<tr><td>${timeOf(p.createdAt)}</td><td><b>${esc(p.category)}</b></td><td><b>${money(p.amount)}</b></td><td>${METHODS[p.method] || 'كاش'}</td><td>${esc(p.note)}</td><td>${esc(p.createdByName)}</td>
+        <td>${isOwner() ? `<button class="btn ghost sm" onclick="A.delExpense('${p.id}')">حذف</button>` : ''}</td></tr>`).join('')}</tbody></table></div>`
+      : `<div class="card empty">مفيش مصروفات في اليوم ده.</div>`;
+  }
+  clinicShell('payments', `
+    <div class="head"><h2>الحسابات والخزنة</h2>
+      ${can('payments_edit') ? `<button class="btn gold" onclick="A.payModal()">+ تحصيل</button><button class="btn" onclick="A.expModal()">+ مصروف</button>` : ''}</div>
+    ${dateBar('payDate', d)}
+    <div class="cards">
+      <div class="card stat"><b>${money(sumAmt(pDay))}</b><span>تحصيل اليوم (${pDay.length})</span></div>
+      <div class="card stat"><b>${money(sumAmt(eDay))}</b><span>مصروفات اليوم (${eDay.length})</span></div>
+      <div class="card stat"><b style="color:var(--gold)">${money(cashIn - cashOut)}</b><span>صافي الكاش في الدرج</span></div>
+      ${Object.entries(byM).map(([k, v]) => `<div class="card stat"><b>${money(v)}</b><span>${METHODS[k] || esc(k)}</span></div>`).join('')}
+      <div class="card stat"><b>${money(sumAmt(pMon) - sumAmt(eMon))}</b><span>صافي شهر ${month}</span></div>
+    </div>
+    <div class="tabs">${[['in', 'التحصيل'], ['out', 'المصروفات']].map(([k, l]) => `<button class="${tab === k ? 'on' : ''}" onclick="A.payTabSet('${k}')">${l}</button>`).join('')}</div>
+    ${body}`);
+}
+A.payTabSet = k => { S.payTab = k; A.go('payments'); };
+A.expModal = () => openModal(`<h3>تسجيل مصروف</h3>
+  <form onsubmit="A.saveExp(event)" class="fcol">
+    <div class="grid2">
+      <label class="f">البند<select name="cat">${EXP_CATS.map(c => `<option>${c}</option>`).join('')}</select></label>
+      <label class="f">المبلغ<input name="amount" type="number" min="1" step="any" required></label>
+    </div>
+    <div class="grid2">
+      <label class="f">طريقة الدفع<select name="method">${methodOpts('cash')}</select></label>
+      <label class="f">التاريخ<input name="date" type="date" required value="${todayStr()}"></label>
+    </div>
+    <label class="f">ملاحظة<input name="note"></label>
+    ${formActs('تسجيل المصروف')}
+  </form>`);
+A.saveExp = async e => {
+  e.preventDefault();
+  const f = e.target, btn = f.querySelector('[type=submit]');
+  const amount = Number(f.amount.value) || 0;
+  if (amount <= 0) return toast('اكتب مبلغ صحيح');
+  busy(btn, true, 'جاري الحفظ...');
+  try {
+    await addDoc(ccol('expenses'), { branchId: S.branch, category: f.cat.value, amount, method: f.method.value, date: f.date.value, month: f.date.value.slice(0, 7), note: f.note.value.trim(), createdAt: serverTimestamp(), createdBy: S.profile.id, createdByName: S.profile.name });
+    A.closeModal(); toast('اتسجل المصروف'); S.payTab = 'out'; A.go('payments');
+  } catch (err) { console.error(err); busy(btn, false, 'تسجيل المصروف'); toast('مقدرتش أحفظ: ' + err.code); }
+};
+A.delExpense = async id => {
+  if (!confirm('متأكد إنك عايز تحذف المصروف ده؟')) return;
+  try { await deleteDoc(cdoc('expenses', id)); toast('اتحذف'); A.go('payments'); }
+  catch (err) { console.error(err); toast('مقدرتش أحذف: ' + err.code); }
+};
+
+/* ----- المخزن ----- */
+async function renderInventory() {
+  clinicShell('inventory', LOADING);
+  const items = (await qAll('items', 'branchId', S.branch)).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ar'));
+  S.items = items;
+  const low = items.filter(i => (i.qty || 0) <= (i.minQty || 0));
+  const value = items.reduce((a, i) => a + (i.qty || 0) * (i.cost || 0), 0);
+  const ed = can('inventory_edit');
+  clinicShell('inventory', `
+    <div class="head"><h2>المخزن</h2>${ed ? `<button class="btn gold" onclick="A.itemModal()">+ صنف جديد</button>` : ''}</div>
+    <div class="cards">
+      <div class="card stat"><b>${items.length}</b><span>صنف</span></div>
+      <div class="card stat"><b style="color:${low.length ? 'var(--red)' : 'var(--ok)'}">${low.length}</b><span>أصناف وصلت للحد الأدنى</span></div>
+      <div class="card stat"><b>${money(value)}</b><span>قيمة المخزون (بسعر التكلفة)</span></div>
+    </div>
+    ${low.length ? `<div class="notice warn">محتاج تطلب: ${low.map(i => esc(i.name)).join('، ')}</div>` : ''}
+    ${items.length ? `<div class="card tbl-wrap" style="padding:0"><table><thead><tr><th>الصنف</th><th>الرصيد</th><th>الحد الأدنى</th><th>التكلفة</th><th></th></tr></thead>
+      <tbody>${items.map(i => `<tr><td><b>${esc(i.name)}</b></td><td><b style="color:${(i.qty || 0) <= (i.minQty || 0) ? 'var(--red)' : 'inherit'}">${i.qty || 0}</b> ${esc(i.unit)}</td><td>${i.minQty || 0}</td><td>${money(i.cost)}</td>
+        <td><div style="display:flex;gap:6px">${ed ? `<button class="btn sm" onclick="A.moveModal('${i.id}','in')">وارد</button><button class="btn sm gold" onclick="A.moveModal('${i.id}','out')">منصرف</button><button class="btn ghost sm" onclick="A.itemModal('${i.id}')">تعديل</button>` : ''}
+        <button class="btn ghost sm" onclick="A.itemMoves('${i.id}')">الحركة</button></div></td></tr>`).join('')}</tbody></table></div>`
+      : `<div class="card empty">المخزن فاضي. ضيف الأصناف اللي العيادة بتستخدمها (جل، كريمات، شفرات، قفازات...).</div>`}`);
+}
+A.itemModal = id => {
+  const i = id ? S.items.find(x => x.id === id) : null;
+  openModal(`<h3>${i ? 'تعديل صنف' : 'صنف جديد'}</h3>
+  <form onsubmit="A.saveItem(event,'${id || ''}')" class="fcol">
+    <div class="grid2">
+      <label class="f">اسم الصنف<input name="name" required value="${esc(i?.name)}"></label>
+      <label class="f">الوحدة<input name="unit" placeholder="علبة، زجاجة، قطعة..." value="${esc(i?.unit)}"></label>
+    </div>
+    <div class="grid3">
+      ${i ? '' : `<label class="f">الرصيد الحالي<input name="qty" type="number" min="0" step="any" value="0"></label>`}
+      <label class="f">الحد الأدنى (للتنبيه)<input name="minQty" type="number" min="0" step="any" value="${i?.minQty ?? 0}"></label>
+      <label class="f">تكلفة الوحدة<input name="cost" type="number" min="0" step="any" value="${i?.cost ?? 0}"></label>
+    </div>
+    ${formActs()}
+  </form>`);
+};
+A.saveItem = async (e, id) => {
+  e.preventDefault();
+  const f = e.target;
+  const data = { name: f.name.value.trim(), unit: f.unit.value.trim(), minQty: Number(f.minQty.value) || 0, cost: Number(f.cost.value) || 0, branchId: S.branch };
+  try {
+    if (id) await updateDoc(cdoc('items', id), data);
+    else await addDoc(ccol('items'), { ...data, qty: Number(f.qty.value) || 0, createdAt: serverTimestamp() });
+    A.closeModal(); toast('اتحفظ'); A.go('inventory');
+  } catch (err) { console.error(err); toast('مقدرتش أحفظ: ' + err.code); }
+};
+A.moveModal = (id, type) => {
+  const i = S.items.find(x => x.id === id);
+  openModal(`<h3>${type === 'in' ? 'وارد' : 'منصرف'}: ${esc(i.name)}</h3>
+  <div class="meta"><span>الرصيد الحالي: ${i.qty || 0} ${esc(i.unit)}</span></div>
+  <form onsubmit="A.saveMove(event,'${id}','${type}')" class="fcol">
+    <div class="grid2">
+      <label class="f">الكمية<input name="qty" type="number" min="0.01" step="any" required></label>
+      <label class="f">التاريخ<input name="date" type="date" required value="${todayStr()}"></label>
+    </div>
+    <label class="f">${type === 'in' ? 'من (المورد)' : 'لـ (السبب / الجهاز / الغرفة)'}<input name="note"></label>
+    ${formActs()}
+  </form>`);
+};
+A.saveMove = async (e, id, type) => {
+  e.preventDefault();
+  const f = e.target, i = S.items.find(x => x.id === id);
+  const qty = Number(f.qty.value) || 0;
+  if (qty <= 0) return toast('اكتب كمية صحيحة');
+  if (type === 'out' && qty > (i.qty || 0)) return toast('الكمية أكبر من الرصيد');
+  try {
+    const batch = writeBatch(db);
+    batch.set(doc(ccol('stockMoves')), { itemId: id, itemName: i.name, branchId: S.branch, type, qty, note: f.note.value.trim(), date: f.date.value, month: f.date.value.slice(0, 7), createdAt: serverTimestamp(), createdBy: S.profile.id, createdByName: S.profile.name });
+    batch.update(cdoc('items', id), { qty: increment(type === 'in' ? qty : -qty) });
+    await batch.commit();
+    A.closeModal(); toast('اتسجلت الحركة'); A.go('inventory');
+  } catch (err) { console.error(err); toast('مقدرتش أحفظ: ' + err.code); }
+};
+A.itemMoves = async id => {
+  const i = S.items.find(x => x.id === id);
+  openModal(`<h3>حركة: ${esc(i.name)}</h3>${LOADING}`);
+  const l = (await qAll('stockMoves', 'itemId', id)).sort((a, b) => (toDate(b.createdAt) || 0) - (toDate(a.createdAt) || 0)).slice(0, 60);
+  openModal(`<h3>حركة: ${esc(i.name)}</h3>
+    ${l.length ? `<div class="tbl-wrap"><table><thead><tr><th>التاريخ</th><th>النوع</th><th>الكمية</th><th>ملاحظة</th><th>بواسطة</th></tr></thead><tbody>
+      ${l.map(m => `<tr><td>${esc(m.date)}</td><td>${m.type === 'in' ? '<span class="chip ok">وارد</span>' : '<span class="chip warn">منصرف</span>'}</td><td>${m.qty}</td><td>${esc(m.note)}</td><td>${esc(m.createdByName)}</td></tr>`).join('')}</tbody></table></div>` : `<p class="meta">مفيش حركة.</p>`}
+    <div class="acts"><button class="btn ghost" onclick="A.closeModal()">قفل</button></div>`);
+};
+
+/* ----- الأجهزة والشوتات ----- */
+async function loadDevices() {
+  try { S.devices = (await qAll('devices', 'branchId', S.branch)).filter(d => d.active !== false); }
+  catch { S.devices = []; }
+  return S.devices;
+}
+async function renderDevices() {
+  clinicShell('devices', LOADING);
+  const list = (await qAll('devices', 'branchId', S.branch)).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ar'));
+  S.devList = list;
+  const ed = can('devices_edit');
+  clinicShell('devices', `
+    <div class="head"><h2>الأجهزة والشوتات</h2>${ed ? `<button class="btn gold" onclick="A.deviceModal()">+ جهاز</button>` : ''}</div>
+    ${list.length ? `<div class="cards">${list.map(d => {
+      const since = (d.shots || 0) - (d.lastServiceShots || 0);
+      const due = d.serviceEvery && since >= d.serviceEvery;
+      return `<div class="card clinic-card">
+        <div class="row"><h3>${esc(d.name)}</h3>${d.active === false ? '<span class="chip mute">موقوف</span>' : due ? '<span class="chip bad">محتاج صيانة</span>' : '<span class="chip ok">شغال</span>'}</div>
+        <div class="meta"><span>${esc(d.model) || '—'}</span>${d.serial ? `<span dir="ltr">S/N ${esc(d.serial)}</span>` : ''}</div>
+        <div class="stat"><b>${(d.shots || 0).toLocaleString('ar-EG')}</b><span>إجمالي الشوتات</span></div>
+        <div class="meta"><span>من آخر صيانة: ${since.toLocaleString('ar-EG')} شوت</span>${d.serviceEvery ? `<span>الصيانة كل ${Number(d.serviceEvery).toLocaleString('ar-EG')}</span>` : ''}<span>آخر صيانة: ${esc(d.lastServiceDate) || '—'}</span></div>
+        ${d.serviceEvery ? `<div class="bar"><i class="${due ? 'full' : ''}" style="width:${Math.min(100, since / d.serviceEvery * 100)}%"></i></div>` : ''}
+        <div style="display:flex;gap:6px;flex-wrap:wrap">${ed ? `<button class="btn sm" onclick="A.logModal('${d.id}')">تسجيل صيانة</button><button class="btn ghost sm" onclick="A.deviceModal('${d.id}')">تعديل</button>` : ''}<button class="btn ghost sm" onclick="A.deviceLogs('${d.id}')">سجل الصيانة</button></div>
+      </div>`;
+    }).join('')}</div>` : `<div class="card empty">مفيش أجهزة مسجلة في الفرع ده. ضيف أجهزة الليزر علشان الشوتات تتحسب لوحدها مع كل جلسة.</div>`}`);
+}
+A.deviceModal = id => {
+  const d = id ? S.devList.find(x => x.id === id) : null;
+  openModal(`<h3>${d ? 'تعديل جهاز' : 'جهاز جديد'}</h3>
+  <form onsubmit="A.saveDevice(event,'${id || ''}')" class="fcol">
+    <div class="grid2">
+      <label class="f">اسم الجهاز (زي ما هيظهر في الجلسات)<input name="name" required value="${esc(d?.name)}"></label>
+      <label class="f">الموديل<input name="model" placeholder="Candela GentleLase Pro" value="${esc(d?.model)}"></label>
+    </div>
+    <div class="grid3">
+      <label class="f">الرقم التسلسلي<input name="serial" dir="ltr" value="${esc(d?.serial)}"></label>
+      <label class="f">عداد الشوتات الحالي<input name="shots" type="number" min="0" value="${d?.shots ?? 0}"></label>
+      <label class="f">الصيانة كل (شوت)<input name="every" type="number" min="0" placeholder="مثلاً 100000" value="${d?.serviceEvery || ''}"></label>
+    </div>
+    <label class="chk"><input type="checkbox" name="act" ${d?.active === false ? '' : 'checked'}> الجهاز شغال</label>
+    ${formActs()}
+  </form>`);
+};
+A.saveDevice = async (e, id) => {
+  e.preventDefault();
+  const f = e.target;
+  const data = { name: f.name.value.trim(), model: f.model.value.trim(), serial: f.serial.value.trim(), shots: Number(f.shots.value) || 0, serviceEvery: Number(f.every.value) || 0, active: f.act.checked, branchId: S.branch };
+  try {
+    if (id) await updateDoc(cdoc('devices', id), data);
+    else await addDoc(ccol('devices'), { ...data, lastServiceShots: data.shots, lastServiceDate: '', createdAt: serverTimestamp() });
+    A.closeModal(); toast('اتحفظ'); A.go('devices');
+  } catch (err) { console.error(err); toast('مقدرتش أحفظ: ' + err.code); }
+};
+A.logModal = id => {
+  const d = S.devList.find(x => x.id === id);
+  openModal(`<h3>تسجيل صيانة: ${esc(d.name)}</h3>
+  <form onsubmit="A.saveLog(event,'${id}')" class="fcol">
+    <div class="grid2">
+      <label class="f">النوع<select name="type"><option>صيانة دورية</option><option>عطل وإصلاح</option><option>تغيير قطعة</option><option>معايرة</option></select></label>
+      <label class="f">التاريخ<input name="date" type="date" required value="${todayStr()}"></label>
+    </div>
+    <div class="grid2">
+      <label class="f">التكلفة<input name="cost" type="number" min="0" step="any" value="0"></label>
+      <label class="f">القائم بالصيانة<input name="by" placeholder="مثلاً: Beam Care"></label>
+    </div>
+    <label class="f">التفاصيل<input name="note"></label>
+    <label class="chk"><input type="checkbox" name="reset" checked> صفّر عداد الصيانة (يبدأ يعد من دلوقتي)</label>
+    ${formActs()}
+  </form>`);
+};
+A.saveLog = async (e, id) => {
+  e.preventDefault();
+  const f = e.target, d = S.devList.find(x => x.id === id);
+  try {
+    const batch = writeBatch(db);
+    batch.set(doc(ccol('deviceLogs')), { deviceId: id, deviceName: d.name, branchId: S.branch, type: f.type.value, date: f.date.value, cost: Number(f.cost.value) || 0, by: f.by.value.trim(), note: f.note.value.trim(), shotsAt: d.shots || 0, createdAt: serverTimestamp(), createdByName: S.profile.name });
+    if (f.reset.checked) batch.update(cdoc('devices', id), { lastServiceShots: d.shots || 0, lastServiceDate: f.date.value });
+    await batch.commit();
+    A.closeModal(); toast('اتسجلت الصيانة'); A.go('devices');
+  } catch (err) { console.error(err); toast('مقدرتش أحفظ: ' + err.code); }
+};
+A.deviceLogs = async id => {
+  const d = S.devList.find(x => x.id === id);
+  openModal(`<h3>سجل صيانة: ${esc(d.name)}</h3>${LOADING}`);
+  const l = (await qAll('deviceLogs', 'deviceId', id)).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  openModal(`<h3>سجل صيانة: ${esc(d.name)}</h3>
+    ${l.length ? `<div class="tbl-wrap"><table><thead><tr><th>التاريخ</th><th>النوع</th><th>عند شوت</th><th>التكلفة</th><th>بواسطة</th><th>التفاصيل</th></tr></thead><tbody>
+      ${l.map(x => `<tr><td>${esc(x.date)}</td><td>${esc(x.type)}</td><td>${(x.shotsAt || 0).toLocaleString('ar-EG')}</td><td>${money(x.cost)}</td><td>${esc(x.by)}</td><td>${esc(x.note)}</td></tr>`).join('')}</tbody></table></div>` : `<p class="meta">مفيش صيانات مسجلة.</p>`}
+    <div class="acts"><button class="btn ghost" onclick="A.closeModal()">قفل</button></div>`);
+};
+
+/* ----- الموظفين والمرتبات ----- */
+async function renderStaff() {
+  const tab = S.stTab || 'list';
+  clinicShell('staff', LOADING);
+  await loadStaff();
+  const emps = (await qAll('employees', 'branchId', S.branch)).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ar'));
+  S.emps = emps;
+  const ed = can('staff_edit');
+  let body = '';
+  if (tab === 'list') {
+    body = emps.length ? `<div class="card tbl-wrap" style="padding:0"><table><thead><tr><th>الاسم</th><th>الوظيفة</th><th>الموبايل</th><th>المرتب</th><th>عمولة الجلسة</th><th>مربوط بيوزر</th><th>الحالة</th><th></th></tr></thead>
+      <tbody>${emps.map(x => `<tr><td><b>${esc(x.name)}</b></td><td>${esc(x.job)}</td><td dir="ltr" style="text-align:right">${esc(x.phone)}</td><td>${money(x.salary)}</td><td>${x.perSession ? money(x.perSession) : '—'}</td>
+        <td>${esc((S.staff || []).find(s => s.id === x.userId)?.name) || '—'}</td><td>${x.active === false ? '<span class="chip mute">مش شغال</span>' : '<span class="chip ok">شغال</span>'}</td>
+        <td>${ed ? `<button class="btn ghost sm" onclick="A.empModal('${x.id}')">تعديل</button>` : ''}</td></tr>`).join('')}</tbody></table></div>`
+      : `<div class="card empty">مفيش موظفين مسجلين في الفرع ده.</div>`;
+  } else {
+    const M = S.prMonth || monthStr();
+    const [sess, pr] = await Promise.all([qBranch('sessions', 'month', M).catch(() => []), qBranch('payroll', 'month', M)]);
+    const cnt = {};
+    sess.forEach(s => { if (s.doctorId) cnt[s.doctorId] = (cnt[s.doctorId] || 0) + 1; });
+    S.prCalc = {};
+    const rows = emps.filter(x => x.active !== false).map(x => {
+      const n = x.userId ? (cnt[x.userId] || 0) : 0;
+      const comm = n * (x.perSession || 0);
+      const paid = pr.find(p => p.employeeId === x.id);
+      S.prCalc[x.id] = { base: x.salary || 0, n, comm };
+      return `<tr><td><b>${esc(x.name)}</b></td><td>${money(x.salary)}</td><td>${x.userId ? n : '—'}</td><td>${comm ? money(comm) : '—'}</td>
+        <td>${paid ? `<b>${money(paid.net)}</b>` : money((x.salary || 0) + comm)}</td>
+        <td>${paid ? `<span class="chip ok">اتصرف ${esc(paid.paidDate)}</span>` : ed ? `<button class="btn gold sm" onclick="A.payrollModal('${x.id}')">صرف</button>` : '<span class="chip mute">لسه</span>'}</td></tr>`;
+    });
+    const totalPaid = pr.reduce((a, p) => a + (p.net || 0), 0);
+    body = `${monthBar('prMonth', M)}
+      <div class="meta"><span>اتصرف في الشهر ده: ${money(totalPaid)}</span><span>العمولة بتتحسب من الجلسات اللي الموظف سجّلها كدكتور</span></div>
+      ${rows.length ? `<div class="card tbl-wrap" style="padding:0"><table><thead><tr><th>الموظف</th><th>الأساسي</th><th>جلسات</th><th>العمولة</th><th>الصافي</th><th></th></tr></thead><tbody>${rows.join('')}</tbody></table></div>`
+        : `<div class="card empty">ضيف الموظفين الأول من تبويب "الموظفين".</div>`}`;
+  }
+  clinicShell('staff', `
+    <div class="head"><h2>الموظفين والمرتبات</h2>${ed && tab === 'list' ? `<button class="btn gold" onclick="A.empModal()">+ موظف</button>` : ''}</div>
+    <div class="tabs">${[['list', 'الموظفين'], ['payroll', 'المرتبات']].map(([k, l]) => `<button class="${tab === k ? 'on' : ''}" onclick="A.stTabSet('${k}')">${l}</button>`).join('')}</div>
+    ${body}`);
+}
+A.stTabSet = k => { S.stTab = k; A.go('staff'); };
+A.empModal = id => {
+  const x = id ? S.emps.find(e => e.id === id) : null;
+  const users = (S.staff || []).filter(s => s.role !== 'client' && (ROLES[s.role]?.scope === 'all' || (s.branchIds || []).includes(S.branch)));
+  openModal(`<h3>${x ? 'تعديل موظف' : 'موظف جديد'}</h3>
+  <form onsubmit="A.saveEmp(event,'${id || ''}')" class="fcol">
+    <div class="grid2">
+      <label class="f">الاسم<input name="name" required value="${esc(x?.name)}"></label>
+      <label class="f">الوظيفة<input name="job" list="jobsList" value="${esc(x?.job)}"></label>
+    </div>
+    <datalist id="jobsList"><option value="دكتور"></option><option value="أخصائية ليزر"></option><option value="ريسبشن"></option><option value="محاسب"></option><option value="عامل نظافة"></option><option value="أمن"></option></datalist>
+    <div class="grid3">
+      <label class="f">الموبايل<input name="phone" dir="ltr" value="${esc(x?.phone)}"></label>
+      <label class="f">المرتب الأساسي<input name="salary" type="number" min="0" step="any" value="${x?.salary ?? 0}"></label>
+      <label class="f">عمولة كل جلسة<input name="per" type="number" min="0" step="any" value="${x?.perSession ?? 0}"></label>
+    </div>
+    <label class="f">مربوط بيوزر في السيستم (علشان تتحسب جلساته)<select name="user"><option value="">مش مربوط</option>${users.map(u => `<option value="${u.id}" ${x?.userId === u.id ? 'selected' : ''}>${esc(u.name)} (${esc(ROLES[u.role]?.label)})</option>`).join('')}</select></label>
+    <label class="chk"><input type="checkbox" name="act" ${x?.active === false ? '' : 'checked'}> شغال</label>
+    ${formActs()}
+  </form>`);
+};
+A.saveEmp = async (e, id) => {
+  e.preventDefault();
+  const f = e.target;
+  const data = { name: f.name.value.trim(), job: f.job.value.trim(), phone: f.phone.value.trim(), salary: Number(f.salary.value) || 0, perSession: Number(f.per.value) || 0, userId: f.user.value, active: f.act.checked, branchId: S.branch };
+  try {
+    if (id) await updateDoc(cdoc('employees', id), data);
+    else await addDoc(ccol('employees'), { ...data, createdAt: serverTimestamp() });
+    A.closeModal(); toast('اتحفظ'); A.go('staff');
+  } catch (err) { console.error(err); toast('مقدرتش أحفظ: ' + err.code); }
+};
+A.payrollModal = id => {
+  const x = S.emps.find(e => e.id === id), c = S.prCalc[id], M = S.prMonth || monthStr();
+  openModal(`<h3>صرف مرتب ${esc(x.name)} عن ${M}</h3>
+  <form onsubmit="A.savePayroll(event,'${id}')" class="fcol" oninput="this.net.value=(+this.base.value||0)+(+this.comm.value||0)+(+this.bonus.value||0)-(+this.ded.value||0)">
+    <div class="grid2">
+      <label class="f">الأساسي<input name="base" type="number" step="any" value="${c.base}"></label>
+      <label class="f">العمولة (${c.n} جلسة)<input name="comm" type="number" step="any" value="${c.comm}"></label>
+    </div>
+    <div class="grid2">
+      <label class="f">مكافأة / إضافي<input name="bonus" type="number" min="0" step="any" value="0"></label>
+      <label class="f">خصومات / سلف<input name="ded" type="number" min="0" step="any" value="0"></label>
+    </div>
+    <div class="grid2">
+      <label class="f">الصافي<input name="net" type="number" step="any" readonly value="${c.base + c.comm}"></label>
+      <label class="f">طريقة الصرف<select name="method">${methodOpts('cash')}</select></label>
+    </div>
+    <label class="f">ملاحظة<input name="note"></label>
+    <p class="meta">الصرف هيتسجل كمصروف (مرتبات) في الخزنة بتاريخ النهارده.</p>
+    ${formActs('صرف')}
+  </form>`);
+};
+A.savePayroll = async (e, id) => {
+  e.preventDefault();
+  const f = e.target, x = S.emps.find(z => z.id === id), M = S.prMonth || monthStr(), today = todayStr();
+  const net = (+f.base.value || 0) + (+f.comm.value || 0) + (+f.bonus.value || 0) - (+f.ded.value || 0);
+  if (net <= 0) return toast('الصافي لازم يكون أكبر من صفر');
+  try {
+    const batch = writeBatch(db);
+    batch.set(cdoc('payroll', `${M}_${id}`), { employeeId: id, employeeName: x.name, branchId: S.branch, month: M, base: +f.base.value || 0, commission: +f.comm.value || 0, bonus: +f.bonus.value || 0, deductions: +f.ded.value || 0, net, method: f.method.value, note: f.note.value.trim(), paidDate: today, createdAt: serverTimestamp(), createdByName: S.profile.name });
+    batch.set(doc(ccol('expenses')), { branchId: S.branch, category: 'مرتبات', amount: net, method: f.method.value, date: today, month: today.slice(0, 7), note: `مرتب ${x.name} عن ${M}`, createdAt: serverTimestamp(), createdBy: S.profile.id, createdByName: S.profile.name });
+    await batch.commit();
+    A.closeModal(); toast('اتصرف المرتب'); A.go('staff');
+  } catch (err) { console.error(err); toast('مقدرتش أحفظ: ' + err.code); }
+};
+
+/* ----- التقارير ----- */
+async function renderReports() {
+  const M = S.rMonth || monthStr();
+  const all = ['owner', 'accounts'].includes(S.profile.role) && S.rScope !== 'branch';
+  clinicShell('reports', LOADING);
+  await ensureData();
+  const g = col => (all ? qAll(col, 'month', M) : qBranch(col, 'month', M)).catch(() => []);
+  const [pays, exps, sess, pkgs, newCl] = await Promise.all([g('payments'), g('expenses'), g('sessions'), g('cpackages'), qAll('clients', 'month', M).catch(() => [])]);
+  const inc = sumAmt(pays), out = sumAmt(exps);
+  const group = (l, key, val = () => 1) => { const o = {}; l.forEach(x => { const k = key(x) || '—'; o[k] = (o[k] || 0) + val(x); }); return Object.entries(o).sort((a, b) => b[1] - a[1]); };
+  const box = (title, rows, fmtV = v => v.toLocaleString('ar-EG')) => {
+    const max = rows[0]?.[1] || 0;
+    return `<div class="card" style="display:flex;flex-direction:column;gap:12px"><h3>${title}</h3>${rows.length ? rows.slice(0, 10).map(([k, v]) => barRow(k, v, max, fmtV(v))).join('') : '<p class="meta">مفيش بيانات.</p>'}</div>`;
+  };
+  const cl = newCl.filter(c => all || c.branchId === S.branch);
+  clinicShell('reports', `
+    <div class="head"><h2>التقارير</h2><button class="btn ghost sm" onclick="window.print()">طباعة</button></div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      ${monthBar('rMonth', M)}
+      ${['owner', 'accounts'].includes(S.profile.role) ? `<select style="width:auto" aria-label="النطاق" onchange="A.rScopeSet(this.value)"><option value="all" ${all ? 'selected' : ''}>كل الفروع</option><option value="branch" ${!all ? 'selected' : ''}>الفرع الحالي بس</option></select>` : ''}
+    </div>
+    <div class="cards">
+      <div class="card stat"><b>${money(inc)}</b><span>الإيرادات (التحصيل)</span></div>
+      <div class="card stat"><b>${money(out)}</b><span>المصروفات</span></div>
+      <div class="card stat"><b style="color:${inc - out >= 0 ? 'var(--ok)' : 'var(--red)'}">${money(inc - out)}</b><span>صافي الربح</span></div>
+      <div class="card stat"><b>${sess.length}</b><span>جلسة (${sess.reduce((a, s) => a + (s.shots || 0), 0).toLocaleString('ar-EG')} شوت)</span></div>
+      <div class="card stat"><b>${pkgs.length}</b><span>باكدج اتباع بـ ${money(pkgs.reduce((a, p) => a + (p.price || 0), 0))}</span></div>
+      <div class="card stat"><b>${cl.length}</b><span>عميل جديد</span></div>
+    </div>
+    <div class="grid2">
+      ${all ? box('الإيرادات حسب الفرع', group(pays, p => branchName(p.branchId), p => p.amount || 0), money) : ''}
+      ${box('الإيرادات حسب طريقة الدفع', group(pays, p => METHODS[p.method] || p.method, p => p.amount || 0), money)}
+      ${box('المصروفات حسب البند', group(exps, e => e.category, e => e.amount || 0), money)}
+      ${box('الجلسات حسب الدكتور', group(sess, s => s.doctorName))}
+      ${box('أكتر المناطق / الخدمات', group(sess, s => s.area))}
+      ${box('الشوتات حسب الجهاز', group(sess.filter(s => s.shots), s => s.device, s => s.shots || 0))}
+    </div>
+    ${can('clients_view') ? `<div class="card" style="display:flex;flex-direction:column;gap:12px" id="debtsBox"><div class="head"><h3 style="flex:1">المديونيات (كل العملاء)</h3><button class="btn sm" onclick="A.calcDebts()">احسب المديونيات</button></div><p class="meta">بيحسب المتبقي على كل عميل من أول ما اتسجل.</p></div>` : ''}
+  `);
+}
+A.rScopeSet = v => { S.rScope = v; A.go('reports'); };
+A.calcDebts = async () => {
+  const box = document.getElementById('debtsBox');
+  box.innerHTML = LOADING;
+  try {
+    const [pk, ss, pay] = await Promise.all([getDocs(ccol('cpackages')), getDocs(ccol('sessions')), getDocs(ccol('payments'))]);
+    const bal = {};
+    const add = (id, name, v) => { bal[id] = bal[id] || { name, v: 0 }; bal[id].v += v; };
+    pk.forEach(d => { const x = d.data(); add(x.clientId, x.clientName, x.price || 0); });
+    ss.forEach(d => { const x = d.data(); if (!x.packageId) add(x.clientId, x.clientName, x.price || 0); });
+    pay.forEach(d => { const x = d.data(); add(x.clientId, x.clientName, -(x.amount || 0)); });
+    const list = Object.entries(bal).filter(([, b]) => b.v > 0).sort((a, b) => b[1].v - a[1].v);
+    const tot = list.reduce((a, [, b]) => a + b.v, 0);
+    box.innerHTML = `<div class="head"><h3 style="flex:1">المديونيات (${list.length} عميل · ${money(tot)})</h3></div>
+      ${list.length ? `<div class="tbl-wrap"><table><thead><tr><th>العميل</th><th>المتبقي</th><th></th></tr></thead><tbody>${list.map(([id, b]) => `<tr><td><b>${esc(b.name)}</b></td><td style="color:var(--red)"><b>${money(b.v)}</b></td><td><button class="btn ghost sm" onclick="A.openClient('${id}')">فتح</button></td></tr>`).join('')}</tbody></table></div>` : '<p class="meta">مفيش مديونيات 👌</p>'}`;
+  } catch (e) { console.error(e); box.innerHTML = `<div class="notice warn">مقدرتش أحسب (${esc(e.code || e.message)})</div>`; }
+};
+
+/* ----- بوابة العميل ----- */
+async function renderPortal() {
+  clinicShell('home', LOADING);
+  const cid = S.profile.clientId;
+  if (!cid) return clinicShell('home', `<div class="card empty">الحساب ده مش مربوط بملف عميل. كلّم العيادة.</div>`);
+  const q = col => qAll(col, 'clientId', cid).catch(() => []);
+  const [cs, pk, ss, bk, pay] = await Promise.all([getDoc(cdoc('clients', cid)), q('cpackages'), q('sessions'), q('bookings'), q('payments')]);
+  const c = cs.data() || {};
+  const charged = pk.reduce((a, x) => a + (x.price || 0), 0) + ss.filter(x => !x.packageId).reduce((a, x) => a + (x.price || 0), 0);
+  const rem = charged - sumAmt(pay);
+  const today = todayStr();
+  const upcoming = bk.filter(b => b.date >= today && ['booked', 'arrived'].includes(b.status)).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+  const active = pk.filter(p => (p.usedSessions || 0) < p.totalSessions);
+  ss.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  clinicShell('home', `
+    <div class="head"><h2>أهلاً ${esc(c.name || S.profile.name)}</h2></div>
+    <div class="cards">
+      <div class="card stat"><b>${upcoming.length}</b><span>مواعيد جاية</span></div>
+      <div class="card stat"><b>${active.reduce((a, p) => a + p.totalSessions - (p.usedSessions || 0), 0)}</b><span>جلسات فاضلالك</span></div>
+      <div class="card stat"><b style="color:${rem > 0 ? 'var(--red)' : 'var(--ok)'}">${money(Math.max(rem, 0))}</b><span>المتبقي عليك</span></div>
+    </div>
+    <div class="card" style="display:flex;flex-direction:column;gap:10px"><h3>مواعيدك الجاية</h3>
+      ${upcoming.length ? upcoming.map(b => `<div class="meta" style="font-size:15px"><b>${esc(b.date)}</b><span>الساعة ${esc(b.time)}</span><span>${esc(b.service)}</span><span>${esc(branchName(b.branchId))}</span></div>`).join('') : '<p class="meta">مفيش مواعيد. كلّم العيادة علشان تحجز.</p>'}</div>
+    <div class="card" style="display:flex;flex-direction:column;gap:10px"><h3>باكدجاتك</h3>
+      ${pk.length ? pk.map(p => { const left = p.totalSessions - (p.usedSessions || 0); return `<div style="display:flex;flex-direction:column;gap:6px"><div class="meta" style="font-size:15px"><b>${esc(p.name)}</b><span>${p.usedSessions || 0} من ${p.totalSessions}</span>${left > 0 ? `<span class="chip ok">فاضل ${left}</span>` : '<span class="chip mute">خلص</span>'}</div><div class="bar"><i style="width:${(p.usedSessions || 0) / p.totalSessions * 100}%"></i></div></div>`; }).join('') : '<p class="meta">مفيش باكدجات.</p>'}</div>
+    <div class="card" style="display:flex;flex-direction:column;gap:10px"><h3>جلساتك</h3>
+      ${ss.length ? `<div class="tbl-wrap"><table><thead><tr><th>التاريخ</th><th>المنطقة</th><th>الدكتور</th></tr></thead><tbody>${ss.map(s => `<tr><td>${esc(s.date)}</td><td>${esc(s.area)}</td><td>${esc(s.doctorName) || '—'}</td></tr>`).join('')}</tbody></table></div>` : '<p class="meta">مفيش جلسات لسه.</p>'}</div>
+  `);
+}
+
+/* ----- تثبيت الأبليكيشن ----- */
+let installEvt = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; const b = document.getElementById('installBtn'); if (b) b.style.display = 'inline-flex'; });
+A.install = async () => {
+  if (!installEvt) return;
+  installEvt.prompt();
+  await installEvt.userChoice.catch(() => {});
+  installEvt = null;
+  document.getElementById('installBtn').style.display = 'none';
+};
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+
 </script>
 </body>
 </html>
