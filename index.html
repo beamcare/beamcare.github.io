@@ -44,7 +44,8 @@ label.chk input{width:20px;height:20px;min-height:0;accent-color:var(--brand)}
 .err{background:var(--red-bg);color:var(--red);padding:10px 12px;border-radius:10px;font-size:14px;font-weight:600}
 
 /* shell */
-.top{background:#fff;border-bottom:1px solid var(--line);padding:10px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:5}
+.top{background:#fff;border-bottom:1px solid var(--line);padding:10px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:5;flex-wrap:wrap}
+.fcol{display:flex;flex-direction:column;gap:14px}
 .top .name{font-weight:800;font-size:18px;color:var(--brand)}
 .top .sub{color:var(--muted);font-size:13px}
 .top .sp{flex:1}
@@ -114,8 +115,8 @@ th{color:var(--muted);font-size:13px;font-weight:700;background:#FAFCFB}
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, doc, getDoc, getDocs, setDoc, updateDoc, addDoc, collection, query, where, Timestamp, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, doc, getDoc, getDocs, setDoc, updateDoc, addDoc, deleteDoc, collection, query, where, Timestamp, serverTimestamp, writeBatch, increment, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 /* =========================================================
    1) حط بيانات مشروع Firebase هنا
@@ -182,7 +183,7 @@ const ROLE_PERMS = {
   accounts: permsFrom(['payments_edit', 'reports_view', 'clients_view', 'packages_view', 'staff_view', 'inventory_view']),
   branches_manager: permsFrom(['clients_edit', 'bookings_edit', 'sessions_edit', 'packages_edit', 'payments_edit', 'inventory_edit', 'staff_view', 'devices_edit', 'reports_view']),
   branch_manager: permsFrom(['clients_edit', 'bookings_edit', 'sessions_edit', 'packages_edit', 'payments_view', 'inventory_edit', 'staff_view', 'devices_edit', 'reports_view']),
-  reception: permsFrom(['clients_edit', 'bookings_edit', 'sessions_view', 'packages_view', 'payments_edit']),
+  reception: permsFrom(['clients_edit', 'bookings_edit', 'sessions_view', 'packages_edit', 'payments_edit']),
   doctor: permsFrom(['clients_view', 'bookings_view', 'sessions_edit', 'devices_view']),
   client: permsFrom([]),
 };
@@ -292,6 +293,7 @@ onAuthStateChanged(auth, async u => {
     if (!clinicActive(S.clinic)) return renderLocked();
     const bs = await getDocs(collection(db, 'clinics', S.clinic.id, 'branches'));
     S.branches = bs.docs.map(x => ({ id: x.id, ...x.data() }));
+    initBranch();
     A.go('home');
   } catch (e) {
     console.error(e);
@@ -418,6 +420,15 @@ A.openClinic = async (id, tab = 'sub') => {
   S.dBranches = bs.docs.map(d => ({ id: d.id, ...d.data() }));
   S.dUsers = us.docs.map(d => ({ id: d.id, ...d.data() }));
   S.dTab = tab;
+  try {
+    const ctr = await getDoc(doc(db, 'clinics', id, 'meta', 'counters'));
+    S.dClients = ctr.exists() ? (ctr.data().clients || 0) : 0;
+    if (S.dUsers.length) {
+      const batch = writeBatch(db);
+      S.dUsers.forEach(u => batch.set(doc(db, 'clinics', id, 'staff', u.id), { name: u.name || '', role: u.role, branchIds: u.branchIds || [], active: u.active !== false }));
+      await batch.commit();
+    }
+  } catch (e) { console.error('staff sync', e); }
   renderClinic();
 };
 function renderClinic() {
@@ -432,7 +443,7 @@ function renderClinic() {
     <div class="grid3">
       <div class="card stat"><b>${S.dBranches.length} / ${c.plan?.maxBranches ?? 0}</b><span>الفروع</span>${usage(S.dBranches.length, c.plan?.maxBranches)}</div>
       <div class="card stat"><b>${staff} / ${c.plan?.maxUsers ?? 0}</b><span>اليوزرات</span>${usage(staff, c.plan?.maxUsers)}</div>
-      <div class="card stat"><b>— / ${c.plan?.maxClients ?? 0}</b><span>العملاء (هيتحسب في المرحلة التانية)</span></div>
+      <div class="card stat"><b>${S.dClients ?? 0} / ${c.plan?.maxClients ?? 0}</b><span>العملاء</span>${usage(S.dClients ?? 0, c.plan?.maxClients)}</div>
     </div>
     <div class="card" style="display:flex;flex-direction:column;gap:14px">
       <div class="head"><h3 style="flex:1">الاشتراك</h3>${statusChip(c)}</div>
@@ -605,7 +616,9 @@ A.saveUser = async (e, id) => {
       const cred = await createUserWithEmailAndPassword(auth2, `${username}@${EMAIL_DOMAIN}`, f.pass.value);
       await signOut(auth2);
       await setDoc(doc(db, 'users', cred.user.uid), { ...data, username, createdAt: serverTimestamp() });
+      id = cred.user.uid;
     }
+    await setDoc(doc(db, 'clinics', c.id, 'staff', id), { name: data.name, role: data.role, branchIds: data.branchIds, active: data.active });
     A.closeModal(); toast('اتحفظ'); A.openClinic(c.id, 'users');
   } catch (err) {
     console.error(err); busy(btn, false, 'حفظ');
@@ -619,49 +632,666 @@ A.saveUser = async (e, id) => {
 const can = k => !!S.profile?.perms?.[k];
 const isOwner = () => S.profile?.role === 'owner';
 const ownerPerms = () => isOwner() && S.clinic?.features?.ownerManagesPerms;
+const LOADING = `<div class="loading">جاري التحميل...</div>`;
+const todayStr = () => toInput(new Date());
+const money = n => (Number(n) || 0).toLocaleString('ar-EG') + ' ج.م';
+const ccol = (...p) => collection(db, 'clinics', S.clinic.id, ...p);
+const cdoc = (...p) => doc(db, 'clinics', S.clinic.id, ...p);
+const METHODS = { cash: 'كاش', visa: 'فيزا', instapay: 'إنستاباي', wallet: 'محفظة إلكترونية' };
+const methodOpts = sel => Object.entries(METHODS).map(([k, l]) => `<option value="${k}" ${k === sel ? 'selected' : ''}>${l}</option>`).join('');
+const BSTATUS = { booked: ['محجوز', 'mute'], arrived: ['وصل', 'warn'], done: ['تم', 'ok'], noshow: ['محضرش', 'bad'], cancelled: ['اتلغى', 'bad'] };
+const bChip = s => { const x = BSTATUS[s] || BSTATUS.booked; return `<span class="chip ${x[1]}">${x[0]}</span>`; };
+const timeOf = ts => { const d = toDate(ts); return d ? d.toLocaleTimeString('ar-EG', { hour: 'numeric', minute: '2-digit' }) : ''; };
+const formActs = (label = 'حفظ') => `<div class="acts"><button class="btn" type="submit">${label}</button><button class="btn ghost" type="button" onclick="A.closeModal()">إلغاء</button></div>`;
 
+/* ----- الفروع ----- */
+function myBranches() {
+  const all = (S.branches || []).filter(b => b.active !== false);
+  return ROLES[S.profile.role]?.scope === 'all' ? all : all.filter(b => (S.profile.branchIds || []).includes(b.id));
+}
+function initBranch() {
+  const list = myBranches();
+  let saved = null;
+  try { saved = localStorage.getItem('bc_branch_' + S.clinic.id); } catch {}
+  S.branch = list.find(b => b.id === saved)?.id || list[0]?.id || null;
+}
+A.setBranch = id => {
+  S.branch = id;
+  try { localStorage.setItem('bc_branch_' + S.clinic.id, id); } catch {}
+  A.go(S.view || 'home');
+};
+const branchName = id => (S.branches || []).find(b => b.id === id)?.name || '—';
+
+/* ----- تحميل البيانات المشتركة ----- */
+async function loadClients(force) {
+  if (S.clients && !force) return S.clients;
+  const s = await getDocs(ccol('clients'));
+  S.clients = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ar'));
+  return S.clients;
+}
+async function loadStaff(force) {
+  if (S.staff && !force) return S.staff;
+  const s = await getDocs(ccol('staff'));
+  S.staff = s.docs.map(d => ({ id: d.id, ...d.data() }));
+  return S.staff;
+}
+async function loadServices(force) {
+  if (S.services && !force) return S.services;
+  const s = await getDocs(ccol('services'));
+  S.services = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ar'));
+  return S.services;
+}
+async function ensureData(forceServices) {
+  await Promise.all([can('clients_view') ? loadClients() : null, loadStaff(), loadServices(forceServices)]);
+}
+const doctors = () => (S.staff || []).filter(s => s.role === 'doctor' && s.active !== false && (s.branchIds || []).includes(S.branch));
+const clientLabel = c => `${c.name} - ${c.phone || ''}`;
+const findClient = v => (S.clients || []).find(c => clientLabel(c) === String(v || '').trim());
+function clientPicker(selId, onchange = '') {
+  const sel = (S.clients || []).find(c => c.id === selId);
+  return `<label class="f">العميل<input name="client" list="clientsList" required autocomplete="off" placeholder="اكتب الاسم أو الموبايل واختار من القايمة" value="${sel ? esc(clientLabel(sel)) : ''}" ${onchange ? `onchange="${onchange}"` : ''}></label>
+  <datalist id="clientsList">${(S.clients || []).map(c => `<option value="${esc(clientLabel(c))}"></option>`).join('')}</datalist>`;
+}
+const servDatalist = () => `<datalist id="servList">${(S.services || []).map(s => `<option value="${esc(s.name)}"></option>`).join('')}</datalist>`;
+function afterSave(view) {
+  if (S.openClientId) return A.openClient(S.openClientId);
+  return A.go(view || S.view || 'home');
+}
+function dateBar(key, d) {
+  return `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <button class="btn ghost sm" onclick="A.shiftDate('${key}',-1)">اليوم اللي قبله</button>
+    <input type="date" value="${d}" style="width:auto" aria-label="التاريخ" onchange="A.setDate('${key}',this.value)">
+    <button class="btn ghost sm" onclick="A.shiftDate('${key}',1)">اليوم اللي بعده</button>
+    ${d !== todayStr() ? `<button class="btn ghost sm" onclick="A.setDate('${key}','${todayStr()}')">النهارده</button>` : ''}
+  </div>`;
+}
+A.setDate = (k, v) => { S[k] = v; A.go(S.view); };
+A.shiftDate = (k, n) => {
+  const x = new Date((S[k] || todayStr()) + 'T12:00:00');
+  x.setDate(x.getDate() + n);
+  S[k] = toInput(x); A.go(S.view);
+};
+
+/* ----- الهيكل ----- */
 function clinicShell(view, content) {
+  S.view = view;
   const b = brandOf(S.clinic);
   const nav = [['home', 'الرئيسية']];
   if (S.profile.role !== 'client') MODULES.forEach(m => { if (can(m.key + '_view')) nav.push([m.key, m.label]); });
   if (ownerPerms()) nav.push(['team', 'اليوزرات والصلاحيات']);
+  const brs = myBranches();
+  const brSel = S.profile.role === 'client' ? '' : brs.length > 1
+    ? `<select aria-label="الفرع" style="width:auto;min-height:38px" onchange="A.setBranch(this.value)">${brs.map(x => `<option value="${x.id}" ${x.id === S.branch ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select>`
+    : (brs[0] ? `<span class="chip mute">${esc(brs[0].name)}</span>` : '');
   $app.innerHTML = `
   <div class="top">${logoHTML(b, 36)}<div><div class="name">${esc(b.name)}</div><div class="sub">${esc(S.profile.name)} · ${esc(ROLES[S.profile.role]?.label)}</div></div><div class="sp"></div>
+    ${brSel}
+    <button class="btn ghost sm" onclick="A.pwModal()">كلمة السر</button>
     <button class="btn ghost sm" onclick="A.logout()">خروج</button></div>
   <div class="layout"><nav class="side">${nav.map(([k, l]) => `<button class="${view === k ? 'on' : ''}" onclick="A.go('${k}')">${l}</button>`).join('')}</nav>
   <div class="main">${content}</div></div>`;
 }
 
 A.go = async view => {
-  if (view === 'home') return renderHome();
-  if (view === 'team') return renderTeam();
-  const m = MODULES.find(x => x.key === view);
-  if (!m || !can(m.key + '_view')) return renderHome();
-  clinicShell(view, `<div class="head"><h2>${m.label}</h2></div>
-    <div class="card empty">القسم ده هيتبني في المرحلة الجاية.<br><span style="font-size:13px">صلاحيتك هنا: ${can(m.key + '_edit') ? 'عرض وتعديل' : 'عرض بس'}</span></div>`);
+  S.openClientId = null;
+  try {
+    if (view === 'home') return await renderHome();
+    if (view === 'team') return await renderTeam();
+    const m = MODULES.find(x => x.key === view);
+    if (!m || !can(m.key + '_view')) return await renderHome();
+    const R = { clients: renderClients, bookings: renderBookings, sessions: renderSessions, packages: renderPackages, payments: renderPayments }[view];
+    if (R) {
+      if (!S.branch && view !== 'clients') return clinicShell(view, `<div class="card empty">مفيش فرع متاح ليك. كلّم مدير العيادة.</div>`);
+      return await R();
+    }
+    clinicShell(view, `<div class="head"><h2>${m.label}</h2></div>
+      <div class="card empty">القسم ده هيتبني في المرحلة الجاية.<br><span style="font-size:13px">صلاحيتك هنا: ${can(m.key + '_edit') ? 'عرض وتعديل' : 'عرض بس'}</span></div>`);
+  } catch (e) {
+    console.error(e);
+    clinicShell(view, `<div class="notice warn">حصلت مشكلة في التحميل (${esc(e.code || e.message)}). جرّب تعمل Refresh.</div>`);
+  }
 };
 
-function renderHome() {
-  const c = S.clinic, d = daysLeft(c);
+/* ----- الرئيسية ----- */
+async function renderHome() {
+  clinicShell('home', LOADING);
+  const c = S.clinic, d = daysLeft(c), today = todayStr();
   const seesSub = ['owner', 'accounts'].includes(S.profile.role);
-  const myBranches = branchNames(S.profile, S.branches);
+  const stats = [];
+  if (S.branch && S.profile.role !== 'client') {
+    const q2 = col => getDocs(query(ccol(col), where('branchId', '==', S.branch), where('date', '==', today))).then(s => s.docs.map(x => x.data()));
+    const jobs = [];
+    if (can('bookings_view')) jobs.push(q2('bookings').then(l => {
+      stats.push([l.filter(x => x.status !== 'cancelled').length, 'حجوزات النهارده']);
+      stats.push([l.filter(x => x.status === 'arrived').length, 'منتظرين في العيادة']);
+    }));
+    if (can('sessions_view')) jobs.push(q2('sessions').then(l => stats.push([l.length, 'جلسات النهارده'])));
+    if (can('payments_view')) jobs.push(q2('payments').then(l => stats.push([money(l.reduce((a, x) => a + (x.amount || 0), 0)), 'تحصيل النهارده'])));
+    await Promise.all(jobs);
+  }
+  const quick = [];
+  if (can('clients_edit')) quick.push(`<button class="btn" onclick="A.clientModal()">+ عميل جديد</button>`);
+  if (can('bookings_edit')) quick.push(`<button class="btn" onclick="A.bookingModal()">+ حجز</button>`);
+  if (can('sessions_edit')) quick.push(`<button class="btn" onclick="A.sessionModal()">+ تسجيل جلسة</button>`);
+  if (can('packages_edit')) quick.push(`<button class="btn" onclick="A.sellModal()">+ بيع باكدج</button>`);
+  if (can('payments_edit')) quick.push(`<button class="btn gold" onclick="A.payModal()">+ تحصيل</button>`);
   clinicShell('home', `
     <div class="head"><h2>أهلاً ${esc(S.profile.name)}</h2></div>
     ${seesSub && d <= 7 ? `<div class="notice warn">الاشتراك هيخلص بعد ${d} يوم (${fmt(c.expiresAt)}). كلّم Beam Care علشان التجديد.</div>` : ''}
-    <div class="grid3">
-      <div class="card stat"><b style="font-size:18px">${esc(ROLES[S.profile.role]?.label)}</b><span>دورك</span></div>
-      <div class="card stat"><b style="font-size:18px">${esc(myBranches)}</b><span>الفروع</span></div>
-      ${seesSub ? `<div class="card stat"><b style="font-size:18px">${fmt(c.expiresAt)}</b><span>نهاية الاشتراك (فاضل ${d} يوم)</span></div>` : ''}
-    </div>
-    ${isOwner() ? `<div class="card" style="display:flex;flex-direction:column;gap:10px"><h3>الباكدج</h3>
-      <div class="meta"><span>الفروع: ${S.branches.length} من ${c.plan?.maxBranches ?? 0}</span><span>اليوزرات: حتى ${c.plan?.maxUsers ?? 0}</span><span>العملاء: حتى ${c.plan?.maxClients ?? 0}</span></div></div>` : ''}
+    ${quick.length ? `<div style="display:flex;gap:10px;flex-wrap:wrap">${quick.join('')}</div>` : ''}
+    ${stats.length ? `<div class="cards">${stats.map(([n, l]) => `<div class="card stat"><b>${n}</b><span>${l}</span></div>`).join('')}</div>` : ''}
+    ${isOwner() ? `<div class="card" style="display:flex;flex-direction:column;gap:10px"><h3>الاشتراك والباكدج</h3>
+      <div class="meta"><span>ينتهي: ${fmt(c.expiresAt)} (فاضل ${d} يوم)</span><span>الفروع: ${S.branches.length} من ${c.plan?.maxBranches ?? 0}</span><span>اليوزرات: حتى ${c.plan?.maxUsers ?? 0}</span><span>العملاء: حتى ${c.plan?.maxClients ?? 0}</span></div></div>` : ''}
     ${S.profile.role === 'client' ? `<div class="card empty">صفحة حجوزاتك وباكدجاتك هتكون هنا قريب.</div>` : ''}
   `);
 }
 
+/* ----- العملاء ----- */
+async function renderClients() {
+  clinicShell('clients', LOADING);
+  await loadClients(true);
+  let cnt = null;
+  if (isOwner()) { try { const m = await getDoc(cdoc('meta', 'counters')); cnt = m.exists() ? (m.data().clients || 0) : 0; } catch {} }
+  clinicShell('clients', `
+    <div class="head"><h2>العملاء (${S.clients.length})</h2>${can('clients_edit') ? `<button class="btn gold" onclick="A.clientModal()">+ عميل جديد</button>` : ''}</div>
+    ${cnt !== null ? `<div class="meta"><span>مستخدم ${cnt} من ${S.clinic.plan?.maxClients ?? 0} عميل في الباكدج</span></div>` : ''}
+    <input type="search" placeholder="دوّر بالاسم أو رقم الموبايل" aria-label="بحث في العملاء" oninput="A.filterClients(this.value)">
+    <div id="clientsTbl">${clientsTable(S.clients)}</div>`);
+}
+function clientsTable(list) {
+  if (!list.length) return `<div class="card empty">مفيش عملاء.</div>`;
+  return `<div class="card tbl-wrap" style="padding:0"><table>
+    <thead><tr><th>الاسم</th><th>الموبايل</th><th>فرع التسجيل</th><th>تاريخ التسجيل</th><th></th></tr></thead>
+    <tbody>${list.slice(0, 200).map(c => `<tr><td><b>${esc(c.name)}</b></td><td dir="ltr" style="text-align:right">${esc(c.phone)}</td><td>${esc(branchName(c.branchId))}</td><td>${fmt(c.createdAt)}</td>
+      <td><button class="btn ghost sm" onclick="A.openClient('${c.id}')">فتح الملف</button></td></tr>`).join('')}</tbody></table></div>
+    ${list.length > 200 ? `<p class="meta">ظاهر أول 200 عميل، استخدم البحث.</p>` : ''}`;
+}
+A.filterClients = q => {
+  q = q.trim().toLowerCase();
+  const l = q ? S.clients.filter(c => (c.name || '').toLowerCase().includes(q) || (c.phone || '').includes(q) || (c.phone2 || '').includes(q)) : S.clients;
+  document.getElementById('clientsTbl').innerHTML = clientsTable(l);
+};
+
+A.clientModal = async id => {
+  if (can('clients_view')) await loadClients();
+  const c = id ? (S.clients || []).find(x => x.id === id) : null;
+  openModal(`<h3>${c ? 'تعديل بيانات العميل' : 'عميل جديد'}</h3>
+  <form onsubmit="A.saveClient(event,'${id || ''}')" class="fcol">
+    <div class="grid2">
+      <label class="f">الاسم<input name="name" required value="${esc(c?.name)}"></label>
+      <label class="f">الموبايل<input name="phone" required dir="ltr" inputmode="tel" value="${esc(c?.phone)}"></label>
+    </div>
+    <div class="grid3">
+      <label class="f">موبايل تاني<input name="phone2" dir="ltr" inputmode="tel" value="${esc(c?.phone2)}"></label>
+      <label class="f">النوع<select name="gender"><option value="f" ${c?.gender !== 'm' ? 'selected' : ''}>أنثى</option><option value="m" ${c?.gender === 'm' ? 'selected' : ''}>ذكر</option></select></label>
+      <label class="f">تاريخ الميلاد<input name="birth" type="date" value="${esc(c?.birth)}"></label>
+    </div>
+    <label class="f">ملاحظات طبية (حساسية، أدوية، تحذيرات)<input name="notes" value="${esc(c?.notes)}"></label>
+    ${formActs()}
+  </form>`);
+};
+A.saveClient = async (e, id) => {
+  e.preventDefault();
+  const f = e.target, btn = f.querySelector('[type=submit]');
+  const data = { name: f.name.value.trim(), phone: f.phone.value.trim(), phone2: f.phone2.value.trim(), gender: f.gender.value, birth: f.birth.value, notes: f.notes.value.trim() };
+  if (!id && (S.clients || []).some(c => c.phone === data.phone) && !confirm('فيه عميل متسجل بنفس رقم الموبايل. تكمّل برضه؟')) return;
+  busy(btn, true, 'جاري الحفظ...');
+  try {
+    if (id) {
+      await updateDoc(cdoc('clients', id), data);
+    } else {
+      const max = S.clinic.plan?.maxClients ?? 0;
+      const ctr = cdoc('meta', 'counters');
+      const nref = doc(ccol('clients'));
+      await runTransaction(db, async tx => {
+        const cs = await tx.get(ctr);
+        const n = cs.exists() ? (cs.data().clients || 0) : 0;
+        if (n >= max) throw Object.assign(new Error('limit'), { code: 'limit' });
+        tx.set(ctr, { clients: n + 1 }, { merge: true });
+        tx.set(nref, { ...data, branchId: S.branch || '', createdAt: serverTimestamp(), createdBy: S.profile.id });
+      });
+      id = nref.id;
+    }
+    A.closeModal(); toast('اتحفظ');
+    await loadClients(true);
+    A.openClient(id);
+  } catch (err) {
+    console.error(err); busy(btn, false, 'حفظ');
+    toast(err.code === 'limit' ? 'العيادة وصلت لحد العملاء في الباكدج. كلّم Beam Care' : 'مقدرتش أحفظ: ' + (err.code || err.message));
+  }
+};
+
+A.openClient = async id => {
+  clinicShell('clients', LOADING);
+  S.openClientId = id;
+  try {
+    await ensureData();
+    let c = (S.clients || []).find(x => x.id === id);
+    if (!c) { const d = await getDoc(cdoc('clients', id)); c = { id, ...d.data() }; }
+    const q = col => getDocs(query(ccol(col), where('clientId', '==', id))).then(s => s.docs.map(d => ({ id: d.id, ...d.data() })));
+    const [pk, ss, pay, bk] = await Promise.all([q('cpackages'), q('sessions'), q('payments'), can('bookings_view') ? q('bookings') : Promise.resolve([])]);
+    const charged = pk.reduce((a, x) => a + (x.price || 0), 0) + ss.filter(x => !x.packageId).reduce((a, x) => a + (x.price || 0), 0);
+    const paid = pay.reduce((a, x) => a + (x.amount || 0), 0);
+    const rem = charged - paid;
+    const desc = (a, b) => ((b.date || '') + (b.time || '')).localeCompare((a.date || '') + (a.time || ''));
+    [pk, ss, pay, bk].forEach(l => l.sort(desc));
+    const acts = [];
+    if (can('bookings_edit')) acts.push(`<button class="btn sm" onclick="A.bookingModal({clientId:'${id}'})">+ حجز</button>`);
+    if (can('sessions_edit')) acts.push(`<button class="btn sm" onclick="A.sessionModal({clientId:'${id}'})">+ جلسة</button>`);
+    if (can('packages_edit')) acts.push(`<button class="btn sm" onclick="A.sellModal('${id}')">+ بيع باكدج</button>`);
+    if (can('payments_edit')) acts.push(`<button class="btn gold sm" onclick="A.payModal('${id}')">+ تحصيل</button>`);
+    if (can('clients_edit')) acts.push(`<button class="btn ghost sm" onclick="A.clientModal('${id}')">تعديل البيانات</button>`);
+    const section = (title, rows, head, empty) => `<div class="card" style="display:flex;flex-direction:column;gap:10px;padding:16px">
+      <h3>${title}</h3>${rows.length ? `<div class="tbl-wrap"><table><thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>` : `<p class="meta">${empty}</p>`}</div>`;
+    clinicShell('clients', `
+      <div><button class="btn ghost sm" onclick="A.go('clients')">→ كل العملاء</button></div>
+      <div class="head"><h2>${esc(c.name)}</h2></div>
+      <div class="meta"><span dir="ltr">${esc(c.phone)}</span>${c.phone2 ? `<span dir="ltr">${esc(c.phone2)}</span>` : ''}<span>${c.gender === 'm' ? 'ذكر' : 'أنثى'}</span>${c.birth ? `<span>ميلاد: ${esc(c.birth)}</span>` : ''}<span>فرع التسجيل: ${esc(branchName(c.branchId))}</span></div>
+      ${c.notes ? `<div class="notice warn">⚠ ${esc(c.notes)}</div>` : ''}
+      ${acts.length ? `<div style="display:flex;gap:8px;flex-wrap:wrap">${acts.join('')}</div>` : ''}
+      <div class="grid3">
+        <div class="card stat"><b>${money(charged)}</b><span>إجمالي المطلوب</span></div>
+        <div class="card stat"><b>${money(paid)}</b><span>المدفوع</span></div>
+        <div class="card stat"><b style="color:${rem > 0 ? 'var(--red)' : 'var(--ok)'}">${money(rem)}</b><span>${rem > 0 ? 'متبقي عليه' : rem < 0 ? 'رصيد ليه' : 'خالص'}</span></div>
+      </div>
+      ${section('الباكدجات', pk.map(p => { const left = p.totalSessions - (p.usedSessions || 0); return `<tr><td><b>${esc(p.name)}</b></td><td>${p.usedSessions || 0} من ${p.totalSessions}</td><td>${left > 0 ? `<span class="chip ok">فاضل ${left}</span>` : `<span class="chip mute">خلص</span>`}</td><td>${money(p.price)}</td><td>${esc(p.date)}</td><td>${esc(branchName(p.branchId))}</td></tr>`; }), ['الباكدج', 'الجلسات', 'الحالة', 'السعر', 'التاريخ', 'الفرع'], 'مفيش باكدجات.')}
+      ${section('الجلسات', ss.map(s => `<tr><td>${esc(s.date)}</td><td><b>${esc(s.area)}</b></td><td>${s.packageId ? `${esc(s.packageName)} (جلسة ${s.sessionNo || ''})` : money(s.price)}</td><td>${esc(s.doctorName) || '—'}</td><td>${esc(s.device) || '—'}</td><td dir="ltr" style="text-align:right">${[s.fluence != null ? s.fluence + ' J' : '', s.pulse != null ? s.pulse + ' ms' : '', s.spot != null ? s.spot + ' mm' : ''].filter(Boolean).join(' · ') || '—'}</td><td>${s.shots ?? '—'}</td><td>${esc(s.notes)}</td></tr>`), ['التاريخ', 'المنطقة', 'باكدج / سعر', 'الدكتور', 'الجهاز', 'الإعدادات', 'الشوتات', 'ملاحظات'], 'مفيش جلسات.')}
+      ${section('المدفوعات', pay.map(p => `<tr><td>${esc(p.date)}</td><td><b>${money(p.amount)}</b></td><td>${METHODS[p.method] || esc(p.method)}</td><td>${esc(p.note)}</td><td>${esc(branchName(p.branchId))}</td><td>${esc(p.createdByName)}</td></tr>`), ['التاريخ', 'المبلغ', 'الطريقة', 'ملاحظة', 'الفرع', 'استلمه'], 'مفيش مدفوعات.')}
+      ${can('bookings_view') ? section('الحجوزات', bk.map(b => `<tr><td>${esc(b.date)}</td><td>${esc(b.time)}</td><td>${esc(b.service) || '—'}</td><td>${esc(b.doctorName) || '—'}</td><td>${bChip(b.status)}</td><td>${esc(branchName(b.branchId))}</td></tr>`), ['التاريخ', 'الساعة', 'الخدمة', 'الدكتور', 'الحالة', 'الفرع'], 'مفيش حجوزات.') : ''}
+    `);
+    S.openClientId = id;
+  } catch (e) {
+    console.error(e);
+    clinicShell('clients', `<div class="notice warn">مقدرتش أفتح ملف العميل (${esc(e.code || e.message)})</div>`);
+  }
+};
+
+/* ----- الحجوزات ----- */
+async function renderBookings() {
+  const d = S.bDate || todayStr();
+  clinicShell('bookings', LOADING);
+  await ensureData();
+  const s = await getDocs(query(ccol('bookings'), where('branchId', '==', S.branch), where('date', '==', d)));
+  S.bookings = s.docs.map(x => ({ id: x.id, ...x.data() })).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+  const active = S.bookings.filter(b => b.status !== 'cancelled');
+  const rows = S.bookings.map(b => {
+    const acts = [];
+    const open = ['booked', 'arrived'].includes(b.status);
+    if (can('bookings_edit') && b.status === 'booked') acts.push(`<button class="btn sm" onclick="A.bStatus('${b.id}','arrived')">وصل</button>`);
+    if (can('sessions_edit') && open) acts.push(`<button class="btn gold sm" onclick="A.sessionModal({bookingId:'${b.id}'})">تسجيل جلسة</button>`);
+    if (can('bookings_edit') && open) {
+      acts.push(`<button class="btn ghost sm" onclick="A.bookingModal({id:'${b.id}'})">تعديل</button>`);
+      acts.push(`<button class="btn ghost sm" onclick="A.bStatus('${b.id}','noshow')">محضرش</button>`);
+      acts.push(`<button class="btn ghost sm" onclick="A.bStatus('${b.id}','cancelled')">إلغاء</button>`);
+    }
+    return `<tr><td><b>${esc(b.time)}</b></td><td><a href="#" onclick="event.preventDefault();A.openClient('${b.clientId}')">${esc(b.clientName)}</a></td><td dir="ltr" style="text-align:right">${esc(b.clientPhone)}</td>
+      <td>${esc(b.service) || '—'}</td><td>${esc(b.doctorName) || '—'}</td><td>${bChip(b.status)}</td><td>${esc(b.notes)}</td><td><div style="display:flex;gap:6px">${acts.join('')}</div></td></tr>`;
+  });
+  clinicShell('bookings', `
+    <div class="head"><h2>الحجوزات</h2>${can('bookings_edit') ? `<button class="btn gold" onclick="A.bookingModal()">+ حجز جديد</button>` : ''}</div>
+    ${dateBar('bDate', d)}
+    <div class="meta"><span>${active.length} حجز</span><span>${S.bookings.filter(b => b.status === 'arrived').length} منتظر</span><span>${S.bookings.filter(b => b.status === 'done').length} خلص</span></div>
+    ${rows.length ? `<div class="card tbl-wrap" style="padding:0"><table><thead><tr><th>الساعة</th><th>العميل</th><th>الموبايل</th><th>الخدمة</th><th>الدكتور</th><th>الحالة</th><th>ملاحظات</th><th></th></tr></thead><tbody>${rows.join('')}</tbody></table></div>`
+      : `<div class="card empty">مفيش حجوزات في اليوم ده.</div>`}`);
+}
+A.bStatus = async (id, st) => {
+  try { await updateDoc(cdoc('bookings', id), { status: st }); toast('اتحدّث'); A.go('bookings'); }
+  catch (err) { console.error(err); toast('مقدرتش أحدّث: ' + err.code); }
+};
+A.bookingModal = async (o = {}) => {
+  await ensureData();
+  const b = o.id ? (S.bookings || []).find(x => x.id === o.id) : null;
+  const docs = doctors();
+  openModal(`<h3>${b ? 'تعديل حجز' : 'حجز جديد'}</h3>
+  <form onsubmit="A.saveBooking(event,'${o.id || ''}')" class="fcol">
+    ${clientPicker(b?.clientId || o.clientId)}
+    ${can('clients_edit') ? `<button type="button" class="btn ghost sm" style="align-self:flex-start" onclick="A.clientModal()">العميل مش متسجل؟ سجّله الأول</button>` : ''}
+    <div class="grid2">
+      <label class="f">التاريخ<input type="date" name="date" required value="${b?.date || S.bDate || todayStr()}"></label>
+      <label class="f">الساعة<input type="time" name="time" required value="${esc(b?.time)}"></label>
+    </div>
+    <div class="grid2">
+      <label class="f">الدكتور<select name="doctor"><option value="">من غير تحديد</option>${docs.map(d => `<option value="${d.id}" ${b?.doctorId === d.id ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</select></label>
+      <label class="f">الخدمة / المنطقة<input name="service" list="servList" value="${esc(b?.service)}"></label>
+    </div>
+    ${servDatalist()}
+    <label class="f">ملاحظات<input name="notes" value="${esc(b?.notes)}"></label>
+    ${formActs()}
+  </form>`);
+};
+A.saveBooking = async (e, id) => {
+  e.preventDefault();
+  const f = e.target, btn = f.querySelector('[type=submit]');
+  const cl = findClient(f.client.value);
+  if (!cl) return toast('اختار العميل من القايمة، أو سجّله الأول');
+  const dr = (S.staff || []).find(x => x.id === f.doctor.value);
+  const data = { clientId: cl.id, clientName: cl.name, clientPhone: cl.phone || '', date: f.date.value, time: f.time.value, doctorId: dr?.id || '', doctorName: dr?.name || '', service: f.service.value.trim(), notes: f.notes.value.trim(), branchId: S.branch };
+  if (dr && data.date === (S.bDate || todayStr()) && (S.bookings || []).some(x => x.id !== id && x.doctorId === dr.id && x.time === data.time && !['cancelled', 'noshow'].includes(x.status))
+    && !confirm(`${dr.name} عنده حجز تاني في نفس الساعة. تكمّل؟`)) return;
+  busy(btn, true, 'جاري الحفظ...');
+  try {
+    if (id) await updateDoc(cdoc('bookings', id), data);
+    else await addDoc(ccol('bookings'), { ...data, status: 'booked', createdAt: serverTimestamp(), createdBy: S.profile.id, createdByName: S.profile.name });
+    A.closeModal(); toast('اتحفظ الحجز');
+    S.bDate = data.date;
+    afterSave('bookings');
+  } catch (err) { console.error(err); busy(btn, false, 'حفظ'); toast('مقدرتش أحفظ: ' + err.code); }
+};
+
+/* ----- الجلسات ----- */
+async function renderSessions() {
+  const d = S.sDate || todayStr();
+  clinicShell('sessions', LOADING);
+  await ensureData();
+  const s = await getDocs(query(ccol('sessions'), where('branchId', '==', S.branch), where('date', '==', d)));
+  const list = s.docs.map(x => ({ id: x.id, ...x.data() })).sort((a, b) => (toDate(a.createdAt) || 0) - (toDate(b.createdAt) || 0));
+  const shots = list.reduce((a, x) => a + (x.shots || 0), 0);
+  clinicShell('sessions', `
+    <div class="head"><h2>الجلسات</h2>${can('sessions_edit') ? `<button class="btn gold" onclick="A.sessionModal()">+ تسجيل جلسة</button>` : ''}</div>
+    ${dateBar('sDate', d)}
+    <div class="meta"><span>${list.length} جلسة</span><span>${shots.toLocaleString('ar-EG')} شوت</span></div>
+    ${list.length ? `<div class="card tbl-wrap" style="padding:0"><table><thead><tr><th>الوقت</th><th>العميل</th><th>المنطقة</th><th>باكدج / سعر</th><th>الدكتور</th><th>الجهاز</th><th>الإعدادات</th><th>الشوتات</th></tr></thead>
+      <tbody>${list.map(x => `<tr><td>${timeOf(x.createdAt)}</td><td><a href="#" onclick="event.preventDefault();A.openClient('${x.clientId}')">${esc(x.clientName)}</a></td><td><b>${esc(x.area)}</b></td>
+        <td>${x.packageId ? `${esc(x.packageName)} (${x.sessionNo || ''})` : money(x.price)}</td><td>${esc(x.doctorName) || '—'}</td><td>${esc(x.device) || '—'}</td>
+        <td dir="ltr" style="text-align:right">${[x.fluence != null ? x.fluence + ' J' : '', x.pulse != null ? x.pulse + ' ms' : '', x.spot != null ? x.spot + ' mm' : ''].filter(Boolean).join(' · ') || '—'}</td><td>${x.shots ?? '—'}</td></tr>`).join('')}</tbody></table></div>`
+      : `<div class="card empty">مفيش جلسات في اليوم ده.</div>`}`);
+}
+A.sessionModal = async (o = {}) => {
+  await ensureData();
+  let bk = null;
+  if (o.bookingId) {
+    bk = (S.bookings || []).find(x => x.id === o.bookingId);
+    if (!bk) { const d = await getDoc(cdoc('bookings', o.bookingId)); bk = { id: o.bookingId, ...d.data() }; }
+  }
+  const clientId = bk?.clientId || o.clientId || '';
+  const docs = doctors();
+  if (S.profile.role === 'doctor' && !docs.some(d => d.id === S.profile.id)) docs.push({ id: S.profile.id, name: S.profile.name });
+  const selDoc = bk?.doctorId || (S.profile.role === 'doctor' ? S.profile.id : '');
+  S.mPkgs = [];
+  openModal(`<h3>تسجيل جلسة</h3>
+  <form onsubmit="A.saveSession(event,'${bk?.id || ''}')" class="fcol">
+    ${clientPicker(clientId, 'A.loadClientPkgs(this.form)')}
+    <div class="grid2">
+      <label class="f">التاريخ<input type="date" name="date" required value="${todayStr()}"></label>
+      <label class="f">الدكتور<select name="doctor"><option value="">من غير تحديد</option>${docs.map(d => `<option value="${d.id}" ${d.id === selDoc ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</select></label>
+    </div>
+    <label class="f">الباكدج<select name="pkg" onchange="A.pkgChanged(this.form)"><option value="">بدون باكدج (جلسة منفردة)</option></select></label>
+    <div class="grid2">
+      <label class="f">المنطقة / الخدمة<input name="area" list="servList" required value="${esc(bk?.service)}" onchange="A.areaChanged(this.form)"></label>
+      <label class="f" id="priceWrap">سعر الجلسة<input name="price" type="number" min="0" step="any" value="0"></label>
+    </div>
+    ${servDatalist()}
+    <label class="f">الجهاز<input name="device" placeholder="مثلاً: Candela GentleLase Pro"></label>
+    <div class="section-t">إعدادات الجهاز</div>
+    <div class="grid3">
+      <label class="f">Fluence (J/cm²)<input name="fluence" type="number" step="any" min="0" dir="ltr"></label>
+      <label class="f">Pulse (ms)<input name="pulse" type="number" step="any" min="0" dir="ltr"></label>
+      <label class="f">Spot (mm)<input name="spot" type="number" step="any" min="0" dir="ltr"></label>
+    </div>
+    <div class="grid2">
+      <label class="f">عدد الشوتات<input name="shots" type="number" min="0" dir="ltr"></label>
+      <label class="f">ملاحظات<input name="notes"></label>
+    </div>
+    ${formActs('حفظ الجلسة')}
+  </form>`);
+  if (clientId) A.loadClientPkgs(document.querySelector('#modal form'));
+};
+A.loadClientPkgs = async f => {
+  const cl = findClient(f.client.value);
+  const sel = f.pkg;
+  sel.innerHTML = `<option value="">بدون باكدج (جلسة منفردة)</option>`;
+  S.mPkgs = [];
+  if (!cl) return A.pkgChanged(f);
+  try {
+    const s = await getDocs(query(ccol('cpackages'), where('clientId', '==', cl.id)));
+    S.mPkgs = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(p => (p.usedSessions || 0) < p.totalSessions);
+    sel.innerHTML += S.mPkgs.map(p => `<option value="${p.id}">${esc(p.name)} (فاضل ${p.totalSessions - (p.usedSessions || 0)} من ${p.totalSessions})</option>`).join('');
+    if (S.mPkgs.length === 1) sel.value = S.mPkgs[0].id;
+  } catch (e) { console.error(e); }
+  A.pkgChanged(f);
+};
+A.pkgChanged = f => {
+  const p = (S.mPkgs || []).find(x => x.id === f.pkg.value);
+  document.getElementById('priceWrap').style.display = p ? 'none' : 'flex';
+  if (p && !f.area.value.trim()) f.area.value = p.name;
+};
+A.areaChanged = f => {
+  if (f.pkg.value) return;
+  const sv = (S.services || []).find(s => s.name === f.area.value.trim() && s.kind === 'session');
+  if (sv) f.price.value = sv.price;
+};
+A.saveSession = async (e, bookingId) => {
+  e.preventDefault();
+  const f = e.target, btn = f.querySelector('[type=submit]');
+  const cl = findClient(f.client.value);
+  if (!cl) return toast('اختار العميل من القايمة');
+  const pkg = (S.mPkgs || []).find(p => p.id === f.pkg.value);
+  if (pkg && (pkg.usedSessions || 0) >= pkg.totalSessions) return toast('الباكدج ده خلص');
+  const dr = (S.staff || []).find(x => x.id === f.doctor.value) || (f.doctor.value === S.profile.id ? { id: S.profile.id, name: S.profile.name } : null);
+  const num = v => v === '' ? null : Number(v);
+  const data = {
+    clientId: cl.id, clientName: cl.name, date: f.date.value, branchId: S.branch,
+    doctorId: dr?.id || '', doctorName: dr?.name || '',
+    packageId: pkg?.id || '', packageName: pkg?.name || '', sessionNo: pkg ? (pkg.usedSessions || 0) + 1 : null,
+    price: pkg ? 0 : (Number(f.price.value) || 0),
+    area: f.area.value.trim(), device: f.device.value.trim(),
+    fluence: num(f.fluence.value), pulse: num(f.pulse.value), spot: num(f.spot.value), shots: num(f.shots.value),
+    notes: f.notes.value.trim(), bookingId: bookingId || '',
+    createdAt: serverTimestamp(), createdBy: S.profile.id, createdByName: S.profile.name,
+  };
+  busy(btn, true, 'جاري الحفظ...');
+  try {
+    const batch = writeBatch(db);
+    const sref = doc(ccol('sessions'));
+    batch.set(sref, data);
+    if (pkg) batch.update(cdoc('cpackages', pkg.id), { usedSessions: increment(1) });
+    if (bookingId) batch.update(cdoc('bookings', bookingId), { status: 'done', sessionId: sref.id });
+    await batch.commit();
+    A.closeModal();
+    toast(pkg ? `اتسجلت الجلسة (فاضل ${pkg.totalSessions - data.sessionNo} في الباكدج)` : 'اتسجلت الجلسة');
+    S.sDate = data.date;
+    afterSave(bookingId ? 'bookings' : 'sessions');
+  } catch (err) { console.error(err); busy(btn, false, 'حفظ الجلسة'); toast('مقدرتش أحفظ: ' + err.code); }
+};
+
+/* ----- باكدجات العملاء وقائمة الأسعار ----- */
+A.pShowDone = v => { S.pShowDone = v; A.go('packages'); };
+A.pTabSet = k => { S.pTab = k; A.go('packages'); };
+async function renderPackages() {
+  const tab = S.pTab || 'list';
+  clinicShell('packages', LOADING);
+  await ensureData(true);
+  let body = '';
+  if (tab === 'list') {
+    const s = await getDocs(query(ccol('cpackages'), where('branchId', '==', S.branch)));
+    const all = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    const showDone = !!S.pShowDone;
+    const list = showDone ? all : all.filter(p => (p.usedSessions || 0) < p.totalSessions);
+    body = `
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        ${can('packages_edit') ? `<button class="btn gold" onclick="A.sellModal()">+ بيع باكدج</button>` : ''}
+        <label class="chk"><input type="checkbox" ${showDone ? 'checked' : ''} onchange="A.pShowDone(this.checked)"> اعرض الباكدجات اللي خلصت كمان</label>
+      </div>
+      ${list.length ? `<div class="card tbl-wrap" style="padding:0"><table><thead><tr><th>العميل</th><th>الباكدج</th><th>الجلسات</th><th>الحالة</th><th>السعر</th><th>تاريخ البيع</th></tr></thead>
+        <tbody>${list.map(p => { const left = p.totalSessions - (p.usedSessions || 0); return `<tr><td><a href="#" onclick="event.preventDefault();A.openClient('${p.clientId}')">${esc(p.clientName)}</a></td><td><b>${esc(p.name)}</b></td><td>${p.usedSessions || 0} من ${p.totalSessions}</td>
+          <td>${left > 0 ? `<span class="chip ok">فاضل ${left}</span>` : `<span class="chip mute">خلص</span>`}</td><td>${money(p.price)}</td><td>${esc(p.date)}</td></tr>`; }).join('')}</tbody></table></div>`
+        : `<div class="card empty">مفيش باكدجات ${showDone ? '' : 'نشطة '}في الفرع ده.</div>`}`;
+  } else {
+    const sv = S.services || [];
+    body = `
+      ${can('packages_edit') ? `<div><button class="btn gold" onclick="A.serviceModal()">+ خدمة / باكدج جديد</button></div>` : ''}
+      ${sv.length ? `<div class="card tbl-wrap" style="padding:0"><table><thead><tr><th>الاسم</th><th>النوع</th><th>عدد الجلسات</th><th>السعر</th><th></th></tr></thead>
+        <tbody>${sv.map(x => `<tr><td><b>${esc(x.name)}</b></td><td>${x.kind === 'package' ? 'باكدج' : 'جلسة منفردة'}</td><td>${x.kind === 'package' ? x.sessions : 1}</td><td>${money(x.price)}</td>
+          <td>${can('packages_edit') ? `<button class="btn ghost sm" onclick="A.serviceModal('${x.id}')">تعديل</button>` : ''}</td></tr>`).join('')}</tbody></table></div>`
+        : `<div class="card empty">قائمة الأسعار فاضية. ضيف الخدمات والباكدجات اللي العيادة بتقدمها، وهتظهر جاهزة وقت الحجز والبيع.</div>`}`;
+  }
+  clinicShell('packages', `
+    <div class="head"><h2>باكدجات العملاء</h2></div>
+    <div class="tabs">${[['list', 'الباكدجات المباعة'], ['prices', 'قائمة الأسعار']].map(([k, l]) => `<button class="${tab === k ? 'on' : ''}" onclick="A.pTabSet('${k}')">${l}</button>`).join('')}</div>
+    ${body}`);
+}
+A.serviceModal = id => {
+  const x = id ? (S.services || []).find(s => s.id === id) : null;
+  openModal(`<h3>${x ? 'تعديل' : 'إضافة'} في قائمة الأسعار</h3>
+  <form onsubmit="A.saveService(event,'${id || ''}')" class="fcol">
+    <label class="f">الاسم (مثلاً: ليزر فول بادي، أو إبط)<input name="name" required value="${esc(x?.name)}"></label>
+    <div class="grid3">
+      <label class="f">النوع<select name="kind" onchange="this.form.sessions.disabled=this.value!=='package'"><option value="session" ${x?.kind !== 'package' ? 'selected' : ''}>جلسة منفردة</option><option value="package" ${x?.kind === 'package' ? 'selected' : ''}>باكدج</option></select></label>
+      <label class="f">عدد الجلسات<input name="sessions" type="number" min="1" value="${x?.sessions || 6}" ${x?.kind === 'package' ? '' : 'disabled'}></label>
+      <label class="f">السعر<input name="price" type="number" min="0" step="any" required value="${x?.price ?? ''}"></label>
+    </div>
+    ${formActs()}
+  </form>`);
+};
+A.saveService = async (e, id) => {
+  e.preventDefault();
+  const f = e.target;
+  const kind = f.kind.value;
+  const data = { name: f.name.value.trim(), kind, sessions: kind === 'package' ? (Number(f.sessions.value) || 1) : 1, price: Number(f.price.value) || 0 };
+  try {
+    if (id) await updateDoc(cdoc('services', id), data);
+    else await addDoc(ccol('services'), data);
+    A.closeModal(); toast('اتحفظ'); S.pTab = 'prices'; A.go('packages');
+  } catch (err) { console.error(err); toast('مقدرتش أحفظ: ' + err.code); }
+};
+A.sellModal = async clientId => {
+  await ensureData(true);
+  const tpls = (S.services || []).filter(s => s.kind === 'package');
+  openModal(`<h3>بيع باكدج</h3>
+  <form onsubmit="A.saveSell(event)" class="fcol">
+    ${clientPicker(clientId)}
+    <label class="f">من قائمة الأسعار<select name="tpl" onchange="A.tplChanged(this.form)"><option value="">باكدج مخصوص</option>${tpls.map(s => `<option value="${s.id}">${esc(s.name)} · ${s.sessions} جلسات · ${money(s.price)}</option>`).join('')}</select></label>
+    <div class="grid3">
+      <label class="f">اسم الباكدج<input name="name" required></label>
+      <label class="f">عدد الجلسات<input name="total" type="number" min="1" required></label>
+      <label class="f">السعر النهائي<input name="price" type="number" min="0" step="any" required></label>
+    </div>
+    ${can('payments_edit') ? `<div class="section-t">دفع دلوقتي (اختياري)</div>
+    <div class="grid2">
+      <label class="f">المبلغ المدفوع<input name="paid" type="number" min="0" step="any" value="0"></label>
+      <label class="f">طريقة الدفع<select name="method">${methodOpts('cash')}</select></label>
+    </div>` : ''}
+    <label class="f">ملاحظات<input name="notes"></label>
+    ${formActs('حفظ البيع')}
+  </form>`);
+};
+A.tplChanged = f => {
+  const s = (S.services || []).find(x => x.id === f.tpl.value);
+  if (!s) return;
+  f.name.value = s.name; f.total.value = s.sessions; f.price.value = s.price;
+};
+A.saveSell = async e => {
+  e.preventDefault();
+  const f = e.target, btn = f.querySelector('[type=submit]');
+  const cl = findClient(f.client.value);
+  if (!cl) return toast('اختار العميل من القايمة');
+  const price = Number(f.price.value) || 0;
+  const paid = f.paid ? (Number(f.paid.value) || 0) : 0;
+  if (paid > price && !confirm('المبلغ المدفوع أكبر من سعر الباكدج. تكمّل؟')) return;
+  const today = todayStr();
+  busy(btn, true, 'جاري الحفظ...');
+  try {
+    const batch = writeBatch(db);
+    const pref = doc(ccol('cpackages'));
+    batch.set(pref, { clientId: cl.id, clientName: cl.name, branchId: S.branch, name: f.name.value.trim(), totalSessions: Number(f.total.value) || 1, usedSessions: 0, price, date: today, notes: f.notes.value.trim(), createdAt: serverTimestamp(), createdBy: S.profile.id, createdByName: S.profile.name });
+    if (paid > 0) batch.set(doc(ccol('payments')), { clientId: cl.id, clientName: cl.name, branchId: S.branch, amount: paid, method: f.method.value, date: today, month: today.slice(0, 7), note: 'مقدم باكدج: ' + f.name.value.trim(), packageId: pref.id, createdAt: serverTimestamp(), createdBy: S.profile.id, createdByName: S.profile.name });
+    await batch.commit();
+    A.closeModal(); toast('اتباع الباكدج');
+    S.openClientId = cl.id;
+    afterSave('packages');
+  } catch (err) { console.error(err); busy(btn, false, 'حفظ البيع'); toast('مقدرتش أحفظ: ' + err.code); }
+};
+
+/* ----- الحسابات والخزنة ----- */
+async function renderPayments() {
+  const d = S.payDate || todayStr(), month = d.slice(0, 7);
+  clinicShell('payments', LOADING);
+  await ensureData();
+  const [dayS, monS] = await Promise.all([
+    getDocs(query(ccol('payments'), where('branchId', '==', S.branch), where('date', '==', d))),
+    getDocs(query(ccol('payments'), where('branchId', '==', S.branch), where('month', '==', month))),
+  ]);
+  const day = dayS.docs.map(x => ({ id: x.id, ...x.data() })).sort((a, b) => (toDate(a.createdAt) || 0) - (toDate(b.createdAt) || 0));
+  const monTotal = monS.docs.reduce((a, x) => a + (x.data().amount || 0), 0);
+  const dayTotal = day.reduce((a, x) => a + (x.amount || 0), 0);
+  const byM = {};
+  day.forEach(p => { byM[p.method] = (byM[p.method] || 0) + (p.amount || 0); });
+  clinicShell('payments', `
+    <div class="head"><h2>الحسابات والخزنة</h2>${can('payments_edit') ? `<button class="btn gold" onclick="A.payModal()">+ تحصيل</button>` : ''}</div>
+    ${dateBar('payDate', d)}
+    <div class="cards">
+      <div class="card stat"><b>${money(dayTotal)}</b><span>تحصيل اليوم (${day.length} عملية)</span></div>
+      ${Object.entries(byM).map(([k, v]) => `<div class="card stat"><b>${money(v)}</b><span>${METHODS[k] || esc(k)}</span></div>`).join('')}
+      <div class="card stat"><b>${money(monTotal)}</b><span>إجمالي شهر ${month}</span></div>
+    </div>
+    ${day.length ? `<div class="card tbl-wrap" style="padding:0"><table><thead><tr><th>الوقت</th><th>العميل</th><th>المبلغ</th><th>الطريقة</th><th>ملاحظة</th><th>استلمه</th><th></th></tr></thead>
+      <tbody>${day.map(p => `<tr><td>${timeOf(p.createdAt)}</td><td><a href="#" onclick="event.preventDefault();A.openClient('${p.clientId}')">${esc(p.clientName)}</a></td><td><b>${money(p.amount)}</b></td><td>${METHODS[p.method] || esc(p.method)}</td><td>${esc(p.note)}</td><td>${esc(p.createdByName)}</td>
+        <td>${isOwner() ? `<button class="btn ghost sm" onclick="A.delPayment('${p.id}')">حذف</button>` : ''}</td></tr>`).join('')}</tbody></table></div>`
+      : `<div class="card empty">مفيش تحصيل في اليوم ده.</div>`}`);
+}
+A.payModal = async clientId => {
+  await ensureData();
+  openModal(`<h3>تحصيل</h3>
+  <form onsubmit="A.savePay(event)" class="fcol">
+    ${clientPicker(clientId)}
+    <div class="grid2">
+      <label class="f">المبلغ<input name="amount" type="number" min="1" step="any" required></label>
+      <label class="f">طريقة الدفع<select name="method">${methodOpts('cash')}</select></label>
+    </div>
+    <div class="grid2">
+      <label class="f">التاريخ<input name="date" type="date" required value="${todayStr()}"></label>
+      <label class="f">ملاحظة<input name="note" placeholder="مثلاً: قسط باكدج، جلسة..."></label>
+    </div>
+    ${formActs('تسجيل التحصيل')}
+  </form>`);
+};
+A.savePay = async e => {
+  e.preventDefault();
+  const f = e.target, btn = f.querySelector('[type=submit]');
+  const cl = findClient(f.client.value);
+  if (!cl) return toast('اختار العميل من القايمة');
+  const amount = Number(f.amount.value) || 0;
+  if (amount <= 0) return toast('اكتب مبلغ صحيح');
+  busy(btn, true, 'جاري الحفظ...');
+  try {
+    await addDoc(ccol('payments'), { clientId: cl.id, clientName: cl.name, branchId: S.branch, amount, method: f.method.value, date: f.date.value, month: f.date.value.slice(0, 7), note: f.note.value.trim(), createdAt: serverTimestamp(), createdBy: S.profile.id, createdByName: S.profile.name });
+    A.closeModal(); toast('اتسجل التحصيل');
+    afterSave('payments');
+  } catch (err) { console.error(err); busy(btn, false, 'تسجيل التحصيل'); toast('مقدرتش أحفظ: ' + err.code); }
+};
+A.delPayment = async id => {
+  if (!confirm('متأكد إنك عايز تحذف عملية التحصيل دي؟')) return;
+  try { await deleteDoc(cdoc('payments', id)); toast('اتحذفت'); A.go('payments'); }
+  catch (err) { console.error(err); toast('مقدرتش أحذف: ' + err.code); }
+};
+
+/* ----- تغيير كلمة السر ----- */
+A.pwModal = () => openModal(`<h3>تغيير كلمة السر</h3>
+  <form onsubmit="A.savePw(event)" class="fcol">
+    <label class="f">كلمة السر الحالية<input type="password" name="cur" required autocomplete="current-password" dir="ltr"></label>
+    <label class="f">كلمة السر الجديدة<input type="password" name="nw" required minlength="6" autocomplete="new-password" dir="ltr"></label>
+    <label class="f">اكتب الجديدة تاني<input type="password" name="nw2" required minlength="6" autocomplete="new-password" dir="ltr"></label>
+    ${formActs('تغيير')}
+  </form>`);
+A.savePw = async e => {
+  e.preventDefault();
+  const f = e.target;
+  if (f.nw.value !== f.nw2.value) return toast('كلمتين السر الجداد مش زي بعض');
+  try {
+    const u = auth.currentUser;
+    await reauthenticateWithCredential(u, EmailAuthProvider.credential(u.email, f.cur.value));
+    await updatePassword(u, f.nw.value);
+    A.closeModal(); toast('اتغيّرت كلمة السر');
+  } catch (err) {
+    console.error(err);
+    toast(['auth/invalid-credential', 'auth/wrong-password'].includes(err.code) ? 'كلمة السر الحالية غلط' : 'مقدرتش أغيّرها: ' + err.code);
+  }
+};
+
+/* ----- اليوزرات والصلاحيات (لصاحب العيادة) ----- */
 async function renderTeam() {
   if (!ownerPerms()) return renderHome();
-  clinicShell('team', `<div class="loading">جاري التحميل...</div>`);
+  clinicShell('team', LOADING);
   const us = await getDocs(query(collection(db, 'users'), where('clinicId', '==', S.clinic.id)));
   S.team = us.docs.map(d => ({ id: d.id, ...d.data() })).filter(u => u.role !== 'owner' && u.role !== 'client');
   clinicShell('team', `
@@ -678,11 +1308,11 @@ A.teamPerms = id => {
   const u = S.team.find(x => x.id === id);
   openModal(`<h3>صلاحيات ${esc(u.name)}</h3>
   <div class="meta"><span>${esc(ROLES[u.role]?.label)}</span><span>${esc(branchNames(u, S.branches))}</span></div>
-  <form onsubmit="A.saveTeamPerms(event,'${id}')" style="display:flex;flex-direction:column;gap:14px">
+  <form onsubmit="A.saveTeamPerms(event,'${id}')" class="fcol">
     <input type="hidden" name="role" value="${u.role}">
     <div class="head"><div class="section-t" style="flex:1">الصلاحيات</div><button type="button" class="btn ghost sm" onclick="A.resetPerms(this.form)">رجّع الافتراضي</button></div>
     ${permsGrid(u.perms || ROLE_PERMS[u.role])}
-    <div class="acts"><button class="btn" type="submit">حفظ</button><button class="btn ghost" type="button" onclick="A.closeModal()">إلغاء</button></div>
+    ${formActs()}
   </form>`);
 };
 A.saveTeamPerms = async (e, id) => {
