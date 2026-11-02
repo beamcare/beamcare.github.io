@@ -57,11 +57,14 @@ label.chk input{width:20px;height:20px;min-height:0;accent-color:var(--brand)}
 .side button{background:transparent;border:0;text-align:right;padding:10px 14px;border-radius:10px;cursor:pointer;color:var(--ink);font-weight:600;min-height:44px}
 .side button:hover{background:var(--bg)}
 .side button.on{background:var(--brand);color:#fff}
+.side .side-end{margin-top:auto;border-top:1px solid var(--line);padding-top:8px;display:flex;flex-direction:column;gap:4px}
+.side .side-end button.out{color:var(--red)}
 .main{flex:1;padding:24px;min-width:0;display:flex;flex-direction:column;gap:20px}
 @media(max-width:820px){
   .layout{flex-direction:column}
   .side{width:auto;flex-direction:row;overflow-x:auto;border-left:0;border-bottom:1px solid var(--line);padding:8px}
   .side button{white-space:nowrap}
+  .side .side-end{margin-top:0;margin-inline-start:auto;border-top:0;padding-top:0;flex-direction:row}
   .main{padding:16px}
 }
 .head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
@@ -128,7 +131,7 @@ th{color:var(--muted);font-size:13px;font-weight:700;background:#FAFCFB}
 <script type="module">
 import { initializeApp, deleteApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, doc, getDoc, getDocs, setDoc, updateDoc, addDoc, deleteDoc, collection, query, where, orderBy, limit, Timestamp, serverTimestamp, writeBatch, increment, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, onSnapshot, doc, getDoc, getDocs, setDoc, updateDoc, addDoc, deleteDoc, collection, query, where, orderBy, limit, Timestamp, serverTimestamp, writeBatch, increment, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 /* =========================================================
    1) حط بيانات مشروع Firebase هنا
@@ -310,6 +313,8 @@ onAuthStateChanged(auth, async u => {
     S.clinic = { id: c.id, ...c.data() };
     applyBrand(S.clinic);
     if (!clinicActive(S.clinic)) return renderLocked();
+    watchClinicUpd();
+    if (S.clinic.upd) return renderUpdate();
     const bs = await getDocs(collection(db, 'clinics', S.clinic.id, 'branches'));
     S.branches = bs.docs.map(x => ({ id: x.id, ...x.data() }));
     initBranch();
@@ -321,6 +326,32 @@ onAuthStateChanged(auth, async u => {
   }
 });
 
+// وضع التحديث (بيتشغّل من لوحة Beam Care)
+let UPD_UNSUB = null;
+function watchClinicUpd() {
+  try { if (UPD_UNSUB) UPD_UNSUB(); } catch (e) {}
+  const id = S.clinic?.id; if (!id) return;
+  let was = !!S.clinic.upd;
+  UPD_UNSUB = onSnapshot(doc(db, 'clinics', id), d => {
+    if (!S.clinic || S.clinic.id !== id || S.viewAs) return;
+    const x = d.data() || {}; const now = !!x.upd;
+    S.clinic = { ...S.clinic, upd: x.upd, updMsg: x.updMsg, updUntil: x.updUntil };
+    if (now && !was) renderUpdate();
+    else if (!now && was) location.reload();
+    else if (now) renderUpdate();
+    was = now;
+  }, () => {});
+}
+function renderUpdate() {
+  const b = brandOf(S.clinic);
+  $app.innerHTML = `<div class="locked"><div class="card">${logoHTML(b, 64)}
+    <div style="font-size:42px" aria-hidden="true">🛠️</div>
+    <h2>السيستم متوقف مؤقتاً للتحديث</h2>
+    <p style="margin:0;color:var(--muted)">بنضيف تحسينات جديدة. بياناتك كلها محفوظة، والسيستم هيرجع لوحده أول ما التحديث يخلص.</p>
+    ${S.clinic.updMsg ? `<p style="margin:0"><b>${esc(S.clinic.updMsg)}</b></p>` : ''}
+    ${S.clinic.updUntil ? `<p style="margin:0;color:var(--muted)">متوقع يرجع: ${esc(S.clinic.updUntil)}</p>` : ''}
+    <button class="btn ghost" onclick="A.logout()">خروج</button></div></div>`;
+}
 function renderLocked() {
   const b = brandOf(S.clinic);
   const stopped = S.clinic.active === false;
@@ -433,7 +464,7 @@ function remoteFieldsHTML(t) {
   const fbTxt = t?.fb ? JSON.stringify(t.fb, null, 1) : '';
   return `
     <div class="section-t">الربط بسيستم الشركة</div>
-    <label class="f">رابط سيستم الشركة<input name="url" dir="ltr" placeholder="https://..." value="${esc(t?.url)}"></label>
+    <label class="f">رابط سيستم الشركة (سيبه فاضي للشركات الجديدة — هيتعمل لوحده)<input name="url" dir="ltr" placeholder="${esc(MAINT_APP)}?c=..." value="${esc(t?.url)}"></label>
     <label class="f">بيانات Firebase بتاعة الشركة (الصق firebaseConfig كله)<textarea name="fb" dir="ltr" rows="4" placeholder="apiKey: ..., projectId: ...">${esc(fbTxt)}</textarea></label>
     <div class="grid2">
       <label class="f">اسم مستخدم المطوّر في سيستم الشركة<input name="duser" dir="ltr" autocomplete="off" value="${esc(S.dConn?.user || '')}"></label>
@@ -570,49 +601,57 @@ function remoteUsersBody(P) {
         <td>${u.pw ? `<span class="pwv" data-pw="${esc(u.pw)}" dir="ltr">••••••</span> <button class="btn ghost sm" onclick="A.pwShow(this)">إظهار</button> <button class="btn ghost sm" onclick="navigator.clipboard.writeText(this.parentElement.querySelector('.pwv').dataset.pw);A.toast('اتنسخ')">نسخ</button>` : '<span class="chip bad">مش متسجلة</span>'}</td>
         <td>${u.pwAt ? fmt(u.pwAt) : '—'}</td>
         <td>${u.active === false ? '<span class="chip bad">موقوف</span>' : '<span class="chip ok">شغال</span>'}</td>
-        <td>${u.role === 'clinic' ? '' : u.main ? `<button class="btn ghost sm" onclick="A.setMain('')">شيل العلامة</button>` : `<button class="btn ghost sm" onclick="A.setMain('${esc(u.id)}')">👑 خليه صاحب الحساب</button>`}</td></tr>`).join('')}</tbody></table></div>`
+        <td><div style="display:flex;gap:6px;flex-wrap:wrap">${u.pw ? `<button class="btn sm" onclick="A.enterAs('${esc(u.id)}')">ادخل كأنه</button>` : ''}${u.role === 'clinic' ? '' : u.main ? `<button class="btn ghost sm" onclick="A.setMain('')">شيل العلامة</button>` : `<button class="btn ghost sm" onclick="A.setMain('${esc(u.id)}')">👑 خليه صاحب الحساب</button>`}</div></td></tr>`).join('')}</tbody></table></div>`
       : '<div class="card empty">مفيش يوزرات.</div>'}
     <p class="meta">👑 <b>صاحب الحساب</b> هو اليوزر الأساسي اللي بتسلّمه للشركة: محدش جوه الشركة يقدر يمسحه أو يوقفه أو يغيّر صلاحياته، وهو اللي بيشوف الاشتراك وتنبيهات التجديد.</p>`;
 }
-// وضع التحديث: لشركة واحدة أو لكل الشركات
-A.updModal = id => {
+// وضع التحديث: لعميل واحد أو لكل العملاء (شركات الصيانة أو العيادات)
+A.updModal = (id, pk = 'maint') => {
+  const P = PRODUCTS[pk];
   const t = id ? (S.dc?.id === id ? S.dc : (S.tenants || []).find(x => x.id === id)) : null;
-  openModal(`<h3>🛠️ وقف ${t ? esc(t.name) : 'كل شركات الصيانة'} للتحديث</h3>
-  <p class="meta">كل اليوزرات هيشوفوا شاشة "السيستم متوقف للتحديث" ومش هيقدروا يعدّلوا حاجة. إنت كمطوّر هتفضل شغال عادي جوه السيستم علشان تجرّب. أول ما ترجّعه، الصفحة عندهم بترجع لوحدها.</p>
-  <form onsubmit="A.updSave(event,'${id || ''}')" class="fcol">
-    <label class="f">رسالة تظهر لهم (اختياري)<input name="msg" placeholder="مثلاً: بنضيف شاشة الفواتير الجديدة"></label>
+  openModal(`<h3>🛠️ وقف ${t ? esc(t.name) : 'كل ' + esc(P.short)} للتحديث</h3>
+  <p class="meta">كل اليوزرات هيشوفوا شاشة "السيستم متوقف للتحديث" ومش هيقدروا يعدّلوا حاجة. إنت كمطوّر هتفضل شغال عادي علشان تجرّب. أول ما ترجّعه، الصفحة عندهم بترجع لوحدها.</p>
+  <form onsubmit="A.updSave(event,'${id || ''}','${pk}')" class="fcol">
+    <label class="f">رسالة تظهر لهم (اختياري)<input name="msg" placeholder="مثلاً: بنضيف شاشة جديدة"></label>
     <label class="f">متوقع يرجع إمتى (اختياري)<input name="until" placeholder="مثلاً: الساعة 10 بالليل"></label>
     ${formActs('وقف السيستم')}
   </form>`);
 };
-async function updSet(ts, on, msg, until) {
-  const P = PRODUCTS.maint; let bad = 0;
+async function updSet(ts, on, msg, until, pk = 'maint') {
+  const P = PRODUCTS[pk]; let bad = 0;
   for (const t of ts) {
-    try { await updateDoc(tdoc(P, t.id), { upd: on, updMsg: on ? msg : '', updUntil: on ? until : '' }); if (!(await syncRemote(P, t.id))) bad++; }
+    try { await updateDoc(tdoc(P, t.id), { upd: on, updMsg: on ? msg : '', updUntil: on ? until : '' }); if (P.remote && !(await syncRemote(P, t.id))) bad++; }
     catch (e) { console.error(e); bad++; }
   }
   return bad;
 }
-A.updSave = async (e, id) => {
+A.updSave = async (e, id, pk = 'maint') => {
   e.preventDefault();
   const f = e.target; busy(f.querySelector('[type=submit]'), true, 'جاري الإيقاف...');
-  const ts = id ? [{ id }] : (await loadAllTenants()).filter(t => t.product === 'maint');
-  const bad = await updSet(ts, true, f.msg.value.trim(), f.until.value.trim());
-  A.closeModal(); toast(bad ? `اتوقف، بس ${bad} شركة مقدرتش أوصلها` : 'السيستم اتوقف للتحديث');
-  if (id) A.openTenant('maint', id); else A.dev('t:maint');
+  const ts = id ? [{ id }] : (await loadAllTenants()).filter(t => t.product === pk);
+  const bad = await updSet(ts, true, f.msg.value.trim(), f.until.value.trim(), pk);
+  A.closeModal(); toast(bad ? `اتوقف، بس ${bad} مقدرتش أوصلها` : 'السيستم اتوقف للتحديث');
+  if (id) A.openTenant(pk, id); else A.dev('t:' + pk);
 };
-A.updOff = async id => { const bad = await updSet([{ id }], false); toast(bad ? 'مقدرتش أوصل لسيستم الشركة' : 'السيستم رجع يشتغل ✓'); A.openTenant('maint', id); };
-A.updOffAll = async () => { const ts = (await loadAllTenants()).filter(t => t.product === 'maint' && t.upd); const bad = await updSet(ts, false); toast(bad ? `${bad} شركة مقدرتش أوصلها` : 'كل الشركات رجعت تشتغل ✓'); A.dev('t:maint'); };
+A.updOff = async (id, pk = 'maint') => { const bad = await updSet([{ id }], false, '', '', pk); toast(bad ? 'مقدرتش أوصل للسيستم' : 'السيستم رجع يشتغل ✓'); A.openTenant(pk, id); };
+A.updOffAll = async (pk = 'maint') => { const ts = (await loadAllTenants()).filter(t => t.product === pk && t.upd); const bad = await updSet(ts, false, '', '', pk); toast(bad ? `${bad} مقدرتش أوصلها` : 'كله رجع يشتغل ✓'); A.dev('t:' + pk); };
+function clinicUpdCard(c) {
+  return `<div class="card" style="display:flex;flex-direction:column;gap:10px">
+    <div class="head"><h3 style="flex:1">وضع التحديث</h3>${c.upd ? '<span class="chip warn">🛠️ متوقف للتحديث</span>' : '<span class="chip ok">شغال عادي</span>'}</div>
+    ${c.upd ? `<div class="notice warn">السيستم متوقف دلوقتي للتحديث عند كل يوزرات العيادة${c.updUntil ? ` — متوقع يرجع ${esc(c.updUntil)}` : ''}.</div>` : '<p class="meta">لو هتعمل تحديث، وقّف السيستم عندهم علشان محدش يعدّل حاجة وإنت شغال.</p>'}
+    <div style="display:flex;gap:8px;flex-wrap:wrap">${c.upd ? `<button class="btn gold sm" onclick="A.updOff('${c.id}','clinic')">رجّع السيستم يشتغل</button>` : `<button class="btn ghost sm" onclick="A.updModal('${c.id}','clinic')">🛠️ وقف السيستم للتحديث</button>`}</div>
+  </div>`;
+}
 // ادخل السيستم: بيفتح سيستم الشركة ويدخل بحساب المطوّر لوحده (البيانات بتتبعت للصفحة مباشرة، مش في الرابط)
-A.enterSys = async go => {
+A.enterSys = async (go, cred) => {
   const c = S.dc;
   if (!c?.url) return toast('ضيف رابط سيستم الشركة الأول من "تعديل البيانات والباكدج"');
   let url, origin;
   try { url = c.url.replace(/#.*$/, ''); origin = new URL(url).origin; } catch (e) { return toast('رابط سيستم الشركة مش مظبوط'); }
   const w = window.open(url + '#bc-login', '_blank');
   if (!w) return toast('المتصفح منع فتح صفحة جديدة — اسمح بالنوافذ المنبثقة للوحة');
-  let conn = {};
-  try { const cs = await getDoc(doc(db, PRODUCTS.maint.col, c.id, 'meta', 'conn')); conn = cs.exists() ? cs.data() : {}; } catch (e) {}
+  let conn = cred || {};
+  if (!cred) { try { const cs = await getDoc(doc(db, PRODUCTS.maint.col, c.id, 'meta', 'conn')); conn = cs.exists() ? cs.data() : {}; } catch (e) {} }
   if (!conn.user || !conn.pass) return toast('مفيش حساب مطوّر متسجل للشركة دي');
   const email = conn.user.includes('@') ? conn.user : conn.user.trim().toLowerCase() + '@' + (c.emailDomain || PIONEER_DOMAIN);
   const h = e => {
@@ -622,6 +661,14 @@ A.enterSys = async go => {
   };
   window.addEventListener('message', h);
   setTimeout(() => window.removeEventListener('message', h), 30000);
+};
+const latinD = t => String(t || '').replace(/[\u0660-\u0669]/g, d => d.charCodeAt(0) - 0x660).replace(/[\u06F0-\u06F9]/g, d => d.charCodeAt(0) - 0x6F0);
+// ادخل كأنه: بيفتح سيستم الشركة بحساب اليوزر ده نفسه
+A.enterAs = uid => {
+  const u = (S.dUsers || []).find(x => x.id === uid);
+  if (!u) return;
+  if (!u.pw) return toast('كلمة سر اليوزر ده مش متسجلة — غيّرها مرة من جوه السيستم وبعدين تقدر تدخل بيه');
+  A.enterSys('', { user: u.username, pass: latinD(u.pw) });
 };
 A.enterClinic = () => {
   const o = (S.dUsers || []).find(u => u.role === 'owner' && u.active !== false) || (S.dUsers || []).find(u => u.role === 'owner');
@@ -654,7 +701,8 @@ function themeFieldsHTML(t) {
 
 /* ----- أسماء البيانات بالعربي ----- */
 const PM_COLS = { clients: 'العيادات (العملاء)', reports: 'تقارير الصيانة', payments: 'التحصيلات', partSales: 'فواتير البيع', contracts: 'عقود الصيانة', contractReqs: 'طلبات العقود', requests: 'الطلبات', users: 'المستخدمين', parts: 'قطع الغيار', units: 'وحدات المخزن', returns: 'المرتجعات', partReturns: 'مرتجع القطع', suppliers: 'الموردين', purchases: 'فواتير الشراء', supplierPayments: 'دفعات الموردين', sales: 'بيع أجهزة', rentals: 'إيجار أجهزة', stockcounts: 'جرد المخزن', freon: 'الفريون', frret: 'مرتجع الفريون', stockDevices: 'أجهزة الشركة', offers: 'العروض', meetings: 'الاجتماعات', catalog: 'الكتالوج', orders: 'طلبات المستهلكات', notifs: 'التنبيهات', ratings: 'التقييمات', punches: 'البصمات', attendance: 'الحضور', tests: 'الاختبارات', testKeys: 'إجابات الاختبارات النموذجية', testAnswers: 'إجابات الموظفين', empFiles: 'ملفات الموظفين', empDocs: 'مستندات الموظفين', salaries: 'المرتبات الأساسية', payroll: 'المرتبات', payslips: 'قسايم المرتب', bonuses: 'المكافآت', evals: 'التقييم', penalties: 'الجزاءات', inspections: 'التفتيش', secrets: 'كلمات السر', weekrep: 'التقارير الدورية', audit: 'سجل التعديلات', verify: 'التحقق بالـ QR', archive: 'الأرشيف', notes: 'النوت', handovers: 'التوريدات', policies: 'سياسة العمل', comps: 'التعويضات', treasury: 'الخزينة', capsnaps: 'رأس المال', vouchers: 'أذونات الصرف', custody: 'العهد', hr: 'الإجازات والسلف', days: 'الأيام' };
-const pmCol = c => PM_COLS[c] || c;
+const CLINIC_LBL = { clients: 'العملاء', sessions: 'الجلسات', bookings: 'الحجوزات', cpackages: 'الباكدجات', payments: 'المدفوعات', expenses: 'المصروفات', services: 'الخدمات', items: 'المخزن', stockMoves: 'حركة المخزن', devices: 'الأجهزة', deviceLogs: 'سجل الأجهزة', employees: 'الموظفين', payroll: 'المرتبات', branches: 'الفروع', staff: 'دليل الموظفين', cmeta: 'العدادات', users: 'المستخدمين' };
+const pmCol = c => (S.dp?.key === 'clinic' ? CLINIC_LBL[c] : PM_COLS[c]) || c;
 const AUD_LBL = { reports: 'تقرير صيانة', payments: 'تحصيل', partSales: 'فاتورة بيع', contracts: 'عقد صيانة', custody: 'عهدة', payroll: 'مرتبات', salaries: 'مرتب موظف', vouchers: 'إذن صرف', treasury: 'خزينة', handovers: 'توريد', purchases: 'فاتورة شراء', supplierPayments: 'دفعة مورد', sales: 'بيع جهاز', rentals: 'إيجار جهاز', clients: 'عيادة', parts: 'قطعة غيار', hr: 'إجازة / سلفة', bonuses: 'مكافأة', penalties: 'جزاء', comps: 'تعويض', freon: 'فريون' };
 const AUD_ACTS = { create: ['إضافة', 'ok'], update: ['تعديل', 'warn'], delete: ['حذف', 'bad'] };
 
@@ -712,17 +760,22 @@ const encTs = v => {
 function saveBlob(blob, name) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000); }
 
 /* ----- تاب النسخ الاحتياطية ----- */
+const isClinicT = () => S.dp?.key === 'clinic';
+const bkDir = c => (isClinicT() ? 'clinic-' : '') + c.id;
+const bkIdx = () => isClinicT() ? 'clinics' : 'companies';
+const bkStatusRef = c => isClinicT() ? doc(db, 'devcfg', 'bk-' + c.id) : doc(db, PRODUCTS.maint.col, c.id, 'meta', 'backup');
 async function loadBackups() {
   const c = S.dc; S.dBk = { err: '', gh: false, days: [], last: null, run: null };
-  try { const s = await getDoc(doc(db, PRODUCTS.maint.col, c.id, 'meta', 'backup')); S.dBk.last = s.exists() ? s.data() : null; } catch (e) {}
+  try { const s = await getDoc(bkStatusRef(c)); S.dBk.last = s.exists() ? s.data() : null; } catch (e) {}
   const g = await ghCfg(true);
   if (!g.token) return;
   S.dBk.gh = true;
   try {
     const idx = await gh('contents/index.json?ref=data', { raw: true, soft: true });
     const j = idx ? await idx.json() : { companies: {} };
-    S.dBk.days = j.companies?.[c.id]?.days || [];
-    if (!S.dBk.last && j.companies?.[c.id]?.last) S.dBk.last = j.companies[c.id].last;
+    const ix = j[bkIdx()] || {};
+    S.dBk.days = ix[c.id]?.days || [];
+    if (!S.dBk.last && ix[c.id]?.last) S.dBk.last = ix[c.id].last;
     const runs = await gh('actions/runs?per_page=1').catch(() => null);
     const r = runs?.workflow_runs?.[0];
     if (r && r.status !== 'completed') S.dBk.run = r;
@@ -736,7 +789,7 @@ function backupsBody() {
     <p class="meta">النسخ بتتعمل كل يوم الساعة 12 بالليل وبتتحفظ في مخزن خاص بيك على GitHub (آخر 7 أيام). محتاج تربطه مرة واحدة بس.</p>
     <button class="btn gold sm" style="align-self:flex-start" onclick="A.ghSetup()">إعداد النسخ الاحتياطية</button></div>`;
   const L = B.last;
-  const top = ['clients', 'reports', 'partSales', 'payments', 'users'];
+  const top = isClinicT() ? ['clients', 'sessions', 'bookings', 'payments', 'users'] : ['clients', 'reports', 'partSales', 'payments', 'users'];
   return `
   ${B.err ? `<div class="notice warn">${esc(B.err)}</div>` : ''}
   <div class="card" style="display:flex;flex-direction:column;gap:12px">
@@ -815,7 +868,7 @@ function flatRow(x) {
 A.bkDown = async (date, kind, btn) => {
   const t = btn.textContent; busy(btn, true, '...');
   try {
-    const d = await bkLoadDay(S.dc.id, date);
+    const d = await bkLoadDay(bkDir(S.dc), date);
     const name = `${S.dc.name || S.dc.id}-backup-${date}`;
     if (kind === 'json') saveBlob(new Blob([JSON.stringify({ company: S.dc.name, date, ...d })], { type: 'application/json' }), name + '.json');
     else {
@@ -838,7 +891,7 @@ A.bkRestoreModal = date => {
   <p>بيانات <b>${esc(S.dc.name)}</b> هترجع زي ما كانت يوم <b>${esc(date)}</b>. أي حاجة اتعملت بعد اليوم ده هتتشال.</p>
   <ul class="meta" style="display:block;padding-inline-start:18px;line-height:1.9">
     <li>قبل الاسترجاع هينزل عندك ملف بالوضع الحالي (احتفظ بيه).</li>
-    <li>سجل التعديلات وكلمات السر مش بيتغيروا، واليوزرات الجديدة مش بتتمسح.</li>
+    <li>${isClinicT() ? 'اليوزرات الجديدة مش بتتمسح، وبيانات الاشتراك مش بتتغير.' : 'سجل التعديلات وكلمات السر مش بيتغيروا، واليوزرات الجديدة مش بتتمسح.'}</li>
     <li>الأفضل توقف السيستم للتحديث الأول علشان محدش يكون شغال.</li>
   </ul>
   <form onsubmit="A.bkRestore(event,'${date}')" class="fcol">
@@ -847,15 +900,47 @@ A.bkRestoreModal = date => {
     ${formActs('استرجع')}
   </form>`);
 };
+async function bkRestoreClinic(c, date, prog) {
+  prog('بيحمّل النسخة من GitHub…');
+  const bk = await bkLoadDay(bkDir(c), date);
+  if (bk.cols.cmeta) { bk.cols.meta = bk.cols.cmeta; delete bk.cols.cmeta; }
+  prog('بياخد نسخة من الوضع الحالي…');
+  const sub = [...new Set([...Object.keys(bk.cols).filter(x => x !== 'users'), ...CLINIC_BK_COLS])];
+  const cur = {};
+  for (const col of sub) { try { const s = await getDocs(collection(db, 'clinics', c.id, col)); cur[col] = {}; s.docs.forEach(d => { cur[col][d.id] = encTs(d.data()); }); } catch (err) { cur[col] = null; } }
+  try { const s = await getDocs(query(collection(db, 'users'), where('clinicId', '==', c.id))); cur.users = {}; s.docs.forEach(d => { cur.users[d.id] = encTs(d.data()); }); } catch (err) { cur.users = null; }
+  saveBlob(new Blob([JSON.stringify({ clinic: c.name, date: 'قبل-الاسترجاع-' + todayStr(), cols: cur })], { type: 'application/json' }), `${c.name || c.id}-before-restore-${todayStr()}.json`);
+  prog('بيرجّع البيانات…');
+  const ops = [];
+  for (const col of [...sub, 'users']) {
+    if (cur[col] === null || cur[col] === undefined) continue;
+    const want = bk.cols[col] || {}, have = cur[col] || {};
+    const ref = id => col === 'users' ? doc(db, 'users', id) : doc(db, 'clinics', c.id, col, id);
+    for (const [id, x] of Object.entries(want)) if (!have[id] || JSON.stringify(have[id]) !== JSON.stringify(x)) ops.push(['set', ref(id), decTs(x)]);
+    if (col !== 'users') for (const id of Object.keys(have)) if (!want[id]) ops.push(['del', ref(id)]);
+  }
+  for (let i = 0; i < ops.length; i += 400) {
+    const b = writeBatch(db);
+    ops.slice(i, i + 400).forEach(([k, ref, x]) => { if (k === 'set') b.set(ref, x); else b.delete(ref); });
+    await b.commit(); prog(`بيرجّع البيانات… ${Math.min(ops.length, i + 400)} من ${ops.length}`);
+  }
+  return ops.length;
+}
+const CLINIC_BK_COLS = ['branches', 'staff', 'meta', 'clients', 'services', 'bookings', 'sessions', 'cpackages', 'payments', 'expenses', 'items', 'stockMoves', 'devices', 'deviceLogs', 'employees', 'payroll'];
 A.bkRestore = async (e, date) => {
   e.preventDefault();
   const f = e.target; if (f.ok.value.trim() !== 'استرجع') { toast('اكتب كلمة استرجع'); return; }
   const btn = f.querySelector('[type=submit]'); busy(btn, true, 'جاري...');
   const prog = t => { const p = document.getElementById('rsProg'); if (p) p.textContent = t; };
   const c = S.dc;
+  if (isClinicT()) {
+    try { const n = await bkRestoreClinic(c, date, prog); A.closeModal(); toast(`اترجعت نسخة ${date} ✓ (${n} تغيير)`); }
+    catch (err) { console.error(err); busy(btn, false, 'استرجع'); prog(''); toast('الاسترجاع وقف: ' + (err.message || err.code)); }
+    return;
+  }
   try {
     prog('بيحمّل النسخة من GitHub…');
-    const bk = await bkLoadDay(c.id, date);
+    const bk = await bkLoadDay(bkDir(c), date);
     const r = await remoteConn(c);
     prog('بياخد نسخة من الوضع الحالي…');
     const cols = [...new Set([...Object.keys(bk.cols), ...BK_ALL_COLS])].filter(x => !RESTORE_SKIP.includes(x));
@@ -1076,30 +1161,33 @@ function doPost(e){
   }finally{lock.releaseLock();}
   return ContentService.createTextOutput('ok');
 }`}
+const CLINIC_GS_COLS = { clients: 'العملاء', bookings: 'الحجوزات', sessions: 'الجلسات', cpackages: 'الباكدجات', payments: 'المدفوعات', expenses: 'المصروفات', services: 'الخدمات', items: 'المخزن', stockMoves: 'حركة المخزن', devices: 'الأجهزة', employees: 'الموظفين', payroll: 'المرتبات', branches: 'الفروع' };
+const CLINIC_GS_DEF = ['clients', 'bookings', 'sessions', 'cpackages', 'payments', 'expenses'];
+const gsRef = async () => isClinicT() ? doc(db, 'devcfg', 'gs-' + S.dc.id) : doc((await remoteConn(S.dc)).db, 'meta', 'gs');
 async function loadGs() {
   S.dGsErr = '';
-  try { const r = await remoteConn(S.dc); const s = await getDoc(doc(r.db, 'meta', 'gs')); S.dGs = s.exists() ? s.data() : {}; }
+  try { const s = await getDoc(await gsRef()); S.dGs = s.exists() ? s.data() : {}; }
   catch (e) { console.error(e); S.dGs = {}; S.dGsErr = e.message || e.code; }
 }
 const gsTok = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
-async function gsWrite(patch) { const r = await remoteConn(S.dc); await setDoc(doc(r.db, 'meta', 'gs'), patch, { merge: true }); S.dGs = { ...(S.dGs || {}), ...patch }; }
+async function gsWrite(patch) { await setDoc(await gsRef(), patch, { merge: true }); S.dGs = { ...(S.dGs || {}), ...patch }; }
 function gsBody() {
   if (S.dGsErr) return `<div class="notice warn">${esc(S.dGsErr)}</div>`;
-  const g = S.dGs || {}, cols = g.cols || PM_GS_DEF;
+  const g = S.dGs || {}, cli = isClinicT(), COLS = cli ? CLINIC_GS_COLS : PM_GS_COLS, cols = g.cols || (cli ? CLINIC_GS_DEF : PM_GS_DEF);
   const pending = Number(g.fullReq || 0) > Number(g.fullDone || 0);
   const dt = ms => ms ? new Date(ms).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' }) : '';
   return `<div class="card" style="display:flex;flex-direction:column;gap:14px">
     <div class="head"><h3 style="flex:1">الربط بـ Google Sheet</h3>${g.url ? (g.on !== false ? '<span class="chip ok">متوصل</span>' : '<span class="chip mute">متوقف</span>') : '<span class="chip mute">مش متوصل</span>'}</div>
-    <p class="meta">أي حاجة بتتسجل أو تتعدل في سيستم الشركة بتتكتب في الشيت بعدها بثواني — شيت لكل نوع. الشيت ده بتاعك إنت، والشركة مش بتشوف الإعداد ده.</p>
+    <p class="meta">${cli ? 'الشيت بيتحدّث لوحده كل يوم بالليل مع النسخة الاحتياطية — شيت لكل نوع. ولو عايزه يتحدّث دلوقتي دوس "ابعت كل البيانات". الشيت ده بتاعك إنت، والعيادة مش بتشوف الإعداد ده.' : 'أي حاجة بتتسجل أو تتعدل في سيستم الشركة بتتكتب في الشيت بعدها بثواني — شيت لكل نوع. الشيت ده بتاعك إنت، والشركة مش بتشوف الإعداد ده.'}</p>
     <label class="f">رابط الربط (Web app URL من Apps Script)<input id="gsUrl" dir="ltr" value="${esc(g.url || '')}" placeholder="https://script.google.com/macros/s/…/exec"></label>
-    <div class="f"><span>الحاجات اللي تتبعت للشيت</span><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">${Object.entries(PM_GS_COLS).map(([k, l]) => `<label class="chk" style="border:1px solid var(--line);border-radius:99px;padding:4px 12px"><input type="checkbox" class="gsC" value="${k}" ${cols.includes(k) ? 'checked' : ''}> ${esc(l)}</label>`).join('')}</div></div>
+    <div class="f"><span>الحاجات اللي تتبعت للشيت</span><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">${Object.entries(COLS).map(([k, l]) => `<label class="chk" style="border:1px solid var(--line);border-radius:99px;padding:4px 12px"><input type="checkbox" class="gsC" value="${k}" ${cols.includes(k) ? 'checked' : ''}> ${esc(l)}</label>`).join('')}</div></div>
     <label class="chk"><input type="checkbox" id="gsOn" ${g.on !== false ? 'checked' : ''}> الربط شغال</label>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <button class="btn sm" onclick="A.gsSave(this)">حفظ</button>
       <button class="btn ghost sm" onclick="A.gsCodeModal()">كود الشيت وخطوات الإعداد</button>
-      ${g.url ? `<button class="btn ghost sm" onclick="A.gsTest(this)">اختبار</button><button class="btn ghost sm" onclick="A.gsFullReq()" ${pending ? 'disabled' : ''}>ابعت كل البيانات</button>` : ''}
+      ${g.url ? `<button class="btn ghost sm" onclick="A.gsTest(this)">اختبار</button><button class="btn ghost sm" onclick="A.gsFullReq()" ${pending && !cli ? 'disabled' : ''}>ابعت كل البيانات</button>` : ''}
     </div>
-    ${pending ? `<div class="notice info" style="font-weight:500">طلبت إرسال كل البيانات ${esc(dt(g.fullReq))} — هيتبعت لوحده أول ما المدير يفتح السيستم على أي جهاز.</div>` : g.fullDone ? `<p class="meta">آخر إرسال كامل: ${esc(dt(g.fullDone))}${g.fullRows != null ? ` (${Number(g.fullRows).toLocaleString('ar-EG')} سطر)` : ''}</p>` : ''}
+    ${pending && !cli ? `<div class="notice info" style="font-weight:500">طلبت إرسال كل البيانات ${esc(dt(g.fullReq))} — هيتبعت لوحده أول ما المدير يفتح السيستم على أي جهاز.</div>` : g.fullDone ? `<p class="meta">آخر إرسال كامل: ${esc(dt(g.fullDone))}${g.fullRows != null ? ` (${Number(g.fullRows).toLocaleString('ar-EG')} سطر)` : ''}</p>` : ''}
   </div>`;
 }
 A.gsSave = async btn => {
@@ -1133,7 +1221,7 @@ A.gsTest = async btn => {
   catch (e) { toast('مقدرتش أبعت — اتأكد من الرابط والنت'); }
   busy(btn, false, 'اختبار');
 };
-A.gsFullReq = async () => { try { await gsWrite({ fullReq: Date.now() }); toast('اتطلب ✓ — هيتبعت أول ما المدير يفتح السيستم'); } catch (e) { toast(e.message || e.code); } renderTenant(); };
+A.gsFullReq = async () => { if (isClinicT()) { try { await gsWrite({ fullReq: Date.now() }); } catch (e) {} return A.bkNow(false); } try { await gsWrite({ fullReq: Date.now() }); toast('اتطلب ✓ — هيتبعت أول ما المدير يفتح السيستم'); } catch (e) { toast(e.message || e.code); } renderTenant(); };
 
 /* تحديث كامل لكل أجهزة الشركة (بدل الزرار اللي كان في إعدادات السيستم) */
 A.fullRefreshAll = async () => {
@@ -1145,14 +1233,55 @@ A.fullRefreshAll = async () => {
 const TAB_LOAD = { backups: loadBackups, audit: () => loadAudit(false), ann: loadAnn, gs: loadGs };
 
 /* ----- الهيكل ----- */
+/* ----- ثيمات لوحة المطوّر (لوحتك إنت بس) ----- */
+const DEV_THEMES = {
+  beam: ['Beam Care (الأصلي)', '#2F6F68', '#1F4E49', '#C98F4E', '#DDA86E', '#F4F6F5', '#DCE5E2', '#5E7E79', '#1E3B38', '#A9CEC4'],
+  emerald: ['زمردي وذهبي', '#1f6b57', '#164d3f', '#b8862f', '#d9a74a', '#eaf0ed', '#d3dfd9', '#55716a', '#17352e', '#a9d3c4'],
+  navy: ['كحلي وذهبي', '#3f4b6e', '#2c3550', '#b88a4f', '#d8b07c', '#eceef2', '#dde1e8', '#5c6274', '#1c2232', '#b8c0d8'],
+  wine: ['عنابي ونحاسي', '#7b2d3c', '#5a1f2b', '#b07a42', '#d39b62', '#f1ebeb', '#e5d9d9', '#75585d', '#2e1a1e', '#e2c0c6'],
+  teal: ['بترولي وبرتقالي', '#0e6779', '#0a4c59', '#c7742a', '#ee9a4d', '#e8eff1', '#d4e1e5', '#4f6e75', '#12313a', '#a6d0d9'],
+  lavender: ['بنفسجي لافندر', '#5a4a9e', '#433776', '#c2705a', '#f0a48c', '#eeedf5', '#dddbea', '#625d7e', '#24203b', '#c6bfe6'],
+  sand: ['بيج وبني دافي', '#86562a', '#64401f', '#4f7f6d', '#6f9e8c', '#f2eee7', '#e3dccf', '#76685a', '#2e241a', '#d9c3a6'],
+  sky: ['سماوي هادي', '#0e7f99', '#0a5f73', '#1d8c77', '#22a88f', '#eef6fb', '#d6e7f0', '#557583', '#123542', '#a8dbe8'],
+  rose: ['وردي ناعم', '#b5476b', '#8d3552', '#5f73a3', '#7c8fb8', '#f6eef0', '#ead9de', '#7a5d66', '#341b23', '#e8bccb'],
+  corp: ['أزرق مؤسسي', '#1f5fbf', '#174a95', '#0f8a8a', '#13a3a3', '#eef2f7', '#d8e0ec', '#556178', '#16233a', '#b4cbf0'],
+};
+let DEV_THEME = (() => { try { return localStorage.getItem('bc-dev-theme') || 'beam'; } catch (e) { return 'beam'; } })();
+let DEV_THEME_SYNC = false;
+function applyDevTheme() {
+  const t = DEV_THEMES[DEV_THEME] || DEV_THEMES.beam;
+  let st = document.getElementById('devTheme');
+  if (!st) { st = document.createElement('style'); st.id = 'devTheme'; document.head.appendChild(st); }
+  st.textContent = `:root{--brand:${t[1]};--brand-d:${t[2]};--gold:${t[3]};--gold-l:${t[4]};--bg:${t[5]};--line:${t[6]};--muted:${t[7]};--ink:${t[8]};--mint:${t[9]}}`;
+  document.documentElement.style.setProperty('--brand', t[1]);
+  if (!DEV_THEME_SYNC && S.isDev) {
+    DEV_THEME_SYNC = true;
+    getDoc(doc(db, 'devcfg', 'ui')).then(d => { const k = d.exists() && d.data().theme; if (k && DEV_THEMES[k] && k !== DEV_THEME) { DEV_THEME = k; try { localStorage.setItem('bc-dev-theme', k); } catch (e) {} applyDevTheme(); } }).catch(() => {});
+  }
+}
+function clearDevTheme() { document.getElementById('devTheme')?.remove(); }
+A.devThemeModal = () => {
+  openModal(`<h3>شكل لوحة Beam Care</h3>
+  <p class="meta">ده بيغيّر شكل لوحتك إنت بس، ومش بيأثر على أي شركة أو عيادة.</p>
+  <div class="themes">${Object.entries(DEV_THEMES).map(([k, t]) => `<label class="theme-o"><input type="radio" name="dth" value="${k}" ${DEV_THEME === k ? 'checked' : ''} onchange="A.devThemeSet('${k}')"><span class="sw" style="background:${t[5]}"><i style="background:${t[1]}"></i><i style="background:${t[3]}"></i></span><span>${esc(t[0])}</span></label>`).join('')}</div>
+  <div class="acts"><button class="btn" type="button" onclick="A.closeModal()">تمام</button></div>`);
+};
+A.devThemeSet = k => {
+  if (!DEV_THEMES[k]) return;
+  DEV_THEME = k; try { localStorage.setItem('bc-dev-theme', k); } catch (e) {}
+  applyDevTheme();
+  setDoc(doc(db, 'devcfg', 'ui'), { theme: k }, { merge: true }).catch(() => {});
+};
 function devShell(view, content) {
+  applyDevTheme();
   S.devView = view;
   const nav = [['home', 'الرئيسية'], ...PRODUCT_LIST.map(p => ['t:' + p.key, p.short + (p.ready ? '' : ' · قريباً')]), ['plans', 'باكدجات الاشتراك'], ['billing', 'إيرادات الاشتراكات']];
   const on = k => view === k || (view === 'tenant' && k === 't:' + S.dp?.key);
   $app.innerHTML = `
   <div class="top">${ICON(36)}<div><div class="name">Beam Care</div><div class="sub">لوحة المطور</div></div><div class="sp"></div>
-    <button class="btn ghost sm" onclick="A.logout()">خروج</button></div>
-  <div class="layout"><nav class="side">${nav.map(([k, l]) => `<button class="${on(k) ? 'on' : ''}" onclick="A.dev('${k}')">${l}</button>`).join('')}</nav>
+</div>
+  <div class="layout"><nav class="side">${nav.map(([k, l]) => `<button class="${on(k) ? 'on' : ''}" onclick="A.dev('${k}')">${l}</button>`).join('')}
+    <div class="side-end"><button onclick="A.devThemeModal()">🎨 شكل اللوحة</button><button class="out" onclick="A.logout()">↩ تسجيل الخروج</button></div></nav>
   <div class="main">${content}</div></div>`;
 }
 A.devHome = () => A.dev('home');
@@ -1217,7 +1346,7 @@ async function devTenants(P) {
   const list = q ? all.filter(t => (t.name || '').toLowerCase().includes(q) || (t.contactPhone || '').includes(q) || (t.contactName || '').toLowerCase().includes(q)) : all;
   devShell('t:' + P.key, `
     <div class="head"><h2>${esc(P.short)} (${all.length})</h2>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">${P.remote && all.length ? `${all.some(t => t.upd) ? `<button class="btn ghost" onclick="A.updOffAll()">رجّع كل الشركات تشتغل</button>` : ''}<button class="btn ghost" onclick="A.updModal('')">🛠️ وقف كل الشركات للتحديث</button>` : ''}
+      <div style="display:flex;gap:8px;flex-wrap:wrap">${P.ready && all.length ? `${all.some(t => t.upd) ? `<button class="btn ghost" onclick="A.updOffAll('${P.key}')">رجّع الكل يشتغل</button>` : ''}<button class="btn ghost" onclick="A.updModal('','${P.key}')">🛠️ وقف الكل للتحديث</button>` : ''}
       ${P.ready ? `<button class="btn gold" onclick="A.tenantModal('${P.key}')">${esc(P.newLabel)}</button>` : ''}</div></div>
     ${P.ready ? '' : `<div class="notice info">${esc(P.name)} لسه مش جاهز. اللوحة نفسها جاهزة ليه (الباكدجات والاشتراكات واليوزرات)، وأول ما الأبليكيشن بتاعه يخلص هيتفعّل هنا من غير ما اللوحة تتغير.</div>`}
     ${all.length ? `<input type="search" placeholder="دوّر بالاسم أو المسؤول أو الموبايل" aria-label="بحث" value="${esc(S.tq || '')}" onchange="A.tSearch(this.value,'${P.key}')">` : ''}
@@ -1377,7 +1506,9 @@ function tenantFields(f, P) {
   if (P.remote) remoteFieldsRead(f, data);
   return data;
 }
-const brandDoc = (P, d) => ({ product: P.key, name: d.name, logoUrl: d.logoUrl || '', color: d.color || '#2F6F68', whiteLabel: !!d.whiteLabel });
+const brandDoc = (P, d) => ({ product: P.key, name: d.name, logoUrl: d.logoUrl || '', color: d.color || '#2F6F68', whiteLabel: !!d.whiteLabel, ...(P.remote && d.fb ? { fb: d.fb } : {}) });
+// رابط واحد لكل شركات الصيانة: كل شركة بالكود بتاعها
+const MAINT_APP = 'https://beamcare.github.io/m/';
 A.saveTenant = async (e, pk, id) => {
   e.preventDefault();
   const f = e.target, P = PRODUCTS[pk], btn = f.querySelector('[type=submit]');
@@ -1390,10 +1521,12 @@ A.saveTenant = async (e, pk, id) => {
       if (endOfDay(f.ed.value) <= new Date(f.sd.value + 'T00:00:00')) { busy(btn, false, 'حفظ'); return toast('تاريخ النهاية لازم يكون بعد البداية'); }
       data.startAt = Timestamp.fromDate(new Date(f.sd.value + 'T00:00:00'));
       data.expiresAt = Timestamp.fromDate(endOfDay(f.ed.value));
+      if (P.remote && !data.url) data.url = MAINT_APP + '?c=' + id;
       batch.update(tdoc(P, id), data);
     } else {
       const ref = doc(tcol(P));
       id = ref.id;
+      if (P.remote && !data.url) data.url = MAINT_APP + '?c=' + id;
       const months = Number(f.months.value) || 1;
       const start = new Date(f.sd.value + 'T00:00:00');
       const end = addMonths(start, months); end.setHours(23, 59, 59);
@@ -1474,7 +1607,7 @@ A.openTenant = async (pk, id, tab = 'sub') => {
 A.openClinic = (id, tab) => A.openTenant('clinic', id, tab);
 A.tenantTab = async t => {
   S.dTab = t;
-  const ld = S.dp?.remote && typeof TAB_LOAD !== 'undefined' && TAB_LOAD[t];
+  const ld = (S.dp?.remote || (S.dp?.key === 'clinic' && ['backups', 'gs'].includes(t))) && typeof TAB_LOAD !== 'undefined' && TAB_LOAD[t];
   if (!ld) { renderTenant(); return; }
   S.dTabBusy = true; renderTenant();
   try { await ld(); } catch (e) { console.error(e); }
@@ -1494,20 +1627,20 @@ function renderTenant() {
   const maxUsers = c.plan?.maxUsers ?? 0, maxBr = c.plan?.maxBranches ?? 0;
   const staff = S.dUsers.filter(u => !isLinked(P, u)).length;
   let body = '';
-  if (P.remote && S.dTabBusy) body = LOADING;
+  if ((P.remote || P.key === 'clinic') && S.dTabBusy) body = LOADING;
   else if (P.remote && tab === 'users') body = remoteUsersBody(P);
-  else if (P.remote && tab === 'backups') body = backupsBody();
+  else if ((P.remote || P.key === 'clinic') && tab === 'backups') body = backupsBody();
   else if (P.remote && tab === 'audit') body = auditBody();
   else if (P.remote && tab === 'archive') body = archiveBody();
   else if (P.remote && tab === 'ann') body = annBody();
-  else if (P.remote && tab === 'gs') body = gsBody();
+  else if ((P.remote || P.key === 'clinic') && tab === 'gs') body = gsBody();
   else if (tab === 'sub') {
     const link = P.remote ? (c.url || '') : `${location.origin}${location.pathname}?c=${c.id}`;
     const usage = (n, max) => `<div class="bar"><i class="${n >= max ? 'full' : ''}" style="width:${Math.min(100, max ? n / max * 100 : 0)}%"></i></div>`;
     body = `
     <div class="grid3">${P.limits.map(l => { const n = usageOf(l), max = c.plan?.[l.key] ?? 0;
       return `<div class="card stat"><b>${n === null ? '' : n.toLocaleString('ar-EG') + ' / '}${max.toLocaleString('ar-EG')}</b><span>${esc(l.label)}</span>${n === null ? '' : usage(n, max)}</div>`; }).join('')}</div>
-    ${P.remote ? remoteSubCard(c) : ''}
+    ${P.remote ? remoteSubCard(c) : P.key === 'clinic' ? clinicUpdCard(c) : ''}
     <div class="card" style="display:flex;flex-direction:column;gap:14px">
       <div class="head"><h3 style="flex:1">الاشتراك</h3>${statusChip(c)}</div>
       <div class="meta"><span>الباكدج: <b>${esc(c.planName) || 'مخصوص'}</b></span><span>من: ${fmt(c.startAt)}</span><span>لحد: ${fmt(c.expiresAt)}</span><span>${daysLeft(c) > 0 ? `فاضل ${daysLeft(c)} يوم` : 'منتهي'}</span></div>
@@ -1570,7 +1703,7 @@ function renderTenant() {
         </div></td></tr>`).join('')}</tbody></table></div>`
       : `<div class="card empty">مفيش يوزرات لسه. ابدأ بصاحب ${esc(P.one)}.</div>`}`;
   }
-  const tabs = P.remote ? [['sub', 'الاشتراك'], ['users', 'اليوزرات وكلمات السر'], ['backups', 'النسخ الاحتياطية'], ['audit', 'سجل التعديلات'], ['archive', 'الأرشيف'], ['ann', 'الإعلانات'], ['gs', 'Google Sheet']] : [['sub', 'الاشتراك'], ['branches', 'الفروع'], ['users', 'اليوزرات وكلمات السر']];
+  const tabs = P.remote ? [['sub', 'الاشتراك'], ['users', 'اليوزرات وكلمات السر'], ['backups', 'النسخ الاحتياطية'], ['audit', 'سجل التعديلات'], ['archive', 'الأرشيف'], ['ann', 'الإعلانات'], ['gs', 'Google Sheet']] : [['sub', 'الاشتراك'], ['branches', 'الفروع'], ['users', 'اليوزرات وكلمات السر'], ...(P.key === 'clinic' ? [['backups', 'النسخ الاحتياطية'], ['gs', 'Google Sheet']] : [])];
   if (P.importer) tabs.push(['import', 'استيراد من إكسل']);
   devShell('tenant', `
     <div><button class="btn ghost sm" onclick="A.dev('t:${P.key}')">→ كل ${esc(P.short)}</button></div>
@@ -1974,6 +2107,7 @@ A.shiftDate = (k, n) => {
 
 /* ----- الهيكل ----- */
 function clinicShell(view, content) {
+  clearDevTheme(); applyBrand(S.clinic);
   S.view = view;
   const b = brandOf(S.clinic);
   const nav = [['home', 'الرئيسية']];
@@ -1987,13 +2121,14 @@ function clinicShell(view, content) {
   ${S.viewAs ? `<div style="background:var(--gold);color:#fff;padding:8px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-weight:700"><span style="flex:1">إنت شايف السيستم كأنك ${esc(S.profile.name)} (${esc(ROLES[S.profile.role]?.label)}). أي حاجة تعملها هتتسجل فعلاً.</span><button class="btn sm" style="background:#fff;color:var(--ink)" onclick="A.exitViewAs()">رجوع للوحة المطور</button></div>` : ''}
   <div class="top">${logoHTML(b, 36)}<div><div class="name">${esc(b.name)}</div><div class="sub">${esc(S.profile.name)} · ${esc(ROLES[S.profile.role]?.label)}</div></div><div class="sp"></div>
     ${brSel}
-    ${S.viewAs ? '' : `<button class="btn ghost sm" onclick="A.pwModal()">كلمة السر</button>`}
-    <button class="btn ghost sm" onclick="A.logout()">${S.viewAs ? 'رجوع' : 'خروج'}</button></div>
-  <div class="layout"><nav class="side">${nav.map(([k, l]) => `<button class="${view === k ? 'on' : ''}" onclick="A.go('${k}')">${l}</button>`).join('')}</nav>
+    ${S.viewAs ? `<button class="btn ghost sm" onclick="A.logout()">رجوع</button>` : ''}</div>
+  <div class="layout"><nav class="side">${nav.map(([k, l]) => `<button class="${view === k ? 'on' : ''}" onclick="A.go('${k}')">${l}</button>`).join('')}
+    ${S.viewAs ? '' : `<div class="side-end"><button onclick="A.pwModal()">🔑 تغيير كلمة السر</button><button class="out" onclick="A.logout()">↩ تسجيل الخروج</button></div>`}</nav>
   <div class="main">${content}</div></div>`;
 }
 
 A.go = async view => {
+  if (S.clinic?.upd && !S.viewAs && !S.isDev) return renderUpdate();
   S.openClientId = null;
   try {
     if (view === 'home') return await renderHome();
