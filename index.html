@@ -36,6 +36,8 @@ label.chk{display:flex;align-items:center;gap:8px;font-weight:600;cursor:pointer
 label.chk input{width:20px;height:20px;min-height:0;accent-color:var(--brand)}
 .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 .grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media(max-width:900px){.grid4{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:640px){.grid2,.grid3{grid-template-columns:1fr}}
 
 /* login */
@@ -57,6 +59,25 @@ label.chk input{width:20px;height:20px;min-height:0;accent-color:var(--brand)}
 .side button{background:transparent;border:0;text-align:right;padding:10px 14px;border-radius:10px;cursor:pointer;color:var(--ink);font-weight:600;min-height:44px}
 .side button:hover{background:var(--bg)}
 .side button.on{background:var(--brand);color:#fff}
+.side button{display:flex;align-items:center;gap:10px}
+.nico{width:20px;height:20px;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+body.ico-filled .side .nico{fill:currentColor;stroke:var(--card,#fff);stroke-width:1.3}
+body.ico-duotone .side .nico{fill:var(--mint);stroke:var(--brand)}
+body.ico-circle .side .nico{background:var(--brand);stroke:#fff;border-radius:50%;padding:5px;box-sizing:content-box}
+body.ico-square .side .nico{background:var(--soft);stroke:var(--brand);border-radius:8px;padding:5px;box-sizing:content-box}
+body.ico-circle .side button.on,body.ico-square .side button.on{background:var(--soft);color:var(--ink)}
+body.nav-top .layout{flex-direction:column}
+body.nav-top .side{width:auto;flex-direction:row;overflow-x:auto;border-left:0;border-bottom:1px solid var(--line);padding:8px}
+body.nav-top .side button{white-space:nowrap}
+body.nav-top .side .side-end{margin-top:0;margin-inline-start:auto;border-top:0;padding-top:0;flex-direction:row}
+body.nav-rail .side{width:74px;align-items:stretch}
+body.nav-rail .side button{justify-content:center;padding:10px 6px}
+body.nav-rail .side button span{display:none}
+body.lk-dark .card,body.lk-dark .top,body.lk-dark .side,body.lk-dark table,body.lk-dark .modal,body.lk-dark input,body.lk-dark select,body.lk-dark textarea,body.lk-dark .login-card,body.lk-dark .locked .card{background:#1B1B1F;color:var(--ink)}
+body.lk-dark .btn,body.lk-dark .side button.on{color:#111}
+body.lk-dark .btn.ghost{color:var(--brand);background:transparent}
+body.lk-dark .chip.mute{background:#2A2A2E}
+body.lk-dark th{color:var(--muted)}
 .side .side-end{margin-top:auto;border-top:1px solid var(--line);padding-top:8px;display:flex;flex-direction:column;gap:4px}
 .side .side-end button.out{color:var(--red)}
 .main{flex:1;padding:24px;min-width:0;display:flex;flex-direction:column;gap:20px}
@@ -65,6 +86,10 @@ label.chk input{width:20px;height:20px;min-height:0;accent-color:var(--brand)}
   .side{width:auto;flex-direction:row;overflow-x:auto;border-left:0;border-bottom:1px solid var(--line);padding:8px}
   .side button{white-space:nowrap}
   .side .side-end{margin-top:0;margin-inline-start:auto;border-top:0;padding-top:0;flex-direction:row}
+  body.nav-rail .side{width:auto;flex-direction:row}
+  body.nav-bottom .side{position:fixed;bottom:0;left:0;right:0;z-index:20;justify-content:space-around;border-bottom:0;border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px))}
+  body.nav-bottom .side button{flex-direction:column;gap:2px;font-size:11px;padding:6px 8px;min-height:52px}
+  body.nav-bottom .main{padding-bottom:96px}
   .main{padding:16px}
 }
 .head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
@@ -131,7 +156,7 @@ th{color:var(--muted);font-size:13px;font-weight:700;background:#FAFCFB}
 <script type="module">
 import { initializeApp, deleteApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, onSnapshot, doc, getDoc, getDocs, setDoc, updateDoc, addDoc, deleteDoc, collection, query, where, orderBy, limit, Timestamp, serverTimestamp, writeBatch, increment, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, onSnapshot, getCountFromServer, getAggregateFromServer, sum, doc, getDoc, getDocs, setDoc, updateDoc, addDoc, deleteDoc, collection, query, where, orderBy, limit, Timestamp, serverTimestamp, writeBatch, increment, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 /* =========================================================
    1) حط بيانات مشروع Firebase هنا
@@ -313,6 +338,7 @@ onAuthStateChanged(auth, async u => {
     S.clinic = { id: c.id, ...c.data() };
     applyBrand(S.clinic);
     if (!clinicActive(S.clinic)) return renderLocked();
+    applyLook(S.clinic.look); lookAnnounce(S.clinic.look || '');
     watchClinicUpd();
     if (S.clinic.upd) return renderUpdate();
     const bs = await getDocs(collection(db, 'clinics', S.clinic.id, 'branches'));
@@ -335,7 +361,9 @@ function watchClinicUpd() {
   UPD_UNSUB = onSnapshot(doc(db, 'clinics', id), d => {
     if (!S.clinic || S.clinic.id !== id || S.viewAs) return;
     const x = d.data() || {}; const now = !!x.upd;
-    S.clinic = { ...S.clinic, upd: x.upd, updMsg: x.updMsg, updUntil: x.updUntil };
+    const lookChanged = (x.look || '') !== (S.clinic.look || '');
+    S.clinic = { ...S.clinic, upd: x.upd, updMsg: x.updMsg, updUntil: x.updUntil, look: x.look };
+    if (lookChanged && !now) { applyLook(x.look); lookAnnounce(x.look || ''); if (S.view) A.go(S.view); }
     if (now && !was) renderUpdate();
     else if (!now && was) location.reload();
     else if (now) renderUpdate();
@@ -522,7 +550,7 @@ function subDocOf(t) {
     maxUsers: Number(t.plan?.maxUsers) || 0, maxClients: Number(t.plan?.maxCustomers) || 0,
     mods: t.mods || {}, whiteLabel: !!t.whiteLabel, ownerPerms: !!t.features?.ownerManagesPerms,
     contact: t.renewPhone || '', vendor: 'Beam Care', product: PRODUCTS.maint.name, planName: t.planName || '',
-    upd: !!t.upd, updMsg: t.updMsg || '', updUntil: t.updUntil || '', theme: t.theme || '', layout: t.layout || '',
+    upd: !!t.upd, updMsg: t.updMsg || '', updUntil: t.updUntil || '', theme: t.theme || '', layout: t.layout || '', icons: t.icons || '', look: t.look || '', lookName: (typeof LOOKS !== 'undefined' && LOOKS[t.look]?.name) || '',
     lockAt: Timestamp.fromDate(lock), updatedAt: new Date().toISOString(), by: 'panel',
   };
 }
@@ -1230,6 +1258,311 @@ A.fullRefreshAll = async () => {
   catch (e) { toast(e.message || e.code); }
 };
 
+
+/* =========================================================
+   شركتي + التنبيهات + تذكير التجديد بالواتساب + الإيصالات + رابط التجربة
+   ========================================================= */
+let MYCO = null; // { tenantId }
+async function loadMyCo() {
+  if (MYCO) return MYCO;
+  try { const d = await getDoc(doc(db, 'devcfg', 'myco')); MYCO = d.exists() ? d.data() : {}; } catch (e) { MYCO = {}; }
+  return MYCO;
+}
+let DEVCFG_MAIN = null; // { phone } رقمك اللي بيظهر في رابط التجربة
+async function loadDevMain() {
+  if (DEVCFG_MAIN) return DEVCFG_MAIN;
+  try { const d = await getDoc(doc(db, 'devcfg', 'main')); DEVCFG_MAIN = d.exists() ? d.data() : {}; } catch (e) { DEVCFG_MAIN = {}; }
+  return DEVCFG_MAIN;
+}
+A.setMyCo = async id => {
+  try {
+    await setDoc(doc(db, 'devcfg', 'myco'), { tenantId: id || '' });
+    MYCO = { tenantId: id || '' }; S.myCoStats = null;
+    toast(id ? '⭐ دي بقت شركتك' : 'اتشالت'); if (S.dc) renderTenant(); else A.dev('home');
+  } catch (e) { toast(e.message || e.code); }
+};
+// ادخل سيستم شركتي من أي مكان (من غير ما تفتح صفحة الشركة)
+A.myCoEnter = () => {
+  const t = (S.tenants || []).find(x => x.id === MYCO?.tenantId);
+  if (!t) return A.dev('home');
+  const keep = S.dc; S.dc = t;
+  A.enterSys().finally(() => { S.dc = keep; });
+};
+const ymd = d => { const p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; };
+async function myCoStats(t) {
+  const r = await remoteConn(t);
+  const now = new Date(), m1 = ymd(new Date(now.getFullYear(), now.getMonth(), 1));
+  const cnt = async q => { try { return (await getCountFromServer(q)).data().count; } catch (e) { return (await getDocs(q)).size; } };
+  const sumOf = async q => {
+    try { return (await getAggregateFromServer(q, { s: sum('amount') })).data().s || 0; }
+    catch (e) { const s = await getDocs(q); return s.docs.reduce((a, d) => a + (Number(d.data().amount) || 0), 0); }
+  };
+  const [rep, pay, reqs, cl] = await Promise.all([
+    cnt(query(collection(r.db, 'reports'), where('date', '>=', m1))).catch(() => null),
+    sumOf(query(collection(r.db, 'payments'), where('date', '>=', m1))).catch(() => null),
+    cnt(query(collection(r.db, 'requests'), where('status', '==', 'new'))).catch(() => null),
+    cnt(collection(r.db, 'clients')).catch(() => null),
+  ]);
+  return { rep, pay, reqs, cl, at: Date.now() };
+}
+function myCoCard(tenants) {
+  const t = tenants.find(x => x.id === MYCO?.tenantId);
+  if (!t) return `<div class="card" style="display:flex;flex-direction:column;gap:10px;border:1.5px dashed var(--gold)">
+    <div class="head"><span style="font-size:22px" aria-hidden="true">⭐</span><h3 style="flex:1">شركتي</h3></div>
+    <p class="meta">لسه ما حددتش شركة الصيانة بتاعتك. اعمل شركتك "شركة صيانة" عادية من "شركات الصيانة"، وبعدين افتحها ودوس <b>"⭐ دي شركتي"</b> — هتظهر هنا بأرقامها وتدخلها بزرار واحد.</p>
+    ${tenants.some(x => x.product === 'maint') ? `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><select id="myCoPick" style="width:auto">${tenants.filter(x => x.product === 'maint').map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('')}</select><button class="btn gold sm" onclick="A.setMyCo(document.getElementById('myCoPick').value)">دي شركتي</button></div>` : ''}
+  </div>`;
+  const st = S.myCoStats;
+  const box = (v, l, money_) => `<div class="card stat" style="background:var(--bg);border:0"><b>${v == null ? (st ? '—' : '…') : money_ ? money(v) : Number(v).toLocaleString('ar-EG')}</b><span>${l}</span></div>`;
+  return `<div class="card" style="display:flex;flex-direction:column;gap:14px;border:1.5px solid var(--gold-l)">
+    <div class="head"><span style="font-size:22px" aria-hidden="true">⭐</span><div style="flex:1"><h3>شركتي — ${esc(t.name)}</h3><div class="meta">شغل الصيانة وقطع الغيار والمستهلكات بتاعك</div></div>
+      <button class="btn gold sm" onclick="A.myCoEnter()">ادخل سيستم شركتي</button><button class="btn ghost sm" onclick="A.openTenant('maint','${esc(t.id)}')">إعدادات</button></div>
+    <div class="grid4">${box(st?.rep, 'تقارير صيانة الشهر ده')}${box(st?.pay, 'تحصيلات الشهر', true)}${box(st?.reqs, 'طلبات صيانة جديدة')}${box(st?.cl, 'العملاء (العيادات)')}</div>
+    ${st?.err ? `<p class="meta">مقدرتش أجيب الأرقام: ${esc(st.err)}</p>` : ''}
+  </div>`;
+}
+
+/* ----- التنبيهات ----- */
+async function loadAlerts(tenants) {
+  const L = [];
+  const P = t => PRODUCTS[t.product] || PRODUCTS.clinic;
+  tenants.forEach(t => {
+    if (t.id === MYCO?.tenantId) return;
+    const d = daysLeft(t);
+    if (t.active === false) L.push({ lv: 'mute', t, msg: 'موقوف' });
+    else if (d <= 0) L.push({ lv: 'bad', t, msg: 'الاشتراك خلص', renew: true });
+    else if (d <= 7) L.push({ lv: 'warn', t, msg: `الاشتراك هيخلص بعد ${d} يوم`, renew: true });
+    if (t.upd) L.push({ lv: 'warn', t, msg: 'السيستم متوقف للتحديث — متنساش ترجّعه' });
+  });
+  try {
+    const g = await ghCfg();
+    if (g.token) {
+      const idx = await gh('contents/index.json?ref=data', { raw: true, soft: true });
+      const j = idx ? await idx.json() : {};
+      const look = (ix, prod) => Object.entries(ix || {}).forEach(([id, x]) => {
+        const t = tenants.find(y => y.id === id && y.product === prod); if (!t) return;
+        if (x.last && !x.last.ok) L.push({ lv: 'bad', t, msg: 'آخر نسخة احتياطية فيها مشكلة', tab: 'backups' });
+        else if (x.last?.at && Date.now() - new Date(x.last.at).getTime() > 2.5 * 864e5) L.push({ lv: 'warn', t, msg: 'مفيش نسخة احتياطية من أكتر من يومين', tab: 'backups' });
+        const c = x.days?.[0]?.counts || {}, lim = prod === 'maint' ? t.plan?.maxCustomers : t.plan?.maxClients;
+        if (lim && c.clients && c.clients >= lim * 0.9) L.push({ lv: 'gold', t, msg: `قرب يوصل لحد الباكدج (${c.clients} من ${lim} عميل) — فرصة تعرض عليه باكدج أكبر` });
+      });
+      look(j.companies, 'maint'); look(j.clinics, 'clinic');
+    }
+  } catch (e) { console.error(e); }
+  const rank = { bad: 0, warn: 1, gold: 2, mute: 3 };
+  return L.sort((a, b) => rank[a.lv] - rank[b.lv]);
+}
+function alertsCard(L) {
+  if (L === null) return `<div class="card"><h3>⚠️ التنبيهات</h3><p class="meta">بيحمّل…</p></div>`;
+  return `<div class="card" style="display:flex;flex-direction:column;gap:10px">
+    <div class="head"><h3 style="flex:1">⚠️ التنبيهات</h3>${L.length ? `<span class="chip ${L.some(x => x.lv === 'bad') ? 'bad' : 'warn'}">${L.length}</span>` : '<span class="chip ok">مفيش</span>'}</div>
+    ${L.length ? L.map(a => `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 0;border-top:1px solid var(--line)">
+      <span class="chip ${a.lv === 'gold' ? 'warn' : a.lv}" style="min-width:10px">${a.lv === 'bad' ? '●' : a.lv === 'gold' ? '★' : '●'}</span>
+      <div style="flex:1;min-width:200px"><b>${esc(a.t.name)}</b> <span class="meta" style="display:inline">· ${esc(prodOf(a.t).short)}</span><div class="meta">${esc(a.msg)}</div></div>
+      ${a.renew && a.t.contactPhone ? `<button class="btn ghost sm" onclick="A.waRenew('${a.t.product}','${a.t.id}')">💬 فكّره بالتجديد</button>` : ''}
+      ${a.renew ? `<button class="btn gold sm" onclick="A.quickRenew('${a.t.product}','${a.t.id}')">تجديد</button>` : ''}
+      <button class="btn ghost sm" onclick="A.openTenant('${a.t.product}','${a.t.id}','${a.tab || 'sub'}')">فتح</button></div>`).join('')
+      : '<p class="meta">كل حاجة تمام 👌 مفيش حاجة محتاجة تتصرف فيها.</p>'}
+  </div>`;
+}
+
+/* ----- تذكير التجديد بالواتساب ----- */
+A.waRenew = async (pk, id) => {
+  const t = (S.tenants || []).find(x => x.id === id) || (S.dc?.id === id ? S.dc : null);
+  if (!t) return;
+  if (!t.contactPhone) return toast('مفيش رقم موبايل للمسؤول — ضيفه من "تعديل البيانات والباكدج"');
+  if (!S.plans) await loadPlans().catch(() => {});
+  const P = PRODUCTS[pk], p = (S.plans || []).find(x => x.id === t.planId);
+  const d = daysLeft(t);
+  const msg = [
+    `أهلاً${t.contactName ? ' ' + t.contactName : ''} 👋 معاك Beam Care.`,
+    d > 0 ? `بنفكّرك إن اشتراك *${t.name}* في ${P.name} هيخلص يوم ${fmt(t.expiresAt)} (فاضل ${d} يوم).` : `اشتراك *${t.name}* في ${P.name} خلص يوم ${fmt(t.expiresAt)}.`,
+    p ? `قيمة التجديد (${p.name}): ${money(p.price)} لمدة ${p.months} شهر.` : '',
+    'تقدر تجدّد بأي وسيلة دفع تناسبك، ولو محتاج أي حاجة إحنا معاك. شكراً لثقتك 🙏',
+  ].filter(Boolean).join('\n');
+  window.open(`https://wa.me/${waNum(t.contactPhone)}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
+};
+
+/* ----- إيصال الدفع ----- */
+A.receipt = id => {
+  const x = (S.dBilling || []).find(b => b.id === id); const c = S.dc;
+  if (!x || !c) return;
+  const no = 'BC-' + (x.date || '').replace(/-/g, '') + '-' + String(id).slice(0, 4).toUpperCase();
+  const w = window.open('', '_blank');
+  if (!w) return toast('المتصفح منع فتح صفحة جديدة — اسمح بالنوافذ المنبثقة');
+  const P = PRODUCTS[x.product] || prodOf(c);
+  w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>إيصال ${no}</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap">
+  <style>body{margin:0;background:#f4f6f5;font-family:Cairo,system-ui,sans-serif;color:#1E3B38}
+  .r{max-width:720px;margin:30px auto;background:#fff;border-radius:18px;padding:36px 40px;border:1px solid #DCE5E2}
+  .h{display:flex;align-items:center;gap:14px;border-bottom:2px solid #2F6F68;padding-bottom:18px}.h b{font-size:24px}
+  .t{margin-inline-start:auto;text-align:left}.t div{font-size:13px;color:#5E7E79}
+  table{width:100%;border-collapse:collapse;margin:22px 0}td{padding:11px 4px;border-bottom:1px solid #DCE5E2;font-size:15px}td:first-child{color:#5E7E79;width:38%}
+  .amt{background:#F4F6F5;border-radius:14px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;font-size:18px}.amt b{font-size:26px;color:#2F6F68}
+  .f{margin-top:26px;font-size:13px;color:#5E7E79;text-align:center}.btn{display:block;margin:0 auto 30px;background:#2F6F68;color:#fff;border:0;border-radius:10px;padding:12px 26px;font:inherit;font-weight:700;cursor:pointer}
+  @media print{body{background:#fff}.r{border:0;margin:0}.btn{display:none}}</style></head><body>
+  <div class="r"><div class="h"><svg width="56" height="56" viewBox="0 0 220 220"><rect width="220" height="220" rx="52" fill="#2F6F68"/><path d="M110 40 L122 98 L180 110 L122 122 L110 180 L98 122 L40 110 L98 98 Z" fill="#DDA86E"/></svg>
+  <div><b>Beam Care</b><div style="color:#5E7E79">إيصال استلام اشتراك</div></div><div class="t"><b style="font-size:16px">${esc(no)}</b><div>${esc(x.date || '')}</div></div></div>
+  <table><tr><td>العميل</td><td><b>${esc(c.name)}</b></td></tr><tr><td>المنتج</td><td>${esc(P.name)}</td></tr><tr><td>الباكدج</td><td>${esc(x.planName || 'مخصوص')}</td></tr>
+  <tr><td>النوع</td><td>${x.kind === 'new' ? 'اشتراك جديد' : 'تجديد'}</td></tr><tr><td>الفترة</td><td>من ${esc(x.from || '')} إلى ${esc(x.to || '')}</td></tr>
+  <tr><td>طريقة الدفع</td><td>${esc(METHODS[x.method] || x.method || '—')}</td></tr>${x.note ? `<tr><td>ملاحظة</td><td>${esc(x.note)}</td></tr>` : ''}</table>
+  <div class="amt"><span>المبلغ المدفوع</span><b>${x.amount ? money(x.amount) : 'مجاني'}</b></div>
+  <div class="f">شكراً لثقتك في Beam Care — بياناتك محفوظة ومتأمّنة بنسخة احتياطية كل يوم.</div></div>
+  <button class="btn" onclick="print()">حفظ PDF / طباعة</button></body></html>`);
+  w.document.close();
+};
+
+/* ----- رابط التجربة (Demo) ----- */
+function demoLink() { const ph = waNum(DEVCFG_MAIN?.phone || ''); return MAINT_APP + '?demo=1' + (ph ? '&wa=' + ph : ''); }
+function demoCard() {
+  const link = demoLink();
+  const msg = `أهلاً 👋 دي نسخة تجربة من سيستم Beam Care Maintenance لإدارة شركات الصيانة (التقارير، المخزن، الفواتير، العقود، الموظفين والمرتبات).\nجرّبها براحتك من الموبايل أو الكمبيوتر، البيانات وهمية:\n${link}`;
+  return `<div class="card" style="display:flex;flex-direction:column;gap:10px">
+    <div class="head"><h3 style="flex:1">🧪 رابط التجربة (Demo)</h3></div>
+    <p class="meta">ابعته لأي شركة صيانة عايزة تجرّب السيستم قبل ما تشترك. بيفتح سيستم كامل ببيانات وهمية على جهازهم هم بس — من غير ما يأثر على أي حاجة عندك، وفيه زرار "عايز أشترك" بيكلّمك على الواتساب.</p>
+    <div class="linkbox"><input readonly value="${esc(link)}" aria-label="رابط التجربة"><button class="btn sm" onclick="navigator.clipboard.writeText('${esc(link)}');A.toast('اتنسخ')">نسخ</button></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <a class="btn gold sm" style="text-decoration:none;display:inline-flex;align-items:center" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(msg)}">💬 ابعته على الواتساب</a>
+      <a class="btn ghost sm" style="text-decoration:none;display:inline-flex;align-items:center" target="_blank" rel="noopener" href="${esc(link)}">افتحه وجرّبه</a>
+      <button class="btn ghost sm" onclick="A.demoPhone()">${DEVCFG_MAIN?.phone ? 'غيّر رقمي' : 'ضيف رقمك'}</button>
+    </div>
+    ${DEVCFG_MAIN?.phone ? '' : '<p class="meta">ضيف رقم الواتساب بتاعك علشان زرار "عايز أشترك" اللي جوه التجربة يكلّمك.</p>'}
+  </div>`;
+}
+A.demoPhone = () => {
+  openModal(`<h3>رقمك في رابط التجربة</h3><form onsubmit="A.demoPhoneSave(event)" class="fcol">
+    <label class="f">رقم الواتساب بتاعك<input name="ph" dir="ltr" inputmode="tel" value="${esc(DEVCFG_MAIN?.phone || '')}" placeholder="01xxxxxxxxx"></label>${formActs()}</form>`);
+};
+A.demoPhoneSave = async e => {
+  e.preventDefault(); const ph = e.target.ph.value.trim();
+  try { await setDoc(doc(db, 'devcfg', 'main'), { phone: ph }, { merge: true }); DEVCFG_MAIN = { ...(DEVCFG_MAIN || {}), phone: ph }; A.closeModal(); toast('اتحفظ ✓'); A.dev('home'); }
+  catch (err) { toast(err.message || err.code); }
+};
+
+
+/* =========================================================
+   أشكال السيستم: 10 أشكال كاملة (ألوان + أيقونات + قايمة) — بتتنزّل كتحديث من اللوحة
+   ========================================================= */
+// c: [brand, brand-d, gold, gold-l, bg, line, muted, ink, mint]
+const LOOKS = {
+  classic:  { name: 'كلاسيك',      desc: 'ألوان Beam Care الأصلية · أيقونات خطوط رفيعة · قايمة جانبية', c: ['#2F6F68', '#1F4E49', '#C98F4E', '#DDA86E', '#F4F6F5', '#DCE5E2', '#5E7E79', '#1E3B38', '#A9CEC4'], icons: 'outline', nav: 'side', pm: ['emerald', 'side'] },
+  modern:   { name: 'عصري',        desc: 'أبيض نظيف وبنفسجي · أيقونات جوه مربعات · قايمة فوق', c: ['#4F46E5', '#3730A3', '#0E7490', '#06B6D4', '#F6F7FB', '#E3E5F0', '#5D6280', '#1B1E3A', '#C7C4F7'], icons: 'square', nav: 'top', pm: ['clean', 'top'] },
+  soft:     { name: 'ناعم',        desc: 'وردي وخوخي هادي · أيقونات جوه دواير · قايمة جانبية', c: ['#C2557A', '#9A3E5E', '#C0623F', '#F29E7C', '#FBF5F4', '#EFDDE1', '#7A5D63', '#3B2228', '#F3C9D6'], icons: 'circle', nav: 'side', pm: ['rose', 'side'] },
+  lux:      { name: 'فخم داكن',    desc: 'أسود ودهبي · أيقونات دهبي رفيعة · قايمة جانبية غامقة', c: ['#D4AF61', '#B8933F', '#D4AF61', '#E6CC8F', '#111113', '#2E2C28', '#B4AC98', '#F3EEE2', '#3A3528'], dark: true, icons: 'outline', nav: 'side', pm: ['gold', 'side'] },
+  nature:   { name: 'طبيعي',       desc: 'زمردي وبيج · أيقونات بلونين · قايمة أيقونات بس', c: ['#1F6B57', '#164D3F', '#A87A2A', '#D9A74A', '#F1F0E9', '#E2E2D6', '#5E6E64', '#1D3328', '#BFDCCF'], icons: 'duotone', nav: 'rail', pm: ['sand', 'icons'] },
+  app:      { name: 'تطبيق',       desc: 'سماوي مبهج · أيقونات مليانة · شريط تحت زي أبلكيشن الموبايل', c: ['#0E7F99', '#0A5F73', '#1D8C77', '#22A88F', '#EEF6FB', '#D6E7F0', '#557583', '#123542', '#A8DBE8'], icons: 'filled', nav: 'bottom', pm: ['sky', 'app'] },
+  ocean:    { name: 'محيطي',       desc: 'أزرق غامق وفيروزي · أيقونات جوه دواير · قايمة فوق', c: ['#1E40AF', '#1E3A8A', '#0E7490', '#06B6D4', '#EFF4FB', '#D9E3F2', '#52627E', '#13213D', '#B9CBF1'], icons: 'circle', nav: 'top', pm: ['ocean', 'top'] },
+  sunset:   { name: 'غروب',        desc: 'برتقالي دافي وكهرماني · أيقونات جوه مربعات · قايمة جانبية', c: ['#C2410C', '#9A3412', '#B45309', '#F59E0B', '#FDF6F0', '#F1DFD0', '#7A6050', '#3A2216', '#F6C9A8'], icons: 'square', nav: 'side', pm: ['pastel', 'side'] },
+  graphite: { name: 'جرافيت',      desc: 'رمادي غامق وأخضر ليموني · أيقونات رفيعة · قايمة أيقونات بس', c: ['#2E3640', '#1E242B', '#4D7A12', '#9BC53D', '#ECEEF0', '#D9DDE2', '#59626D', '#1A1F25', '#C9D6B3'], icons: 'outline', nav: 'rail', pm: ['slate', 'icons'] },
+  royal:    { name: 'ملكي',        desc: 'بنفسجي ملكي ودهبي · أيقونات بلونين · قايمة جانبية', c: ['#5B3FA6', '#432E7C', '#A87A2A', '#D9A74A', '#F4F1FA', '#E2DCF0', '#655C7E', '#231C38', '#D3C7F0'], icons: 'duotone', nav: 'side', pm: ['lavender', 'side'] },
+};
+const NAV_ICO = {
+  home: '<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+  clients: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5 6.5-5s5.7 1.5 6.5 5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 15c2 .6 3.2 2.2 3.5 5"/>',
+  bookings: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  sessions: '<path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="5"/>',
+  packages: '<rect x="3" y="8" width="18" height="13" rx="2"/><path d="M3 12h18M12 8v13M8 8c-2 0-3-1.5-3-3s2-2 3 0l4 3 4-3c1-2 3-1.5 3 0s-1 3-3 3"/>',
+  payments: '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/>',
+  inventory: '<path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/>',
+  staff: '<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/>',
+  devices: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
+  reports: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  team: '<path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="m9 12 2 2 4-4"/>',
+};
+const navIco = k => `<svg class="nico" viewBox="0 0 24 24" aria-hidden="true">${NAV_ICO[k] || NAV_ICO.home}</svg>`;
+// الشكل بيتطبّق على سيستم العيادة (مش على لوحتك)
+function applyLook(key) {
+  const L = LOOKS[key];
+  let st = document.getElementById('lookCss');
+  document.body.classList.remove('lk-dark', 'nav-top', 'nav-rail', 'nav-bottom', 'ico-filled', 'ico-duotone', 'ico-circle', 'ico-square', 'lk-on');
+  if (!L) { st?.remove(); return; }
+  if (!st) { st = document.createElement('style'); st.id = 'lookCss'; document.head.appendChild(st); }
+  const c = L.c;
+  st.textContent = `:root{--brand:${c[0]};--brand-d:${c[1]};--gold:${c[2]};--gold-l:${c[3]};--bg:${c[4]};--line:${c[5]};--muted:${c[6]};--ink:${c[7]};--mint:${c[8]};--soft:${c[8]}55}`;
+  document.documentElement.style.setProperty('--brand', c[0]);
+  document.body.classList.add('lk-on');
+  if (L.dark) document.body.classList.add('lk-dark');
+  if (L.nav !== 'side') document.body.classList.add('nav-' + L.nav);
+  if (L.icons !== 'outline') document.body.classList.add('ico-' + L.icons);
+}
+function lookAnnounce(key) {
+  try {
+    const k = 'bc-look:' + (S.clinic?.id || ''), old = localStorage.getItem(k);
+    if (old !== key) { localStorage.setItem(k, key || ''); if (old !== null && key && LOOKS[key]) setTimeout(() => toast('🎉 شكل جديد للسيستم — ' + LOOKS[key].name), 600); }
+  } catch (e) {}
+}
+
+/* ----- صفحة "أشكال السيستم" في اللوحة ----- */
+function lookMini(L) {
+  const c = L.c, dark = !!L.dark, card = dark ? '#1B1B1F' : '#fff';
+  const ic = (k, on) => {
+    const col = on || ['circle', 'square', 'duotone'].includes(L.icons) ? c[0] : c[6];
+    const base = `width="16" height="16" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"`;
+    if (L.icons === 'filled') return `<svg ${base} fill="${col}" stroke="${card}" stroke-width="1.3">${NAV_ICO[k]}</svg>`;
+    if (L.icons === 'duotone') return `<svg ${base} fill="${c[8]}" stroke="${c[0]}" stroke-width="1.8">${NAV_ICO[k]}</svg>`;
+    if (L.icons === 'circle') return `<span style="width:24px;height:24px;border-radius:50%;background:${c[0]};display:inline-flex;align-items:center;justify-content:center"><svg ${base} width="14" height="14" fill="none" stroke="#fff" stroke-width="2">${NAV_ICO[k]}</svg></span>`;
+    if (L.icons === 'square') return `<span style="width:24px;height:24px;border-radius:7px;background:${c[8]}88;display:inline-flex;align-items:center;justify-content:center"><svg ${base} width="14" height="14" fill="none" stroke="${c[0]}" stroke-width="2">${NAV_ICO[k]}</svg></span>`;
+    return `<svg ${base} fill="none" stroke="${col}" stroke-width="1.7">${NAV_ICO[k]}</svg>`;
+  };
+  const items = ['home', 'bookings', 'clients', 'payments'];
+  const stat = (v, l) => `<div style="background:${card};border:1px solid ${c[5]};border-radius:8px;padding:5px 7px"><b style="font-size:13px;color:${c[7]}">${v}</b><div style="font-size:9px;color:${c[6]}">${l}</div></div>`;
+  const body = `<div style="flex:1;padding:8px;display:flex;flex-direction:column;gap:6px;min-width:0"><b style="font-size:11px;color:${c[7]}">الرئيسية</b><div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">${stat('١٢', 'حجز')}${stat('٨', 'جلسة')}</div><span style="background:${c[0]};color:${dark ? '#111' : '#fff'};font-size:9px;font-weight:700;border-radius:6px;padding:3px 7px;align-self:flex-start">+ حجز جديد</span></div>`;
+  let nav;
+  if (L.nav === 'side') nav = `<div style="width:84px;background:${card};border-left:1px solid ${c[5]};padding:6px 4px;display:flex;flex-direction:column;gap:3px">${items.map((k, i) => `<div style="display:flex;align-items:center;gap:4px;padding:3px 4px;border-radius:6px;background:${i ? 'transparent' : c[8] + '66'};font-size:9px;color:${i ? c[6] : c[7]};font-weight:${i ? 500 : 700}">${ic(k, !i)}<span>${['الرئيسية', 'الحجوزات', 'العملاء', 'الحسابات'][i]}</span></div>`).join('')}</div>`;
+  else if (L.nav === 'rail') nav = `<div style="width:36px;background:${card};border-left:1px solid ${c[5]};padding:6px 4px;display:flex;flex-direction:column;gap:5px;align-items:center">${items.map((k, i) => `<div style="padding:3px;border-radius:6px;background:${i ? 'transparent' : c[8] + '66'}">${ic(k, !i)}</div>`).join('')}</div>`;
+  else if (L.nav === 'top') return `<div style="height:134px;background:${c[4]};border-radius:10px;border:1px solid ${c[5]};overflow:hidden;display:flex;flex-direction:column"><div style="background:${card};border-bottom:1px solid ${c[5]};padding:4px 6px;display:flex;gap:6px">${items.map((k, i) => ic(k, !i)).join('')}</div>${body}</div>`;
+  else return `<div style="height:134px;background:${c[4]};border-radius:10px;border:1px solid ${c[5]};overflow:hidden;display:flex;flex-direction:column">${body}<div style="background:${card};border-top:1px solid ${c[5]};padding:4px 6px;display:flex;justify-content:space-around">${items.map((k, i) => ic(k, !i)).join('')}</div></div>`;
+  return `<div style="height:134px;background:${c[4]};border-radius:10px;border:1px solid ${c[5]};overflow:hidden;display:flex">${nav}${body}</div>`;
+}
+async function devLooks() {
+  const all = await loadAllTenants();
+  const count = k => all.filter(t => (t.look || '') === k).length;
+  devShell('looks', `
+    <div class="head"><h2>🎨 أشكال السيستم</h2></div>
+    <p class="meta">اختار الشكل ونزّله كتحديث. العميل بيلاقي الشكل الجديد أول ما يفتح السيستم، ومعاه رسالة صغيرة "🎉 شكل جديد للسيستم". (ده غير شكل لوحتك إنت — ده من "🎨 شكل اللوحة" تحت.)</p>
+    <div class="cards">${Object.entries(LOOKS).map(([k, L]) => `<div class="card" style="display:flex;flex-direction:column;gap:10px">
+      ${lookMini(L)}
+      <div class="row" style="gap:8px;align-items:center"><h3 style="flex:1">${esc(L.name)}</h3>${count(k) ? `<span class="chip ok">شغال عند ${count(k)}</span>` : ''}</div>
+      <p class="meta" style="margin:0">${esc(L.desc)}</p>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn sm" onclick="A.lookAll('${k}','clinic')">نزّله لكل العيادات</button>
+        <button class="btn ghost sm" onclick="A.lookAll('${k}','maint')">لكل شركات الصيانة</button>
+        <button class="btn ghost sm" onclick="A.lookOneModal('${k}')">لعميل واحد…</button>
+      </div></div>`).join('')}</div>`);
+}
+async function setLook(t, k) {
+  const P = PRODUCTS[t.product];
+  const L = LOOKS[k];
+  const upd = { look: k };
+  if (P.remote) Object.assign(upd, { theme: L.pm[0], layout: L.pm[1], icons: L.icons });
+  await updateDoc(tdoc(P, t.id), upd);
+  if (P.remote) { if (!(await syncRemote(P, t.id))) return false; }
+  return true;
+}
+A.lookAll = async (k, pk) => {
+  const P = PRODUCTS[pk];
+  if (!confirm(`تنزّل شكل "${LOOKS[k].name}" لكل ${P.short}؟`)) return;
+  const ts = (await loadAllTenants()).filter(t => t.product === pk && t.id !== MYCO?.tenantId);
+  let bad = 0; toast('بينزّل…');
+  for (const t of ts) { try { if (!(await setLook(t, k))) bad++; } catch (e) { console.error(e); bad++; } }
+  toast(bad ? `اتنزّل، بس ${bad} مقدرتش أوصلهم` : `اتنزّل لـ ${ts.length} ✓`);
+  A.dev('looks');
+};
+A.lookOneModal = async k => {
+  const all = (await loadAllTenants()).filter(t => PRODUCTS[t.product]?.ready);
+  openModal(`<h3>نزّل شكل "${esc(LOOKS[k].name)}" لعميل واحد</h3>
+  <form onsubmit="A.lookOneSave(event,'${k}')" class="fcol">
+    <label class="f">العميل<select name="t">${all.map(t => `<option value="${esc(t.id)}">${esc(t.name)} — ${esc(prodOf(t).short)}</option>`).join('')}</select></label>
+    ${formActs('نزّله')}</form>`);
+};
+A.lookOneSave = async (e, k) => {
+  e.preventDefault();
+  const id = e.target.t.value, t = (S.tenants || []).find(x => x.id === id);
+  busy(e.target.querySelector('[type=submit]'), true, '...');
+  try { const ok = await setLook(t, k); A.closeModal(); toast(ok ? 'اتنزّل ✓' : 'اتحفظ، بس مقدرتش أوصل لسيستمهم'); A.dev('looks'); }
+  catch (err) { toast(err.message || err.code); }
+};
+
 const TAB_LOAD = { backups: loadBackups, audit: () => loadAudit(false), ann: loadAnn, gs: loadGs };
 
 /* ----- الهيكل ----- */
@@ -1273,14 +1606,15 @@ A.devThemeSet = k => {
   setDoc(doc(db, 'devcfg', 'ui'), { theme: k }, { merge: true }).catch(() => {});
 };
 function devShell(view, content) {
+  if (typeof applyLook === 'function') applyLook(null);
   applyDevTheme();
   S.devView = view;
-  const nav = [['home', 'الرئيسية'], ...PRODUCT_LIST.map(p => ['t:' + p.key, p.short + (p.ready ? '' : ' · قريباً')]), ['plans', 'باكدجات الاشتراك'], ['billing', 'إيرادات الاشتراكات']];
+  const nav = [['home', 'الرئيسية'], ...PRODUCT_LIST.map(p => ['t:' + p.key, p.short + (p.ready ? '' : ' · قريباً')]), ['looks', '🎨 أشكال السيستم'], ['plans', 'باكدجات الاشتراك'], ['billing', 'إيرادات الاشتراكات']];
   const on = k => view === k || (view === 'tenant' && k === 't:' + S.dp?.key);
   $app.innerHTML = `
   <div class="top">${ICON(36)}<div><div class="name">Beam Care</div><div class="sub">لوحة المطور</div></div><div class="sp"></div>
 </div>
-  <div class="layout"><nav class="side">${nav.map(([k, l]) => `<button class="${on(k) ? 'on' : ''}" onclick="A.dev('${k}')">${l}</button>`).join('')}
+  <div class="layout"><nav class="side">${MYCO?.tenantId ? `<button onclick="A.myCoEnter()" style="background:var(--warn-bg);color:var(--warn);border:1.5px solid var(--gold-l);font-weight:700">⭐ شركتي</button><div class="meta" style="padding:6px 14px 0;font-size:12px">السيستمات اللي ببيعها</div>` : ''}${nav.map(([k, l]) => `<button class="${on(k) ? 'on' : ''}" onclick="A.dev('${k}')">${l}</button>`).join('')}
     <div class="side-end"><button onclick="A.devThemeModal()">🎨 شكل اللوحة</button><button class="out" onclick="A.logout()">↩ تسجيل الخروج</button></div></nav>
   <div class="main">${content}</div></div>`;
 }
@@ -1291,6 +1625,7 @@ A.dev = async view => {
     if (view === 'home') return await devOverview();
     if (view === 'plans') return await devPlans();
     if (view === 'billing') return await devBilling();
+    if (view === 'looks') return await devLooks();
     if (view.startsWith('t:')) return await devTenants(PRODUCTS[view.slice(2)]);
   } catch (e) {
     console.error(e);
@@ -1312,19 +1647,34 @@ const plansOf = (P, all) => (S.plans || []).filter(p => p.product === P.key && (
 /* ----- الرئيسية ----- */
 async function devOverview() {
   const M = curMonth();
-  const [tenants, bill] = await Promise.all([loadAllTenants(), getDocs(query(collection(db, 'billing'), where('month', '==', M))).then(s => s.docs.map(d => d.data())).catch(() => [])]);
-  const active = tenants.filter(tenantActive);
-  const needRenew = tenants.filter(t => t.active !== false && daysLeft(t) <= 14).sort((a, b) => daysLeft(a) - daysLeft(b));
+  const [tenants, bill] = await Promise.all([loadAllTenants(), getDocs(query(collection(db, 'billing'), where('month', '==', M))).then(s => s.docs.map(d => d.data())).catch(() => []), loadMyCo(), loadDevMain(), loadPlans().catch(() => [])]);
+  S.homeData = { tenants, bill };
+  S.homeAlerts = null;
+  renderOverview();
+  const my = tenants.find(x => x.id === MYCO?.tenantId);
+  const jobs = [loadAlerts(tenants).then(L => { S.homeAlerts = L; })];
+  if (my && (!S.myCoStats || Date.now() - S.myCoStats.at > 5 * 60e3)) jobs.push(myCoStats(my).then(x => { S.myCoStats = x; }).catch(e => { S.myCoStats = { err: e.message || e.code, at: Date.now() }; }));
+  await Promise.all(jobs);
+  if (S.devView === 'home') renderOverview();
+}
+function renderOverview() {
+  const { tenants, bill } = S.homeData;
+  const others = tenants.filter(t => t.id !== MYCO?.tenantId);
+  const active = others.filter(tenantActive);
+  const needRenew = others.filter(t => t.active !== false && daysLeft(t) <= 14).sort((a, b) => daysLeft(a) - daysLeft(b));
   const income = bill.reduce((a, x) => a + (x.amount || 0), 0);
   devShell('home', `
     <div class="head"><h2>الرئيسية</h2></div>
+    ${myCoCard(tenants)}
+    ${alertsCard(S.homeAlerts)}
+    <div class="head" style="margin-top:6px"><h3 style="flex:1">السيستمات اللي ببيعها</h3></div>
     <div class="cards">
       <div class="card stat"><b>${active.length}</b><span>اشتراك شغال</span></div>
       <div class="card stat"><b style="color:${needRenew.length ? 'var(--warn)' : 'inherit'}">${needRenew.length}</b><span>منتهي أو هيخلص خلال أسبوعين</span></div>
       <div class="card stat"><b>${money(income)}</b><span>إيرادات الاشتراكات الشهر ده</span></div>
     </div>
     <div class="cards">${PRODUCT_LIST.map(P => {
-      const ts = tenants.filter(t => t.product === P.key);
+      const ts = others.filter(t => t.product === P.key);
       return `<div class="card clinic-card"><div class="row"><h3>${esc(P.name)}</h3>${P.ready ? '<span class="chip ok">شغال</span>' : '<span class="chip mute">قريباً</span>'}</div>
         <div class="meta"><span>${ts.length} ${esc(P.short)}</span><span>${ts.filter(tenantActive).length} شغال</span></div>
         <button class="btn sm" onclick="A.dev('t:${P.key}')">فتح</button></div>`;
@@ -1333,9 +1683,10 @@ async function devOverview() {
       ${needRenew.length ? `<div class="tbl-wrap"><table><thead><tr><th>الاسم</th><th>المنتج</th><th>ينتهي</th><th>الحالة</th><th>المسؤول</th><th></th></tr></thead><tbody>
         ${needRenew.map(t => `<tr><td><b>${esc(t.name)}</b></td><td>${esc(prodOf(t).short)}</td><td>${fmt(t.expiresAt)}</td><td>${statusChip(t)}</td>
           <td>${esc(t.contactName) || '—'} ${t.contactPhone ? `<span dir="ltr">${esc(t.contactPhone)}</span>` : ''}</td>
-          <td><div style="display:flex;gap:6px"><button class="btn gold sm" onclick="A.quickRenew('${t.product}','${t.id}')">تجديد</button><button class="btn ghost sm" onclick="A.openTenant('${t.product}','${t.id}')">فتح</button></div></td></tr>`).join('')}</tbody></table></div>`
+          <td><div style="display:flex;gap:6px;flex-wrap:wrap">${t.contactPhone ? `<button class="btn ghost sm" onclick="A.waRenew('${t.product}','${t.id}')">💬 فكّره</button>` : ''}<button class="btn gold sm" onclick="A.quickRenew('${t.product}','${t.id}')">تجديد</button><button class="btn ghost sm" onclick="A.openTenant('${t.product}','${t.id}')">فتح</button></div></td></tr>`).join('')}</tbody></table></div>`
         : '<p class="meta">كل الاشتراكات تمام 👌</p>'}
-    </div>`);
+    </div>
+    ${demoCard()}`);
 }
 
 /* ----- قايمة العملاء لكل منتج ----- */
@@ -1550,6 +1901,7 @@ function billingDoc(P, t, kind, months, from, to, amount, method, note) {
 
 /* ----- صفحة العميل (عيادة / شركة) ----- */
 async function loadTenant(pk, id) {
+  await loadMyCo();
   const P = PRODUCTS[pk];
   if (P.remote) {
     const [t, bl, cs] = await Promise.all([
@@ -1559,7 +1911,7 @@ async function loadTenant(pk, id) {
     ]);
     if (!t.exists()) throw new Error('مش لاقي البيانات دي');
     S.dp = P; S.dc = { ...t.data(), id, product: P.key };
-    S.dBilling = bl ? bl.docs.map(d => d.data()).sort((a, b) => (b.date || '').localeCompare(a.date || '')) : [];
+    S.dBilling = bl ? bl.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (b.date || '').localeCompare(a.date || '')) : [];
     S.dConn = { user: cs && cs.exists() ? cs.data().user || '' : '' };
     await loadRemoteInto(S.dc);
     if (!S.plans) await loadPlans().catch(() => {});
@@ -1576,7 +1928,7 @@ async function loadTenant(pk, id) {
   S.dBranches = bs.docs.map(d => ({ id: d.id, ...d.data() }));
   S.dUsers = us.docs.map(d => ({ id: d.id, ...d.data() }));
   const extra = [
-    getDocs(query(collection(db, 'billing'), where('tenantId', '==', id))).then(s => { S.dBilling = s.docs.map(d => d.data()).sort((a, b) => (b.date || '').localeCompare(a.date || '')); }).catch(() => { S.dBilling = []; }),
+    getDocs(query(collection(db, 'billing'), where('tenantId', '==', id))).then(s => { S.dBilling = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (b.date || '').localeCompare(a.date || '')); }).catch(() => { S.dBilling = []; }),
     getDoc(tdoc(P, id, 'meta', 'counters')).then(c => { S.dClients = c.exists() ? (c.data().clients || 0) : 0; }).catch(() => { S.dClients = 0; }),
   ];
   if (P.key === 'clinic') extra.push(getDocs(tcol(P, id, 'clients')).then(s => { S.dClientList = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ar')); }).catch(() => { S.dClientList = []; }));
@@ -1647,6 +1999,7 @@ function renderTenant() {
       <div class="meta">${P.features.map(f => `<span class="chip ${featOn(c, f) ? 'ok' : 'mute'}">${featOn(c, f) ? '✓' : '✗'} ${esc(f.label)}</span>`).join('')}</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn gold sm" onclick="A.renewModal()">تجديد</button>
+        ${c.contactPhone ? `<button class="btn ghost sm" onclick="A.waRenew('${P.key}','${c.id}')">💬 فكّره بالتجديد</button>` : ''}
         <button class="btn ghost sm" onclick="A.tenantModal('${P.key}','${c.id}')">تعديل البيانات والباكدج</button>
         <button class="btn ${c.active === false ? '' : 'danger'} sm" onclick="A.toggleTenant()">${c.active === false ? 'تفعيل' : 'إيقاف'}</button>
       </div>
@@ -1665,8 +2018,8 @@ function renderTenant() {
       </div>
     </div>
     <div class="card" style="display:flex;flex-direction:column;gap:10px"><h3>سجل الاشتراك والمدفوعات</h3>
-      ${(S.dBilling || []).length ? `<div class="tbl-wrap"><table><thead><tr><th>التاريخ</th><th>النوع</th><th>الباكدج</th><th>الفترة</th><th>المبلغ</th><th>الطريقة</th><th>ملاحظة</th></tr></thead><tbody>
-        ${S.dBilling.map(x => `<tr><td>${esc(x.date)}</td><td>${x.kind === 'new' ? 'اشتراك جديد' : 'تجديد'}</td><td>${esc(x.planName) || 'مخصوص'}</td><td>${esc(x.from)} ← ${esc(x.to)}</td><td><b>${x.amount ? money(x.amount) : 'مجاني'}</b></td><td>${METHODS[x.method] || esc(x.method) || '—'}</td><td>${esc(x.note)}</td></tr>`).join('')}</tbody></table></div>`
+      ${(S.dBilling || []).length ? `<div class="tbl-wrap"><table><thead><tr><th>التاريخ</th><th>النوع</th><th>الباكدج</th><th>الفترة</th><th>المبلغ</th><th>الطريقة</th><th>ملاحظة</th><th></th></tr></thead><tbody>
+        ${S.dBilling.map(x => `<tr><td>${esc(x.date)}</td><td>${x.kind === 'new' ? 'اشتراك جديد' : 'تجديد'}</td><td>${esc(x.planName) || 'مخصوص'}</td><td>${esc(x.from)} ← ${esc(x.to)}</td><td><b>${x.amount ? money(x.amount) : 'مجاني'}</b></td><td>${METHODS[x.method] || esc(x.method) || '—'}</td><td>${esc(x.note)}</td><td><button class="btn ghost sm" onclick="A.receipt('${esc(x.id)}')">🧾 إيصال</button></td></tr>`).join('')}</tbody></table></div>`
         : '<p class="meta">مفيش سجل لسه.</p>'}
     </div>`;
   } else if (tab === 'import') {
@@ -1707,7 +2060,7 @@ function renderTenant() {
   if (P.importer) tabs.push(['import', 'استيراد من إكسل']);
   devShell('tenant', `
     <div><button class="btn ghost sm" onclick="A.dev('t:${P.key}')">→ كل ${esc(P.short)}</button></div>
-    <div class="head">${logoHTML(b, 48)}<h2>${esc(c.name)}</h2><span class="chip mute">${esc(P.name)}</span>${statusChip(c)}${P.remote ? `<button class="btn gold sm" onclick="A.enterSys()">ادخل السيستم</button>` : P.viewAs ? `<button class="btn gold sm" onclick="A.enterClinic()">ادخل السيستم</button>` : ''}</div>
+    <div class="head">${logoHTML(b, 48)}<h2>${esc(c.name)}</h2><span class="chip mute">${esc(P.name)}</span>${statusChip(c)}${P.remote ? `${MYCO?.tenantId === c.id ? '<span class="chip warn">⭐ شركتي</span>' : `<button class="btn ghost sm" onclick="A.setMyCo('${c.id}')">⭐ دي شركتي</button>`}<button class="btn gold sm" onclick="A.enterSys()">ادخل السيستم</button>` : P.viewAs ? `<button class="btn gold sm" onclick="A.enterClinic()">ادخل السيستم</button>` : ''}</div>
     <div class="tabs">${tabs.map(([k, l]) => `<button class="${tab === k ? 'on' : ''}" onclick="A.tenantTab('${k}')">${l}</button>`).join('')}</div>${body}`);
 }
 const waNum = p => { let s = latinDigits(p).replace(/\D/g, ''); if (s.startsWith('0')) s = '20' + s.slice(1); return s; };
@@ -2107,7 +2460,7 @@ A.shiftDate = (k, n) => {
 
 /* ----- الهيكل ----- */
 function clinicShell(view, content) {
-  clearDevTheme(); applyBrand(S.clinic);
+  clearDevTheme(); applyBrand(S.clinic); applyLook(S.clinic?.look);
   S.view = view;
   const b = brandOf(S.clinic);
   const nav = [['home', 'الرئيسية']];
@@ -2122,8 +2475,8 @@ function clinicShell(view, content) {
   <div class="top">${logoHTML(b, 36)}<div><div class="name">${esc(b.name)}</div><div class="sub">${esc(S.profile.name)} · ${esc(ROLES[S.profile.role]?.label)}</div></div><div class="sp"></div>
     ${brSel}
     ${S.viewAs ? `<button class="btn ghost sm" onclick="A.logout()">رجوع</button>` : ''}</div>
-  <div class="layout"><nav class="side">${nav.map(([k, l]) => `<button class="${view === k ? 'on' : ''}" onclick="A.go('${k}')">${l}</button>`).join('')}
-    ${S.viewAs ? '' : `<div class="side-end"><button onclick="A.pwModal()">🔑 تغيير كلمة السر</button><button class="out" onclick="A.logout()">↩ تسجيل الخروج</button></div>`}</nav>
+  <div class="layout"><nav class="side">${nav.map(([k, l]) => `<button class="${view === k ? 'on' : ''}" onclick="A.go('${k}')" title="${esc(l)}">${navIco(k)}<span>${l}</span></button>`).join('')}
+    ${S.viewAs ? '' : `<div class="side-end"><button onclick="A.pwModal()" title="تغيير كلمة السر">🔑 <span>تغيير كلمة السر</span></button><button class="out" onclick="A.logout()" title="تسجيل الخروج">↩ <span>تسجيل الخروج</span></button></div>`}</nav>
   <div class="main">${content}</div></div>`;
 }
 
