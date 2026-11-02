@@ -73,6 +73,7 @@ body.nav-top .side .side-end{margin-top:0;margin-inline-start:auto;border-top:0;
 body.nav-rail .side{width:74px;align-items:stretch}
 body.nav-rail .side button{justify-content:center;padding:10px 6px}
 body.nav-rail .side button span{display:none}
+body.nav-rail .side .meta{display:none}
 body.lk-dark .card,body.lk-dark .top,body.lk-dark .side,body.lk-dark table,body.lk-dark .modal,body.lk-dark input,body.lk-dark select,body.lk-dark textarea,body.lk-dark .login-card,body.lk-dark .locked .card{background:#1B1B1F;color:var(--ink)}
 body.lk-dark .btn,body.lk-dark .side button.on{color:#111}
 body.lk-dark .btn.ghost{color:var(--brand);background:transparent}
@@ -87,7 +88,7 @@ body.lk-dark th{color:var(--muted)}
   .side button{white-space:nowrap}
   .side .side-end{margin-top:0;margin-inline-start:auto;border-top:0;padding-top:0;flex-direction:row}
   body.nav-rail .side{width:auto;flex-direction:row}
-  body.nav-bottom .side{position:fixed;bottom:0;left:0;right:0;z-index:20;justify-content:space-around;border-bottom:0;border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px))}
+  body.nav-bottom .side{position:fixed;bottom:0;left:0;right:0;z-index:20;justify-content:flex-start;overflow-x:auto;border-bottom:0;border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px))}
   body.nav-bottom .side button{flex-direction:column;gap:2px;font-size:11px;padding:6px 8px;min-height:52px}
   body.nav-bottom .main{padding-bottom:96px}
   .main{padding:16px}
@@ -1467,6 +1468,9 @@ const NAV_ICO = {
   staff: '<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/>',
   devices: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
   reports: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  clinic: '<path d="M4 21V8l8-5 8 5v13"/><path d="M9 21v-6h6v6M12 7v4M10 9h4"/>',
+  wrench: '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/>',
+  palette: '<path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.5-.9 1-1.8-.6-1-.1-2.2 1.1-2.2H17a4 4 0 0 0 4-4c0-5.5-4-10-9-10z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10" cy="7" r="1.2"/><circle cx="15" cy="7.5" r="1.2"/>',
   team: '<path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="m9 12 2 2 4-4"/>',
 };
 const navIco = k => `<svg class="nico" viewBox="0 0 24 24" aria-hidden="true">${NAV_ICO[k] || NAV_ICO.home}</svg>`;
@@ -1567,46 +1571,32 @@ const TAB_LOAD = { backups: loadBackups, audit: () => loadAudit(false), ann: loa
 
 /* ----- الهيكل ----- */
 /* ----- ثيمات لوحة المطوّر (لوحتك إنت بس) ----- */
-const DEV_THEMES = {
-  beam: ['Beam Care (الأصلي)', '#2F6F68', '#1F4E49', '#C98F4E', '#DDA86E', '#F4F6F5', '#DCE5E2', '#5E7E79', '#1E3B38', '#A9CEC4'],
-  emerald: ['زمردي وذهبي', '#1f6b57', '#164d3f', '#b8862f', '#d9a74a', '#eaf0ed', '#d3dfd9', '#55716a', '#17352e', '#a9d3c4'],
-  navy: ['كحلي وذهبي', '#3f4b6e', '#2c3550', '#b88a4f', '#d8b07c', '#eceef2', '#dde1e8', '#5c6274', '#1c2232', '#b8c0d8'],
-  wine: ['عنابي ونحاسي', '#7b2d3c', '#5a1f2b', '#b07a42', '#d39b62', '#f1ebeb', '#e5d9d9', '#75585d', '#2e1a1e', '#e2c0c6'],
-  teal: ['بترولي وبرتقالي', '#0e6779', '#0a4c59', '#c7742a', '#ee9a4d', '#e8eff1', '#d4e1e5', '#4f6e75', '#12313a', '#a6d0d9'],
-  lavender: ['بنفسجي لافندر', '#5a4a9e', '#433776', '#c2705a', '#f0a48c', '#eeedf5', '#dddbea', '#625d7e', '#24203b', '#c6bfe6'],
-  sand: ['بيج وبني دافي', '#86562a', '#64401f', '#4f7f6d', '#6f9e8c', '#f2eee7', '#e3dccf', '#76685a', '#2e241a', '#d9c3a6'],
-  sky: ['سماوي هادي', '#0e7f99', '#0a5f73', '#1d8c77', '#22a88f', '#eef6fb', '#d6e7f0', '#557583', '#123542', '#a8dbe8'],
-  rose: ['وردي ناعم', '#b5476b', '#8d3552', '#5f73a3', '#7c8fb8', '#f6eef0', '#ead9de', '#7a5d66', '#341b23', '#e8bccb'],
-  corp: ['أزرق مؤسسي', '#1f5fbf', '#174a95', '#0f8a8a', '#13a3a3', '#eef2f7', '#d8e0ec', '#556178', '#16233a', '#b4cbf0'],
-};
-let DEV_THEME = (() => { try { return localStorage.getItem('bc-dev-theme') || 'beam'; } catch (e) { return 'beam'; } })();
+// شكل لوحتك: نفس الأشكال العشرة (ألوان + أيقونات + قايمة)
+let DEV_THEME = (() => { try { return localStorage.getItem('bc-dev-look') || 'classic'; } catch (e) { return 'classic'; } })();
 let DEV_THEME_SYNC = false;
 function applyDevTheme() {
-  const t = DEV_THEMES[DEV_THEME] || DEV_THEMES.beam;
-  let st = document.getElementById('devTheme');
-  if (!st) { st = document.createElement('style'); st.id = 'devTheme'; document.head.appendChild(st); }
-  st.textContent = `:root{--brand:${t[1]};--brand-d:${t[2]};--gold:${t[3]};--gold-l:${t[4]};--bg:${t[5]};--line:${t[6]};--muted:${t[7]};--ink:${t[8]};--mint:${t[9]}}`;
-  document.documentElement.style.setProperty('--brand', t[1]);
+  applyLook(LOOKS[DEV_THEME] ? DEV_THEME : 'classic');
   if (!DEV_THEME_SYNC && S.isDev) {
     DEV_THEME_SYNC = true;
-    getDoc(doc(db, 'devcfg', 'ui')).then(d => { const k = d.exists() && d.data().theme; if (k && DEV_THEMES[k] && k !== DEV_THEME) { DEV_THEME = k; try { localStorage.setItem('bc-dev-theme', k); } catch (e) {} applyDevTheme(); } }).catch(() => {});
+    getDoc(doc(db, 'devcfg', 'ui')).then(d => { const k = d.exists() && d.data().look; if (k && LOOKS[k] && k !== DEV_THEME) { DEV_THEME = k; try { localStorage.setItem('bc-dev-look', k); } catch (e) {} if (S.devView) A.dev(S.devView === 'tenant' ? 'home' : S.devView); } }).catch(() => {});
   }
 }
-function clearDevTheme() { document.getElementById('devTheme')?.remove(); }
+function clearDevTheme() { applyLook(null); }
 A.devThemeModal = () => {
   openModal(`<h3>شكل لوحة Beam Care</h3>
-  <p class="meta">ده بيغيّر شكل لوحتك إنت بس، ومش بيأثر على أي شركة أو عيادة.</p>
-  <div class="themes">${Object.entries(DEV_THEMES).map(([k, t]) => `<label class="theme-o"><input type="radio" name="dth" value="${k}" ${DEV_THEME === k ? 'checked' : ''} onchange="A.devThemeSet('${k}')"><span class="sw" style="background:${t[5]}"><i style="background:${t[1]}"></i><i style="background:${t[3]}"></i></span><span>${esc(t[0])}</span></label>`).join('')}</div>
+  <p class="meta">نفس الأشكال العشرة — ده بيغيّر شكل لوحتك إنت بس، ومش بيأثر على أي شركة أو عيادة.</p>
+  <div class="cards" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))">${Object.entries(LOOKS).map(([k, L]) => `<button type="button" class="card" style="display:flex;flex-direction:column;gap:8px;text-align:right;cursor:pointer;padding:12px;${DEV_THEME === k ? 'outline:3px solid var(--gold);' : ''}" onclick="A.devThemeSet('${k}')">${lookMini(L)}<b>${esc(L.name)}${DEV_THEME === k ? ' ✓' : ''}</b></button>`).join('')}</div>
   <div class="acts"><button class="btn" type="button" onclick="A.closeModal()">تمام</button></div>`);
 };
 A.devThemeSet = k => {
-  if (!DEV_THEMES[k]) return;
-  DEV_THEME = k; try { localStorage.setItem('bc-dev-theme', k); } catch (e) {}
-  applyDevTheme();
-  setDoc(doc(db, 'devcfg', 'ui'), { theme: k }, { merge: true }).catch(() => {});
+  if (!LOOKS[k]) return;
+  DEV_THEME = k; try { localStorage.setItem('bc-dev-look', k); } catch (e) {}
+  setDoc(doc(db, 'devcfg', 'ui'), { look: k }, { merge: true }).catch(() => {});
+  A.closeModal(); A.dev(S.devView && S.devView !== 'tenant' ? S.devView : 'home');
+  setTimeout(A.devThemeModal, 50);
 };
+const DEV_NAV_ICO = { home: 'home', 't:clinic': 'clinic', 't:maint': 'wrench', looks: 'palette', plans: 'packages', billing: 'payments' };
 function devShell(view, content) {
-  if (typeof applyLook === 'function') applyLook(null);
   applyDevTheme();
   S.devView = view;
   const nav = [['home', 'الرئيسية'], ...PRODUCT_LIST.map(p => ['t:' + p.key, p.short + (p.ready ? '' : ' · قريباً')]), ['looks', '🎨 أشكال السيستم'], ['plans', 'باكدجات الاشتراك'], ['billing', 'إيرادات الاشتراكات']];
@@ -1614,8 +1604,8 @@ function devShell(view, content) {
   $app.innerHTML = `
   <div class="top">${ICON(36)}<div><div class="name">Beam Care</div><div class="sub">لوحة المطور</div></div><div class="sp"></div>
 </div>
-  <div class="layout"><nav class="side">${MYCO?.tenantId ? `<button onclick="A.myCoEnter()" style="background:var(--warn-bg);color:var(--warn);border:1.5px solid var(--gold-l);font-weight:700">⭐ شركتي</button><div class="meta" style="padding:6px 14px 0;font-size:12px">السيستمات اللي ببيعها</div>` : ''}${nav.map(([k, l]) => `<button class="${on(k) ? 'on' : ''}" onclick="A.dev('${k}')">${l}</button>`).join('')}
-    <div class="side-end"><button onclick="A.devThemeModal()">🎨 شكل اللوحة</button><button class="out" onclick="A.logout()">↩ تسجيل الخروج</button></div></nav>
+  <div class="layout"><nav class="side">${MYCO?.tenantId ? `<button onclick="A.myCoEnter()" title="شركتي" style="background:var(--warn-bg);color:var(--warn);border:1.5px solid var(--gold-l);font-weight:700">⭐ <span>شركتي</span></button><div class="meta" style="padding:6px 14px 0;font-size:12px">السيستمات اللي ببيعها</div>` : ''}${nav.map(([k, l]) => `<button class="${on(k) ? 'on' : ''}" onclick="A.dev('${k}')" title="${esc(l.replace(/^🎨 /, ''))}">${navIco(DEV_NAV_ICO[k] || 'home')}<span>${l.replace(/^🎨 /, '')}</span></button>`).join('')}
+    <div class="side-end"><button onclick="A.devThemeModal()" title="شكل اللوحة">🎨 <span>شكل اللوحة</span></button><button class="out" onclick="A.logout()" title="تسجيل الخروج">↩ <span>تسجيل الخروج</span></button></div></nav>
   <div class="main">${content}</div></div>`;
 }
 A.devHome = () => A.dev('home');
