@@ -547,7 +547,7 @@ function remoteSubCard(c) {
       <button class="btn sm" onclick="A.remoteSync()">مزامنة دلوقتي</button>
       <button class="btn ghost sm" onclick="A.fullRefreshAll()">تحديث كامل لكل الأجهزة</button>
       ${c.upd ? `<button class="btn gold sm" onclick="A.updOff('${c.id}')">رجّع السيستم يشتغل</button>` : `<button class="btn ghost sm" onclick="A.updModal('${c.id}')">🛠️ وقف السيستم للتحديث</button>`}
-      ${c.url ? `<a class="btn ghost sm" style="text-decoration:none;display:inline-flex;align-items:center" target="_blank" rel="noopener" href="${esc(c.url)}">فتح سيستم الشركة</a>` : ''}
+      ${c.url ? `<button class="btn ghost sm" onclick="A.enterSys()">ادخل السيستم</button>` : ''}
     </div></div>`;
 }
 A.remoteSync = async () => {
@@ -603,6 +603,31 @@ A.updSave = async (e, id) => {
 };
 A.updOff = async id => { const bad = await updSet([{ id }], false); toast(bad ? 'مقدرتش أوصل لسيستم الشركة' : 'السيستم رجع يشتغل ✓'); A.openTenant('maint', id); };
 A.updOffAll = async () => { const ts = (await loadAllTenants()).filter(t => t.product === 'maint' && t.upd); const bad = await updSet(ts, false); toast(bad ? `${bad} شركة مقدرتش أوصلها` : 'كل الشركات رجعت تشتغل ✓'); A.dev('t:maint'); };
+// ادخل السيستم: بيفتح سيستم الشركة ويدخل بحساب المطوّر لوحده (البيانات بتتبعت للصفحة مباشرة، مش في الرابط)
+A.enterSys = async go => {
+  const c = S.dc;
+  if (!c?.url) return toast('ضيف رابط سيستم الشركة الأول من "تعديل البيانات والباكدج"');
+  let url, origin;
+  try { url = c.url.replace(/#.*$/, ''); origin = new URL(url).origin; } catch (e) { return toast('رابط سيستم الشركة مش مظبوط'); }
+  const w = window.open(url + '#bc-login', '_blank');
+  if (!w) return toast('المتصفح منع فتح صفحة جديدة — اسمح بالنوافذ المنبثقة للوحة');
+  let conn = {};
+  try { const cs = await getDoc(doc(db, PRODUCTS.maint.col, c.id, 'meta', 'conn')); conn = cs.exists() ? cs.data() : {}; } catch (e) {}
+  if (!conn.user || !conn.pass) return toast('مفيش حساب مطوّر متسجل للشركة دي');
+  const email = conn.user.includes('@') ? conn.user : conn.user.trim().toLowerCase() + '@' + (c.emailDomain || PIONEER_DOMAIN);
+  const h = e => {
+    if (e.source !== w || e.origin !== origin || e.data?.type !== 'pm-ready') return;
+    w.postMessage({ type: 'bc-login', email, pass: conn.pass, go: go || '' }, origin);
+    window.removeEventListener('message', h);
+  };
+  window.addEventListener('message', h);
+  setTimeout(() => window.removeEventListener('message', h), 30000);
+};
+A.enterClinic = () => {
+  const o = (S.dUsers || []).find(u => u.role === 'owner' && u.active !== false) || (S.dUsers || []).find(u => u.role === 'owner');
+  if (!o) return toast('مفيش يوزر "صاحب العيادة" للعيادة دي لسه');
+  A.viewAs(o.id);
+};
 A.setMain = async uid => {
   try {
     const r = await remoteConn(S.dc); const b = writeBatch(r.db);
@@ -919,10 +944,10 @@ function archiveBody() {
       <h3>أرشفة البيانات القديمة + بداية جديدة</h3>
       <p class="meta">دول بيحتاجوا يحسبوا الفلوس والضمانات والعقود السارية، فبيشتغلوا من جوه سيستم الشركة. الزرار ده بيفتح صفحة مخفية محدش في الشركة يقدر يوصلها غير حساب المطوّر.</p>
       <ol class="meta" style="display:block;padding-inline-start:18px;line-height:1.9;margin:0">
-        <li>اتأكد إنك داخل على سيستم الشركة بحساب المطوّر (admin).</li>
-        <li>دوس الزرار، هتفتح صفحة الأرشيف ومسح العمليات على طول.</li>
+        <li>دوس الزرار — هيفتح سيستم الشركة ويدخل بحساب المطوّر لوحده.</li>
+        <li>هتفتح صفحة الأرشيف ومسح العمليات على طول.</li>
       </ol>
-      ${c.url ? `<a class="btn sm" style="align-self:flex-start;text-decoration:none;display:inline-flex;align-items:center" target="_blank" rel="noopener" href="${esc(c.url.replace(/#.*$/, '') + '#dev-archive')}">افتح صفحة الأرشيف</a>` : '<div class="notice warn">ضيف رابط سيستم الشركة من "تعديل البيانات والباكدج".</div>'}
+      ${c.url ? `<button class="btn sm" style="align-self:flex-start" onclick="A.enterSys('archive')">افتح صفحة الأرشيف</button>` : '<div class="notice warn">ضيف رابط سيستم الشركة من "تعديل البيانات والباكدج".</div>'}
     </div>
     <div class="card" style="display:flex;flex-direction:column;gap:12px">
       <h3>اللي في الأرشيف</h3>
@@ -1549,7 +1574,7 @@ function renderTenant() {
   if (P.importer) tabs.push(['import', 'استيراد من إكسل']);
   devShell('tenant', `
     <div><button class="btn ghost sm" onclick="A.dev('t:${P.key}')">→ كل ${esc(P.short)}</button></div>
-    <div class="head">${logoHTML(b, 48)}<h2>${esc(c.name)}</h2><span class="chip mute">${esc(P.name)}</span>${statusChip(c)}</div>
+    <div class="head">${logoHTML(b, 48)}<h2>${esc(c.name)}</h2><span class="chip mute">${esc(P.name)}</span>${statusChip(c)}${P.remote ? `<button class="btn gold sm" onclick="A.enterSys()">ادخل السيستم</button>` : P.viewAs ? `<button class="btn gold sm" onclick="A.enterClinic()">ادخل السيستم</button>` : ''}</div>
     <div class="tabs">${tabs.map(([k, l]) => `<button class="${tab === k ? 'on' : ''}" onclick="A.tenantTab('${k}')">${l}</button>`).join('')}</div>${body}`);
 }
 const waNum = p => { let s = latinDigits(p).replace(/\D/g, ''); if (s.startsWith('0')) s = '20' + s.slice(1); return s; };
