@@ -669,7 +669,7 @@ async function ghCfg(fresh) {
 async function gh(path, opt = {}) {
   const c = await ghCfg();
   if (!c.token) throw new Error('لسه ما ربطتش GitHub — دوس "إعداد النسخ الاحتياطية"');
-  const r = await fetch(`https://api.github.com/repos/${c.owner}/${c.repo}/${path}`, {
+  const r = await fetch(`https://api.github.com/repos/${encodeURIComponent(c.owner)}/${encodeURIComponent(c.repo)}${path ? '/' + path : ''}`, {
     method: opt.method || 'GET', body: opt.body, cache: 'no-store',
     headers: { Authorization: 'Bearer ' + c.token, Accept: opt.raw ? 'application/vnd.github.raw' : 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' },
   });
@@ -791,7 +791,7 @@ A.ghSave = async e => {
     if (S.dc) A.tenantTab('backups');
   } catch (err) {
     GHC = null; busy(f.querySelector('[type=submit]'), false, 'حفظ واختبار');
-    toast(err.message);
+    toast(/fetch/i.test(err.message) ? 'مقدرتش أوصل لـ GitHub — اتأكد من النت، ومن اسم الحساب والمخزن' : err.message);
   }
 };
 A.bkNow = async full => {
