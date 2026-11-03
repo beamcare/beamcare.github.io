@@ -176,6 +176,8 @@ const EMAIL_DOMAIN = "beamcare-clinic.app";
 /* ========================================================= */
 const $app = document.getElementById('app');
 const $modal = document.getElementById('modal');
+// صفحة الحجز أونلاين لعملاء العيادة: ?book=<id العيادة>
+const BOOK_C = new URLSearchParams(location.search).get('book');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 if (firebaseConfig.apiKey.startsWith('PASTE')) {
@@ -259,7 +261,8 @@ const clinicActive = c => c && c.active !== false && toDate(c.expiresAt) > new D
 function statusChip(c) {
   if (c.active === false) return `<span class="chip bad">موقوفة</span>`;
   const d = daysLeft(c);
-  if (d <= 0) return `<span class="chip bad">الاشتراك منتهي</span>`;
+  if (d <= 0) return `<span class="chip bad">${c.trial ? 'التجربة خلصت' : 'الاشتراك منتهي'}</span>`;
+  if (c.trial) return `<span class="chip warn">🎁 تجربة · فاضل ${d} يوم</span>`;
   if (d <= 7) return `<span class="chip warn">فاضل ${d} يوم</span>`;
   return `<span class="chip ok">شغالة</span>`;
 }
@@ -326,6 +329,7 @@ A.login = async e => {
 };
 
 onAuthStateChanged(auth, async u => {
+  if (BOOK_C) return;
   if (!u) { S = {}; stopReqs(); return renderLogin(); }
   S = { user: u };
   $app.innerHTML = `<div class="loading">جاري التحميل...</div>`;
@@ -1477,8 +1481,8 @@ function renderReqs() {
   const list = S.reqs.filter(r => st(r) === tab);
   devShell('reqs', `
     <div class="head"><h2>طلبات الاشتراك</h2>
-      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn gold" onclick="A.joinModal()">🔗 رابط الطلب و QR</button><button class="btn ghost" onclick="A.payInfoModal()">💳 طرق الدفع ورقمك</button></div></div>
-    ${!PUBINFO?.payText || !PUBINFO?.wa ? `<div class="notice warn">قبل ما تبعت رابط الطلب لحد: دوس <b>"💳 طرق الدفع ورقمك"</b> واكتب رقم الواتساب بتاعك وطرق الدفع (إنستاباي، فودافون كاش…). دول اللي بيظهروا للعميل.</div>` : ''}
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn gold" onclick="A.joinModal()">🔗 رابط الطلب و QR</button><button class="btn ghost" onclick="A.payInfoModal()">⚙️ إعدادات صفحة الطلب</button></div></div>
+    ${!PUBINFO?.payText || !PUBINFO?.wa ? `<div class="notice warn">قبل ما تبعت رابط الطلب لحد: دوس <b>"⚙️ إعدادات صفحة الطلب"</b> واكتب رقم الواتساب بتاعك وطرق الدفع (إنستاباي، فودافون كاش…). دول اللي بيظهروا للعميل.</div>` : ''}
     <div class="tabs" role="tablist">${REQ_TABS.map(([k, l]) => `<button role="tab" aria-selected="${k === tab}" class="${k === tab ? 'on' : ''}" onclick="A.reqTab('${k}')">${l}${cnt(k) ? ` (${cnt(k).toLocaleString('ar-EG')})` : ''}</button>`).join('')}</div>
     ${list.length ? `<div class="cards">${list.map(reqCard).join('')}</div>`
       : `<div class="empty">${tab === 'new' ? 'مفيش طلبات جديدة دلوقتي.<br>ابعت <b>رابط الطلب</b> أو اطبع الـ <b>QR</b> للعيادات وشركات الصيانة — أول ما حد يبعت طلب هيظهر هنا.' : 'مفيش طلبات هنا.'}</div>`}`);
@@ -1488,19 +1492,22 @@ function reqCard(r) {
   const P = PRODUCTS[r.type] || PRODUCTS.clinic, k = r.status || 'new', st = REQ_ST[k] || REQ_ST.new;
   const amt = r.amount ?? r.total;
   const open = r.tenantId ? `<button class="btn ghost sm" onclick="A.openTenant('${r.type}','${esc(r.tenantId)}')">فتح ${esc(P.one)}</button>` : '';
+  const trial = r.kind === 'trial';
   const acts = {
-    new: `<button class="btn sm" onclick="A.reqApprove('${r.id}')">✓ موافقة</button><button class="btn ghost sm" onclick="A.reqReject('${r.id}')">رفض</button>`,
+    new: trial ? `<button class="btn gold sm" onclick="A.reqPaid('${r.id}')">🎁 ابدأ التجربة</button><button class="btn ghost sm" onclick="A.reqReject('${r.id}')">رفض</button>`
+      : `<button class="btn sm" onclick="A.reqApprove('${r.id}')">✓ موافقة</button><button class="btn ghost sm" onclick="A.reqReject('${r.id}')">رفض</button>`,
     approved: `<button class="btn gold sm" onclick="A.reqPaid('${r.id}')">💰 استلمت الفلوس · شغّل السيستم</button><button class="btn ghost sm" onclick="A.reqSent('${r.id}')">💬 ابعتله تاني</button><button class="btn ghost sm" onclick="A.reqApprove('${r.id}')">تعديل المبلغ</button>`,
     paid: `<button class="btn gold sm" onclick="A.reqReady('${r.id}')">✓ السيستم جاهز · بلّغه</button>${open}`,
     active: `${open}<button class="btn ghost sm" onclick="A.reqSent('${r.id}')">💬 واتساب</button>`,
     rejected: `<button class="btn ghost sm" onclick="A.reqUndo('${r.id}')">رجّعه جديد</button><button class="btn ghost sm" onclick="A.reqDel('${r.id}')">مسح</button>`,
   }[k] || '';
   return `<div class="card clinic-card">
-    <div class="row"><span style="font-size:26px" aria-hidden="true">${r.type === 'maint' ? '🔧' : '🏥'}</span><h3>${esc(r.name)}</h3><span class="chip ${st[1]}">${st[0]}</span></div>
+    <div class="row"><span style="font-size:26px" aria-hidden="true">${r.type === 'maint' ? '🔧' : '🏥'}</span><h3>${esc(r.name)}</h3><span class="chip ${st[1]}">${trial && k === 'paid' ? 'بتتجهز' : st[0]}</span></div>
+    ${trial ? `<div><span class="chip warn">🎁 تجربة مجانية${r.trialDays || PUBINFO?.trialDays ? ` ${Number(r.trialDays || PUBINFO.trialDays).toLocaleString('ar-EG')} يوم` : ''}</span>${r.trialEnd ? ` <span class="meta" style="display:inline">لحد ${esc(dayTxt(r.trialEnd))}</span>` : ''}</div>` : ''}
     <div class="meta"><span>${esc(P.name)}</span><span>اتبعت ${fmt(r.createdAt)}</span></div>
     <div class="meta">${r.contact ? `<span>${esc(r.contact)}</span>` : ''}<a href="https://wa.me/${waNum(r.phone)}" target="_blank" rel="noopener" dir="ltr">${esc(r.phone)}</a>${r.city ? `<span>${esc(r.city)}</span>` : ''}</div>
-    <div class="meta"><span>الباكدج: <b>${esc(r.planName || '—')}</b></span><span>${reqMonths(r.months)} من ${esc(dayTxt(r.start))}</span></div>
-    <div class="meta"><span>${k === 'new' ? 'الإجمالي حسب الباكدج' : 'المطلوب'}: <b>${money(amt)}</b></span>${r.paidAmount != null ? `<span>اتدفع: <b>${money(r.paidAmount)}</b></span>` : ''}</div>
+    <div class="meta"><span>الباكدج: <b>${esc(r.planName || '—')}</b></span>${trial ? '' : `<span>${reqMonths(r.months)} من ${esc(dayTxt(r.start))}</span>`}</div>
+    ${trial ? '' : `<div class="meta"><span>${k === 'new' ? 'الإجمالي حسب الباكدج' : 'المطلوب'}: <b>${money(amt)}</b></span>${r.paidAmount != null ? `<span>اتدفع: <b>${money(r.paidAmount)}</b></span>` : ''}</div>`}
     ${r.notes ? `<div class="notice info" style="font-weight:600;white-space:pre-line">${esc(r.notes)}</div>` : ''}
     ${r.reason ? `<div class="meta">سبب الرفض: ${esc(r.reason)}</div>` : ''}
     <div style="display:flex;gap:8px;flex-wrap:wrap">${acts}<button class="btn ghost sm" title="انسخ رابط متابعة الطلب" aria-label="انسخ رابط متابعة الطلب" onclick="navigator.clipboard.writeText('${reqLink(r.id)}');A.toast('اتنسخ رابط المتابعة')">🔗</button></div>
@@ -1523,6 +1530,7 @@ function reqMsg(r) {
     'بعد التحويل ابعتلنا صورة الإيصال هنا، وأول ما نستلم هنشغّلك السيستم.',
     `تقدر تتابع طلبك من هنا: ${reqLink(r.id)}`].join('\n');
   if (k === 'paid') return [hi, `استلمنا الدفع ✓ شكراً لثقتك.`, `بنجهّز سيستم *${r.name}* دلوقتي، وأول ما يخلص هنبعتلك بيانات الدخول.`, `متابعة الطلب: ${reqLink(r.id)}`].join('\n');
+  if (k === 'active' && r.kind === 'trial') return [hi, `النسخة التجريبية لـ *${r.name}* جاهزة 🎉`, r.trialEnd ? `تقدر تجرّب السيستم براحتك لحد يوم ${dayTxt(r.trialEnd)}.` : '', '', `رابط الدخول: ${r.sysUrl || ''}`, 'اسم المستخدم: ', 'كلمة السر: ', '', 'ولو عجبك وعايز تكمّل، كلّمنا هنا ونفعّلك الاشتراك على طول 🙏'].join('\n');
   if (k === 'active') return [hi, `سيستم *${r.name}* اتفعّل وجاهز 🎉`, '', `رابط الدخول: ${r.sysUrl || ''}`, 'اسم المستخدم: ', 'كلمة السر: ', '', 'ولو احتجت أي حاجة إحنا معاك على طول 🙏'].join('\n');
   if (k === 'rejected') return [hi, `بخصوص طلب اشتراك *${r.name}*: للأسف مقدرناش نكمّله دلوقتي.`, r.reason || '', 'لو حابب نتكلم في أي تفاصيل إحنا موجودين 🙏'].filter(Boolean).join('\n');
   return [hi, `وصلنا طلب اشتراك *${r.name}* في ${P.name}، وهنراجعه ونرد عليك قريب.`, `متابعة الطلب: ${reqLink(r.id)}`].join('\n');
@@ -1578,8 +1586,10 @@ A.reqDelGo = async id => { try { await deleteDoc(doc(db, 'requests', id)); S.req
 A.reqPaid = async id => {
   const r = reqOf(id); if (!r) return;
   if (!PRODUCTS[r.type]) return toast('نوع الطلب مش معروف');
+  await loadPub();
+  const tdays = r.kind === 'trial' ? (Number(PUBINFO?.trialDays) || 7) : 0;
   S.reqFillArm = true;
-  S.reqFill = { pk: r.type, reqId: id, name: r.name, contact: r.contact || '', phone: r.phone || '', planId: r.planId, start: r.start, months: Number(r.months) || 1, amount: r.amount ?? r.total ?? 0, city: r.city || '', notes: r.notes || '' };
+  S.reqFill = { pk: r.type, reqId: id, tdays, name: r.name, contact: r.contact || '', phone: r.phone || '', planId: r.planId, start: tdays ? todayStr() : r.start, months: Number(r.months) || 1, amount: tdays ? 0 : (r.amount ?? r.total ?? 0), city: r.city || '', notes: r.notes || '' };
   await A.tenantModal(r.type);
 };
 function reqFillForm() {
@@ -1593,15 +1603,22 @@ function reqFillForm() {
     f.months.value = String(R.months);
   }
   if (f.amount) f.amount.value = R.amount;
-  if (f.note) f.note.value = 'من طلب اشتراك';
+  if (f.note) f.note.value = R.tdays ? `تجربة مجانية ${R.tdays} يوم` : 'من طلب اشتراك';
+  if (R.tdays) {
+    f.insertAdjacentHTML('beforeend', `<input type="hidden" name="trialDays" value="${R.tdays}">`);
+    if (f.months) { f.months.disabled = true; f.months.closest('label').style.display = 'none'; }
+    if (f.amount) { f.amount.readOnly = true; f.amount.closest('label').style.display = 'none'; }
+  }
   if (f.notes) f.notes.value = [R.city, R.notes].filter(Boolean).join(' · ').slice(0, 300);
-  f.insertAdjacentHTML('afterbegin', `<div class="notice info">البيانات اتملت من طلب الاشتراك ✓ اختار <b>طريقة الدفع</b>، وراجع الباقي، ودوس <b>حفظ</b>.${R.pk === 'maint' ? '<br>⚠️ شركة الصيانة محتاجة مشروع Firebase لوحدها. لو لسه ما عملتهوش: احفظ دلوقتي من غير بيانات Firebase، وكمّلها بعدين من "تعديل البيانات والباكدج".' : ''}</div>`);
+  f.insertAdjacentHTML('afterbegin', R.tdays ? `<div class="notice info">🎁 تجربة مجانية ${R.tdays.toLocaleString('ar-EG')} يوم — من النهارده لحد ${esc(dayTxt(toInput(new Date(Date.now() + (R.tdays - 1) * 864e5))))}، وبعدها السيستم يقفل لوحده لحد ما يشترك. راجع البيانات ودوس <b>حفظ</b>، وبعدها اعمل يوزر صاحب العيادة.</div>` : `<div class="notice info">البيانات اتملت من طلب الاشتراك ✓ اختار <b>طريقة الدفع</b>، وراجع الباقي، ودوس <b>حفظ</b>.${R.pk === 'maint' ? '<br>⚠️ شركة الصيانة محتاجة مشروع Firebase لوحدها. لو لسه ما عملتهوش: احفظ دلوقتي من غير بيانات Firebase، وكمّلها بعدين من "تعديل البيانات والباكدج".' : ''}</div>`);
 }
 async function reqMarkPaid(tid, data, f) {
   const R = S.reqFill; S.reqFill = null;
   if (!R?.reqId) return;
   const P = PRODUCTS[R.pk];
-  await reqUpd(R.reqId, { status: 'paid', tenantId: tid, paidAt: serverTimestamp(), paidAmount: Number(f.amount?.value) || 0, method: f.method?.value || '', sysUrl: P.remote ? (data.url || '') : appHome() + '?c=' + tid });
+  const tdays = Number(f.trialDays?.value) || 0;
+  const extra = tdays ? { trialDays: tdays, trialEnd: toInput(data.expiresAt) } : {};
+  await reqUpd(R.reqId, { ...extra, status: 'paid', tenantId: tid, paidAt: serverTimestamp(), paidAmount: Number(f.amount?.value) || 0, method: f.method?.value || '', sysUrl: P.remote ? (data.url || '') : appHome() + '?c=' + tid });
 }
 A.reqReady = async id => {
   const r = reqOf(id); if (!r) return;
@@ -1616,15 +1633,18 @@ A.reqReady = async id => {
 /* ----- طرق الدفع ورقمك (بيظهروا في صفحة الطلب) ----- */
 A.payInfoModal = async () => {
   await Promise.all([loadPub(), loadDevMain()]);
-  openModal(`<h3>💳 طرق الدفع ورقمك</h3><form onsubmit="A.payInfoSave(event)" class="fcol">
+  openModal(`<h3>⚙️ إعدادات صفحة الطلب</h3><form onsubmit="A.payInfoSave(event)" class="fcol">
     <p class="meta">دول بيظهروا للعميل في صفحة طلب الاشتراك، وفي رسالة الموافقة.</p>
     <label class="f">رقم الواتساب بتاعك (العميل بيكلمك عليه)<input name="wa" dir="ltr" inputmode="tel" required value="${esc(PUBINFO?.wa || DEVCFG_MAIN?.phone || '')}" placeholder="01xxxxxxxxx"></label>
     <label class="f">طرق الدفع (كل طريقة في سطر)<textarea name="pay" rows="5" style="width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;font:inherit" placeholder="إنستاباي: name@instapay&#10;فودافون كاش: 010xxxxxxxx&#10;كاش في المكتب">${esc(PUBINFO?.payText || '')}</textarea></label>
+    <div class="section-t">🎁 التجربة المجانية للعيادات</div>
+    <label class="f">مدة التجربة المجانية بالأيام (0 = مفيش تجربة)<input name="trial" type="number" min="0" max="60" value="${Number(PUBINFO?.trialDays ?? 0)}"></label>
+    <p class="meta">لو أكتر من 0: العيادة تقدر تطلب "تجربة مجانية" من صفحة الطلب، وإنت توافق بزرار، وتتفتحلها نسخة باسمها بحدود الباكدج اللي اختارته لعدد الأيام دي، وبعدها تقفل لوحدها لحد ما تشترك.</p>
     ${formActs()}</form>`);
 };
 A.payInfoSave = async e => {
   e.preventDefault(); const f = e.target;
-  try { await savePub({ wa: f.wa.value.trim(), payText: f.pay.value.trim() }); A.closeModal(); toast('اتحفظ ✓'); if (S.devView === 'reqs') renderReqs(); }
+  try { await savePub({ wa: f.wa.value.trim(), payText: f.pay.value.trim(), trialDays: Math.max(0, Math.min(60, Math.round(Number(f.trial.value) || 0))) }); A.closeModal(); toast('اتحفظ ✓'); if (S.devView === 'reqs') renderReqs(); }
   catch (err) { toast('مقدرتش أحفظ: ' + (err.code || err.message)); }
 };
 
@@ -1682,7 +1702,7 @@ async function drawQrCard(k) {
   if (qc) { x.fillStyle = '#F4F6F5'; x.fillRect(W / 2 - 250, 340, 500, 500); x.drawImage(qc, W / 2 - 230, 360, 460, 460); }
   star(W / 2, 590, 30, '#ffffff'); star(W / 2, 590, 22, '#C98F4E');
   x.fillStyle = '#2F6F68'; x.font = '700 26px Cairo, sans-serif'; x.fillText('امسح الكود واختار الباكدج المناسب', W / 2, 888);
-  x.fillStyle = '#5E7E79'; x.font = '600 18px Cairo, sans-serif'; x.direction = 'ltr'; x.fillText(link.replace(/^https:\/\//, ''), W / 2, 926);
+  x.fillStyle = '#5E7E79'; x.font = '600 20px Cairo, sans-serif'; x.direction = 'ltr'; x.fillText('beamcare.eg@gmail.com', W / 2, 926);
 }
 A.qrDownload = () => {
   const cv = document.getElementById('qrCard'); if (!cv) return;
@@ -1748,6 +1768,7 @@ const NAV_ICO = {
   wrench: '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/>',
   palette: '<path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.5-.9 1-1.8-.6-1-.1-2.2 1.1-2.2H17a4 4 0 0 0 4-4c0-5.5-4-10-9-10z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10" cy="7" r="1.2"/><circle cx="15" cy="7.5" r="1.2"/>',
   team: '<path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="m9 12 2 2 4-4"/>',
+  csettings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
   inbox: '<path d="M3 13l3-8h12l3 8v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M3 13h5l1 2h6l1-2h5"/>',
 };
 const navIco = k => `<svg class="nico" viewBox="0 0 24 24" aria-hidden="true">${NAV_ICO[k] || NAV_ICO.home}</svg>`;
@@ -1998,11 +2019,25 @@ async function devPlans() {
           ${ps.map(p => `<tr><td><b>${esc(p.name)}</b></td><td>${money(p.price)}</td><td>${p.months} شهر</td><td>${planLimitsTxt(P, p.limits)}</td>
             <td>${P.features.filter(f => p.features?.[f.key]).map(f => `<span class="chip mute">${esc(f.label)}</span>`).join(' ') || '—'}</td>
             <td>${p.active === false ? '<span class="chip mute">موقوف</span>' : '<span class="chip ok">متاح</span>'}</td>
-            <td><button class="btn ghost sm" onclick="A.planModal('${P.key}','${p.id}')">تعديل</button></td></tr>`).join('')}</tbody></table></div>`
+            <td style="display:flex;gap:6px"><button class="btn ghost sm" onclick="A.planModal('${P.key}','${p.id}')">تعديل</button><button class="btn ghost sm" style="color:var(--red)" onclick="A.planDel('${p.id}')">حذف</button></td></tr>`).join('')}</tbody></table></div>`
           : '<p class="meta">مفيش باكدجات لسه.</p>'}
       </div>`;
     }).join('')}`);
 }
+// حذف باكدج: العملاء اللي عليه بيفضلوا شغالين بنفس حدودهم (الحدود متسجلة عند كل عميل)
+A.planDel = async id => {
+  const p = (S.plans || []).find(x => x.id === id); if (!p) return;
+  const used = (S.tenants || await loadAllTenants().catch(() => [])).filter(t => t.planId === id);
+  openModal(`<h3>حذف باكدج "${esc(p.name)}"؟</h3>
+    <p class="meta">الباكدج هيتشال من اللوحة ومن صفحة طلب الاشتراك.</p>
+    ${used.length ? `<div class="notice warn">فيه ${used.length.toLocaleString('ar-EG')} عميل على الباكدج ده (${used.slice(0, 4).map(t => esc(t.name)).join('، ')}${used.length > 4 ? '…' : ''}). اشتراكهم هيفضل شغال بنفس حدوده لحد ما يخلص، بس لما تجدّدلهم هتختارلهم باكدج تاني.</div>` : ''}
+    <p class="meta">لو عايز تخفيه بس من غير ما تحذفه، افتح "تعديل" وشيل علامة "متاح للبيع".</p>
+    <div class="acts"><button class="btn danger" onclick="A.planDelGo('${id}')">حذف</button><button class="btn ghost" onclick="A.closeModal()">إلغاء</button></div>`);
+};
+A.planDelGo = async id => {
+  try { await deleteDoc(doc(db, 'plans', id)); S.plans = (S.plans || []).filter(x => x.id !== id); A.closeModal(); toast('اتحذف'); A.dev('plans'); }
+  catch (err) { toast('مقدرتش أحذف: ' + (err.code || err.message)); }
+};
 A.planModal = (pk, id) => {
   const P = PRODUCTS[pk], p = id ? S.plans.find(x => x.id === id) : null;
   openModal(`<h3>${p ? 'تعديل باكدج' : 'باكدج جديد'} · ${esc(P.name)}</h3>
@@ -2151,9 +2186,11 @@ A.saveTenant = async (e, pk, id) => {
       const ref = doc(tcol(P));
       id = ref.id;
       if (P.remote && !data.url) data.url = MAINT_APP + '?c=' + id;
-      const months = Number(f.months.value) || 1;
+      const tdays = Number(f.trialDays?.value) || 0;
+      const months = tdays ? 0 : (Number(f.months.value) || 1);
       const start = new Date(f.sd.value + 'T00:00:00');
-      const end = addMonths(start, months); end.setHours(23, 59, 59);
+      const end = tdays ? new Date(start.getTime() + (tdays - 1) * 864e5) : addMonths(start, months); end.setHours(23, 59, 59);
+      if (tdays) data.trial = true;
       data.startAt = Timestamp.fromDate(start);
       data.expiresAt = Timestamp.fromDate(end);
       data.createdAt = serverTimestamp();
@@ -2379,7 +2416,7 @@ A.saveRenew = async e => {
   const months = Number(f.months.value) || 1;
   const from = new Date(Math.max(Date.now(), toDate(c.expiresAt)?.getTime() || 0));
   const to = addMonths(from, months); to.setHours(23, 59, 59);
-  const upd = { expiresAt: Timestamp.fromDate(to), active: true };
+  const upd = { expiresAt: Timestamp.fromDate(to), active: true, trial: false };
   if (p) {
     upd.planId = p.id; upd.planName = p.name; upd.plan = { ...(c.plan || {}), ...p.limits };
     const feats = { ...(c.features || {}) };
@@ -2628,7 +2665,7 @@ A.viewAs = id => {
   S.profile = { ...u, id };
   S.clinic = { ...S.dc };
   S.branches = S.dBranches;
-  ['clients', 'staff', 'services', 'devices', 'bookings', 'openClientId', 'bDate', 'sDate', 'payDate', 'branch'].forEach(k => { S[k] = null; });
+  ['clients', 'staff', 'services', 'devices', 'bookings', 'openClientId', 'bDate', 'sDate', 'payDate', 'branch', 'cfg', 'online'].forEach(k => { S[k] = null; });
   applyBrand(S.clinic);
   initBranch();
   A.go('home');
@@ -2740,6 +2777,7 @@ function clinicShell(view, content) {
   const nav = [['home', 'الرئيسية']];
   if (S.profile.role !== 'client') MODULES.forEach(m => { if (can(m.key + '_view')) nav.push([m.key, m.label]); });
   if (ownerPerms()) nav.push(['team', 'اليوزرات والصلاحيات']);
+  if (isOwner()) nav.push(['csettings', 'إعدادات العيادة']);
   const brs = myBranches();
   const brSel = S.profile.role === 'client' ? '' : brs.length > 1
     ? `<select aria-label="الفرع" style="width:auto;min-height:38px" onchange="A.setBranch(this.value)">${brs.map(x => `<option value="${x.id}" ${x.id === S.branch ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select>`
@@ -2760,6 +2798,7 @@ A.go = async view => {
   try {
     if (view === 'home') return await renderHome();
     if (view === 'team') return await renderTeam();
+    if (view === 'csettings') return await renderCSettings();
     const m = MODULES.find(x => x.key === view);
     if (!m || !can(m.key + '_view')) return await renderHome();
     const R = { clients: renderClients, bookings: renderBookings, sessions: renderSessions, packages: renderPackages, payments: renderPayments, inventory: renderInventory, staff: renderStaff, devices: renderDevices, reports: renderReports }[view];
@@ -2799,6 +2838,7 @@ async function renderHome() {
   if (can('sessions_edit')) quick.push(`<button class="btn" onclick="A.sessionModal()">+ تسجيل جلسة</button>`);
   if (can('packages_edit')) quick.push(`<button class="btn" onclick="A.sellModal()">+ بيع باكدج</button>`);
   if (can('payments_edit')) quick.push(`<button class="btn gold" onclick="A.payModal()">+ تحصيل</button>`);
+  if (can('payments_view') || isOwner()) quick.push(`<button class="btn ghost" onclick="A.dayReport()">📊 تقرير النهارده</button>`);
   clinicShell('home', `
     <div class="head"><h2>أهلاً ${esc(S.profile.name)}</h2></div>
     ${seesSub && d <= 7 ? `<div class="notice warn">الاشتراك هيخلص بعد ${d} يوم (${fmt(c.expiresAt)}). كلّم Beam Care علشان التجديد.</div>` : ''}
@@ -2836,14 +2876,16 @@ A.filterClients = q => {
   document.getElementById('clientsTbl').innerHTML = clientsTable(l);
 };
 
-A.clientModal = async id => {
+A.clientModal = async (id, pre) => {
   if (can('clients_view')) await loadClients();
+  await loadCfg();
   const c = id ? (S.clients || []).find(x => x.id === id) : null;
+  S.clientThenBook = !c && !!pre?.thenBook;
   openModal(`<h3>${c ? 'تعديل بيانات العميل' : 'عميل جديد'}</h3>
   <form onsubmit="A.saveClient(event,'${id || ''}')" class="fcol">
     <div class="grid2">
-      <label class="f">الاسم<input name="name" required value="${esc(c?.name)}"></label>
-      <label class="f">الموبايل<input name="phone" required dir="ltr" inputmode="tel" value="${esc(c?.phone)}"></label>
+      <label class="f">الاسم<input name="name" required value="${esc(c?.name ?? pre?.name)}"></label>
+      <label class="f">الموبايل<input name="phone" required dir="ltr" inputmode="tel" value="${esc(c?.phone ?? pre?.phone)}"></label>
     </div>
     <div class="grid3">
       <label class="f">موبايل تاني<input name="phone2" dir="ltr" inputmode="tel" value="${esc(c?.phone2)}"></label>
@@ -2853,6 +2895,8 @@ A.clientModal = async id => {
     <label class="f">العنوان<input name="address" value="${esc(c?.address)}"></label>
     <label class="f">ملاحظات طبية (حساسية، أدوية، تحذيرات)<input name="notes" value="${esc(c?.notes)}"></label>
     ${isOwner() ? `<label class="f">مديونية قديمة (قبل السيستم)<input name="opening" type="number" min="0" step="any" value="${c?.openingBalance || 0}"></label>` : ''}
+    ${!c && loy().on ? `<label class="f">جاي من طرف عميل؟ (اختياري — ياخد ${loy().referral.toLocaleString('ar-EG')} نقطة مكافأة)<input name="ref" list="refList" autocomplete="off" placeholder="اكتب اسم أو موبايل العميل اللي رشّحه"></label>
+      <datalist id="refList">${(S.clients || []).map(x => `<option value="${esc(clientLabel(x))}"></option>`).join('')}</datalist>` : ''}
     ${formActs()}
   </form>`);
 };
@@ -2861,6 +2905,8 @@ A.saveClient = async (e, id) => {
   const f = e.target, btn = f.querySelector('[type=submit]');
   const data = { name: f.name.value.trim(), phone: f.phone.value.trim(), phone2: f.phone2.value.trim(), gender: f.gender.value, birth: f.birth.value, notes: f.notes.value.trim(), address: f.address.value.trim() };
   if (f.opening) data.openingBalance = Number(f.opening.value) || 0;
+  const refC = !id && f.ref?.value.trim() ? findClient(f.ref.value) : null;
+  if (!id && f.ref?.value.trim() && !refC) return toast('اختار العميل اللي رشّحه من القايمة، أو سيب الخانة فاضية');
   if (!id && (S.clients || []).some(c => c.phone === data.phone) && !confirm('فيه عميل متسجل بنفس رقم الموبايل. تكمّل برضه؟')) return;
   busy(btn, true, 'جاري الحفظ...');
   try {
@@ -2875,12 +2921,14 @@ A.saveClient = async (e, id) => {
         const n = cs.exists() ? (cs.data().clients || 0) : 0;
         if (n >= max) throw Object.assign(new Error('limit'), { code: 'limit' });
         tx.set(ctr, { clients: n + 1 }, { merge: true });
-        tx.set(nref, { ...data, branchId: S.branch || '', month: todayStr().slice(0, 7), createdAt: serverTimestamp(), createdBy: S.profile.id });
+        tx.set(nref, { ...data, ...(refC ? { referredBy: refC.id } : {}), branchId: S.branch || '', month: todayStr().slice(0, 7), createdAt: serverTimestamp(), createdBy: S.profile.id });
       });
       id = nref.id;
+      if (refC && loy().on && loy().referral > 0) await addPoints(refC.id, refC.name, loy().referral, 'ref', 'رشّح ' + data.name).catch(er => console.error(er));
     }
     A.closeModal(); toast('اتحفظ');
     await loadClients(true);
+    if (S.clientThenBook) { S.clientThenBook = false; return A.bookingModal({ clientId: id, online: true }); }
     A.openClient(id);
   } catch (err) {
     console.error(err); busy(btn, false, 'حفظ');
@@ -2896,7 +2944,11 @@ A.openClient = async id => {
     let c = (S.clients || []).find(x => x.id === id);
     if (!c) { const d = await getDoc(cdoc('clients', id)); c = { id, ...d.data() }; }
     const q = col => getDocs(query(ccol(col), where('clientId', '==', id))).then(s => s.docs.map(d => ({ id: d.id, ...d.data() })));
-    const [pk, ss, pay, bk] = await Promise.all([q('cpackages'), q('sessions'), q('payments'), can('bookings_view') ? q('bookings') : Promise.resolve([])]);
+    const [pk, ss, pay, bk, pts, cons] = await Promise.all([q('cpackages'), q('sessions'), q('payments'), can('bookings_view') ? q('bookings') : Promise.resolve([]),
+      (can('clients_view') || can('payments_view')) ? q('points').catch(() => []) : Promise.resolve([]), (can('clients_view') || can('sessions_view')) ? q('consents').catch(() => []) : Promise.resolve([]), loadCfg()]);
+    const ptBal = pts.reduce((a, x) => a + (Number(x.pts) || 0), 0), L = loy();
+    pts.sort((a, b) => (toDate(b.createdAt) || 0) - (toDate(a.createdAt) || 0)); cons.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    S.consents = cons;
     const charged = chargedOf(c, pk, ss);
     const paid = pay.reduce((a, x) => a + (x.amount || 0), 0);
     const rem = charged - paid;
@@ -2907,6 +2959,7 @@ A.openClient = async id => {
     if (can('sessions_edit')) acts.push(`<button class="btn sm" onclick="A.sessionModal({clientId:'${id}'})">+ جلسة</button>`);
     if (can('packages_edit')) acts.push(`<button class="btn sm" onclick="A.sellModal('${id}')">+ بيع باكدج</button>`);
     if (can('payments_edit')) acts.push(`<button class="btn gold sm" onclick="A.payModal('${id}')">+ تحصيل</button>`);
+    if (can('clients_edit') || can('sessions_edit')) acts.push(`<button class="btn ghost sm" onclick="A.consentModal('${id}')">✍️ إقرار موافقة</button>`);
     if (can('clients_edit')) acts.push(`<button class="btn ghost sm" onclick="A.clientModal('${id}')">تعديل البيانات</button>`);
     const section = (title, rows, head, empty) => `<div class="card" style="display:flex;flex-direction:column;gap:10px;padding:16px">
       <h3>${title}</h3>${rows.length ? `<div class="tbl-wrap"><table><thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>` : `<p class="meta">${empty}</p>`}</div>`;
@@ -2922,9 +2975,13 @@ A.openClient = async id => {
         <div class="card stat"><b>${money(paid)}</b><span>المدفوع</span></div>
         <div class="card stat"><b style="color:${rem > 0 ? 'var(--red)' : 'var(--ok)'}">${money(rem)}</b><span>${rem > 0 ? 'متبقي عليه' : rem < 0 ? 'رصيد ليه' : 'خالص'}</span></div>
       </div>
+      ${L.on || pts.length ? `<div class="card" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;border:1.5px solid var(--gold-l)"><span style="font-size:26px" aria-hidden="true">🎁</span>
+        <div style="flex:1;min-width:200px"><b>نقاط الولاء: ${ptBal.toLocaleString('ar-EG')} نقطة</b><div class="meta">= ${money(ptBal * L.value)} خصم${pts.length ? ` · آخر حركة: ${esc(pts[0].note || '')} (${pts[0].pts > 0 ? '+' : ''}${Number(pts[0].pts).toLocaleString('ar-EG')})` : ''}</div></div>
+        ${ptBal > 0 && (can('payments_edit') || can('clients_edit')) ? `<button class="btn gold sm" onclick="A.redeemModal('${id}',${ptBal})">استبدال</button>` : ''}</div>` : ''}
       ${section('الباكدجات', pk.map(p => `<tr><td><b>${esc(p.name)}</b>${p.imported ? ' <span class="chip mute">مستورد</span>' : ''}</td><td>${pkgUse(p)}</td><td>${pkgChip(p)}</td><td>${money(p.price)}</td><td>${esc(p.date) || '—'}</td><td>${esc(branchName(p.branchId))}</td></tr>`), ['الباكدج', 'الاستهلاك', 'الحالة', 'السعر', 'التاريخ', 'الفرع'], 'مفيش باكدجات.')}
       ${section('الجلسات', ss.map(s => `<tr><td>${esc(s.date)}</td><td><b>${esc(s.area)}</b></td><td>${s.packageId ? `${esc(s.packageName)} ${s.sessionNo ? `(جلسة ${s.sessionNo})` : s.pulsesDeducted ? `(−${s.pulsesDeducted} نبضة)` : ''}` : money(s.price)}</td><td>${esc(s.doctorName) || '—'}</td><td>${esc(s.device) || '—'}</td><td dir="ltr" style="text-align:right">${[s.fluence != null ? s.fluence + ' J' : '', s.pulse != null ? s.pulse + ' ms' : '', s.spot != null ? s.spot + ' mm' : ''].filter(Boolean).join(' · ') || '—'}</td><td>${s.shots ?? '—'}</td><td>${esc(s.notes)}</td></tr>`), ['التاريخ', 'المنطقة', 'باكدج / سعر', 'الدكتور', 'الجهاز', 'الإعدادات', 'الشوتات', 'ملاحظات'], 'مفيش جلسات.')}
       ${section('المدفوعات', pay.map(p => `<tr><td>${esc(p.date)}</td><td><b>${money(p.amount)}</b></td><td>${METHODS[p.method] || esc(p.method)}</td><td>${esc(p.note)}</td><td>${esc(branchName(p.branchId))}</td><td>${esc(p.createdByName)}</td></tr>`), ['التاريخ', 'المبلغ', 'الطريقة', 'ملاحظة', 'الفرع', 'استلمه'], 'مفيش مدفوعات.')}
+      ${cons.length ? section('إقرارات الموافقة', cons.map(x => `<tr><td>${esc(x.date)}</td><td><b>${esc(x.service) || '—'}</b></td><td>${esc(x.createdByName)}</td><td><button class="btn ghost sm" onclick="A.consentView('${x.id}')">عرض / طباعة</button></td></tr>`), ['التاريخ', 'الخدمة', 'سجّله', ''], '') : ''}
       ${can('bookings_view') ? section('الحجوزات', bk.map(b => `<tr><td>${esc(b.date)}</td><td>${esc(b.time)}</td><td>${esc(b.service) || '—'}</td><td>${esc(b.doctorName) || '—'}</td><td>${bChip(b.status)}</td><td>${esc(branchName(b.branchId))}</td></tr>`), ['التاريخ', 'الساعة', 'الخدمة', 'الدكتور', 'الحالة', 'الفرع'], 'مفيش حجوزات.') : ''}
     `);
     S.openClientId = id;
@@ -2939,7 +2996,7 @@ async function renderBookings() {
   const d = S.bDate || todayStr();
   clinicShell('bookings', LOADING);
   await ensureData();
-  const s = await getDocs(query(ccol('bookings'), where('branchId', '==', S.branch), where('date', '==', d)));
+  const [s] = await Promise.all([getDocs(query(ccol('bookings'), where('branchId', '==', S.branch), where('date', '==', d))), loadOnline(), loadCfg()]);
   S.bookings = s.docs.map(x => ({ id: x.id, ...x.data() })).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
   const active = S.bookings.filter(b => b.status !== 'cancelled');
   const rows = S.bookings.map(b => {
@@ -2947,6 +3004,7 @@ async function renderBookings() {
     const open = ['booked', 'arrived'].includes(b.status);
     if (can('bookings_edit') && b.status === 'booked') acts.push(`<button class="btn sm" onclick="A.bStatus('${b.id}','arrived')">وصل</button>`);
     if (can('sessions_edit') && open) acts.push(`<button class="btn gold sm" onclick="A.sessionModal({bookingId:'${b.id}'})">تسجيل جلسة</button>`);
+    if (b.status === 'booked' && b.clientPhone && d >= todayStr()) acts.push(`<a class="btn ghost sm" style="text-decoration:none;display:inline-flex;align-items:center" title="تذكير على الواتساب" aria-label="تذكير على الواتساب" target="_blank" rel="noopener" href="${esc(remindHref(b))}" onclick="A.remindOne('${b.id}')">💬${b.reminded ? ' ✓' : ''}</a>`);
     if (can('bookings_edit') && open) {
       acts.push(`<button class="btn ghost sm" onclick="A.bookingModal({id:'${b.id}'})">تعديل</button>`);
       acts.push(`<button class="btn ghost sm" onclick="A.bStatus('${b.id}','noshow')">محضرش</button>`);
@@ -2956,7 +3014,8 @@ async function renderBookings() {
       <td>${esc(b.service) || '—'}</td><td>${esc(b.doctorName) || '—'}</td><td>${bChip(b.status)}</td><td>${esc(b.notes)}</td><td><div style="display:flex;gap:6px">${acts.join('')}</div></td></tr>`;
   });
   clinicShell('bookings', `
-    <div class="head"><h2>الحجوزات</h2>${can('bookings_edit') ? `<button class="btn gold" onclick="A.bookingModal()">+ حجز جديد</button>` : ''}</div>
+    <div class="head"><h2>الحجوزات</h2><button class="btn ghost" onclick="A.remindModal()">📲 تذكير حجوزات بكرة</button>${can('bookings_edit') ? `<button class="btn gold" onclick="A.bookingModal()">+ حجز جديد</button>` : ''}</div>
+    ${onlineCard()}
     ${dateBar('bDate', d)}
     <div class="meta"><span>${active.length} حجز</span><span>${S.bookings.filter(b => b.status === 'arrived').length} منتظر</span><span>${S.bookings.filter(b => b.status === 'done').length} خلص</span></div>
     ${rows.length ? `<div class="card tbl-wrap" style="padding:0"><table><thead><tr><th>الساعة</th><th>العميل</th><th>الموبايل</th><th>الخدمة</th><th>الدكتور</th><th>الحالة</th><th>ملاحظات</th><th></th></tr></thead><tbody>${rows.join('')}</tbody></table></div>`
@@ -2970,20 +3029,23 @@ A.bookingModal = async (o = {}) => {
   await ensureData();
   const b = o.id ? (S.bookings || []).find(x => x.id === o.id) : null;
   const docs = doctors();
-  openModal(`<h3>${b ? 'تعديل حجز' : 'حجز جديد'}</h3>
+  const on = !b && o.online && S.onlineFill ? S.onlineFill : null;
+  S.onlineArm = !!on;
+  openModal(`<h3>${b ? 'تعديل حجز' : on ? 'تأكيد حجز أونلاين' : 'حجز جديد'}</h3>
+  ${on ? `<div class="notice info">من طلب الحجز أونلاين: ${esc(on.name)}${on.notes ? ` — ${esc(on.notes)}` : ''}. حدد الساعة ودوس حفظ.</div>` : ''}
   <form onsubmit="A.saveBooking(event,'${o.id || ''}')" class="fcol">
     ${clientPicker(b?.clientId || o.clientId)}
     ${can('clients_edit') ? `<button type="button" class="btn ghost sm" style="align-self:flex-start" onclick="A.clientModal()">العميل مش متسجل؟ سجّله الأول</button>` : ''}
     <div class="grid2">
-      <label class="f">التاريخ<input type="date" name="date" required value="${b?.date || S.bDate || todayStr()}"></label>
+      <label class="f">التاريخ<input type="date" name="date" required value="${b?.date || on?.date || S.bDate || todayStr()}"></label>
       <label class="f">الساعة<input type="time" name="time" required value="${esc(b?.time)}"></label>
     </div>
     <div class="grid2">
       <label class="f">الدكتور<select name="doctor"><option value="">من غير تحديد</option>${docs.map(d => `<option value="${d.id}" ${b?.doctorId === d.id ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</select></label>
-      <label class="f">الخدمة / المنطقة<input name="service" list="servList" value="${esc(b?.service)}"></label>
+      <label class="f">الخدمة / المنطقة<input name="service" list="servList" value="${esc(b?.service ?? on?.service)}"></label>
     </div>
     ${servDatalist()}
-    <label class="f">ملاحظات<input name="notes" value="${esc(b?.notes)}"></label>
+    <label class="f">ملاحظات<input name="notes" value="${esc(b?.notes ?? on?.notes)}"></label>
     ${formActs()}
   </form>`);
 };
@@ -2999,7 +3061,10 @@ A.saveBooking = async (e, id) => {
   busy(btn, true, 'جاري الحفظ...');
   try {
     if (id) await updateDoc(cdoc('bookings', id), data);
-    else await addDoc(ccol('bookings'), { ...data, status: 'booked', createdAt: serverTimestamp(), createdBy: S.profile.id, createdByName: S.profile.name });
+    else {
+      const nr = await addDoc(ccol('bookings'), { ...data, status: 'booked', createdAt: serverTimestamp(), createdBy: S.profile.id, createdByName: S.profile.name });
+      if (S.onlineArm && S.onlineFill) { await updateDoc(cdoc('online', S.onlineFill.id), { status: 'done', bookingId: nr.id, handledBy: S.profile.id, handledAt: serverTimestamp() }).catch(er => console.error(er)); S.onlineFill = null; S.onlineArm = false; }
+    }
     A.closeModal(); toast('اتحفظ الحجز');
     S.bDate = data.date;
     afterSave('bookings');
@@ -3253,7 +3318,7 @@ A.saveSell = async e => {
 
 /* ----- التحصيل ----- */
 A.payModal = async clientId => {
-  await ensureData();
+  await Promise.all([ensureData(), loadCfg()]);
   openModal(`<h3>تحصيل</h3>
   <form onsubmit="A.savePay(event)" class="fcol">
     ${clientPicker(clientId)}
@@ -3278,7 +3343,9 @@ A.savePay = async e => {
   busy(btn, true, 'جاري الحفظ...');
   try {
     await addDoc(ccol('payments'), { clientId: cl.id, clientName: cl.name, branchId: S.branch, amount, method: f.method.value, date: f.date.value, month: f.date.value.slice(0, 7), note: f.note.value.trim(), createdAt: serverTimestamp(), createdBy: S.profile.id, createdByName: S.profile.name });
-    A.closeModal(); toast('اتسجل التحصيل');
+    const L = loy(), pts = L.on ? Math.floor(amount / 100 * L.per100) : 0;
+    if (pts > 0) await addPoints(cl.id, cl.name, pts, 'pay', 'تحصيل ' + money(amount)).catch(er => console.error(er));
+    A.closeModal(); toast(pts > 0 ? `اتسجل التحصيل · +${pts.toLocaleString('ar-EG')} نقطة 🎁` : 'اتسجل التحصيل');
     afterSave('payments');
   } catch (err) { console.error(err); busy(btn, false, 'تسجيل التحصيل'); toast('مقدرتش أحفظ: ' + err.code); }
 };
@@ -4079,6 +4146,331 @@ A.impRun = async () => {
   }
 };
 
+/* =========================================================
+   مميزات العيادة: إعدادات صاحب العيادة · تذكير الحجز · الحجز أونلاين · إقرار الموافقة · تقرير اليوم · نقاط الولاء
+   ========================================================= */
+const REMIND_DEF = 'أهلاً {الاسم} 👋\nبنفكّرك بمعادك في {العيادة} يوم {اليوم} الساعة {الساعة}{الدكتور}.\nلو محتاج تغيّر المعاد ابعتلنا هنا. مستنيينك 🌸';
+const CONSENT_DEF = 'أقر أنا الموقّع أدناه {الاسم} بأنني:\n١. تم شرح الإجراء ({الخدمة}) ونتائجه المتوقعة وعدد الجلسات المطلوبة لي بوضوح.\n٢. تم إبلاغي بالآثار الجانبية المحتملة مثل الاحمرار أو التورم المؤقت أو تغيّر لون الجلد.\n٣. أفصحت عن تاريخي المرضي والأدوية التي أتناولها وأي حساسية، وأي حمل أو رضاعة.\n٤. ألتزم بتعليمات ما قبل وما بعد الجلسة (مثل تجنب الشمس واستخدام واقي الشمس).\n٥. أوافق على إجراء الجلسة بإرادتي الكاملة.';
+const LOY_DEF = { on: false, per100: 1, referral: 50, value: 1 };
+async function loadCfg(force) {
+  if (S.cfg && S.cfgFor === S.clinic?.id && !force) return S.cfg;
+  try { const d = await getDoc(cdoc('cfg', 'main')); S.cfg = d.exists() ? d.data() : {}; } catch (e) { S.cfg = {}; }
+  S.cfgFor = S.clinic?.id;
+  return S.cfg;
+}
+const loy = () => ({ ...LOY_DEF, ...(S.cfg?.loyalty || {}) });
+const fillTpl = (t, o) => String(t || '').replace(/\{([^}]+)\}/g, (m, k) => o[k] ?? m);
+const dayName = s => { const d = new Date(s + 'T12:00:00'); return isNaN(d) ? s : d.toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long' }); };
+const time12 = t => { if (!t) return ''; const [h, m] = t.split(':').map(Number); const d = new Date(2000, 0, 1, h, m || 0); return d.toLocaleTimeString('ar-EG', { hour: 'numeric', minute: '2-digit' }); };
+const bookLink = () => location.origin + location.pathname.replace(/[^/]*$/, '') + '?book=' + S.clinic.id;
+
+/* ----- إعدادات العيادة (صاحب العيادة بس) ----- */
+async function renderCSettings() {
+  if (!isOwner()) return renderHome();
+  clinicShell('csettings', LOADING);
+  await Promise.all([loadCfg(true), loadServices()]);
+  let pub = {}; try { const d = await getDoc(cdoc('cfg', 'public')); pub = d.exists() ? d.data() : {}; } catch (e) {}
+  const c = S.cfg, L = loy();
+  const brs = (S.branches || []).filter(b => b.active !== false);
+  clinicShell('csettings', `
+    <div class="head"><h2>إعدادات العيادة</h2></div>
+    <form onsubmit="A.saveCSettings(event)" class="fcol">
+      <div class="card fcol">
+        <h3>📅 الحجز أونلاين</h3>
+        <p class="meta">صفحة بلينك و QR بتاعة عيادتك: العميل يختار الفرع والخدمة واليوم ويبعت طلب حجز، والطلب يظهر عند الريسبشن في "الحجوزات" يأكّدوه.</p>
+        <label class="chk"><input type="checkbox" name="bon" ${pub.on ? 'checked' : ''}> تشغيل الحجز أونلاين</label>
+        <label class="f">رقم واتساب العيادة (بيظهر للعميل في صفحة الحجز)<input name="bwa" dir="ltr" inputmode="tel" value="${esc(pub.wa || '')}" placeholder="01xxxxxxxxx"></label>
+        ${brs.length > 1 ? `<div class="meta">الفروع اللي بتظهر في صفحة الحجز:</div><div class="grid2">${brs.map(b => `<label class="chk"><input type="checkbox" name="bbr_${b.id}" ${!pub.branches || pub.branches.some(x => x.id === b.id) ? 'checked' : ''}> ${esc(b.name)}</label>`).join('')}</div>` : ''}
+        <p class="meta">الخدمات اللي بتظهر للعميل هي "قائمة الأسعار" بتاعتك (${(S.services || []).length.toLocaleString('ar-EG')} خدمة).</p>
+        ${pub.on ? `<div class="linkbox"><input readonly value="${esc(bookLink())}" aria-label="رابط الحجز"><button type="button" class="btn sm" onclick="navigator.clipboard.writeText('${esc(bookLink())}');A.toast('اتنسخ')">نسخ</button><button type="button" class="btn gold sm" onclick="A.bookQr()">QR</button></div>` : '<p class="meta">شغّل الحجز أونلاين واحفظ، وهيظهرلك الرابط والـ QR.</p>'}
+      </div>
+      <div class="card fcol">
+        <h3>📲 رسالة تذكير الحجز</h3>
+        <p class="meta">بتتبعت على الواتساب من صفحة الحجوزات. الكلمات اللي بين { } بتتغير لوحدها: {الاسم} {العيادة} {اليوم} {الساعة} {الدكتور}</p>
+        <textarea name="remind" rows="4" style="width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;font:inherit">${esc(c.remindTpl || REMIND_DEF)}</textarea>
+      </div>
+      <div class="card fcol">
+        <h3>✍️ نص إقرار الموافقة</h3>
+        <p class="meta">العميل بيمضي عليه من الموبايل أو التابلت قبل الجلسة. {الاسم} و {الخدمة} بيتغيروا لوحدهم.</p>
+        <textarea name="consent" rows="8" style="width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;font:inherit;line-height:1.7">${esc(c.consentText || CONSENT_DEF)}</textarea>
+      </div>
+      <div class="card fcol">
+        <h3>🎁 نقاط الولاء والترشيح</h3>
+        <label class="chk"><input type="checkbox" name="lon" ${L.on ? 'checked' : ''}> تشغيل نقاط الولاء</label>
+        <div class="grid3">
+          <label class="f">نقاط لكل ١٠٠ ج.م مدفوعة<input name="lper" type="number" min="0" step="any" value="${L.per100}"></label>
+          <label class="f">نقاط مكافأة لما عميل يجيب عميل جديد<input name="lref" type="number" min="0" step="1" value="${L.referral}"></label>
+          <label class="f">قيمة النقطة الواحدة (ج.م)<input name="lval" type="number" min="0" step="any" value="${L.value}"></label>
+        </div>
+        <p class="meta">مثال: لو العميل دفع ١٠٠٠ ج.م ← ياخد ${Number((10 * L.per100).toFixed(2)).toLocaleString('ar-EG')} نقطة = ${money(10 * L.per100 * L.value)} خصم يستبدلها في أي وقت.</p>
+      </div>
+      <div class="card fcol">
+        <h3>📊 تقرير آخر اليوم</h3>
+        <label class="f">رقم الواتساب اللي التقرير يتبعتله (صاحب العيادة)<input name="rwa" dir="ltr" inputmode="tel" value="${esc(c.reportWa || S.clinic.contactPhone || '')}" placeholder="01xxxxxxxxx"></label>
+      </div>
+      <div class="acts"><button class="btn" type="submit">حفظ الإعدادات</button></div>
+    </form>`);
+}
+A.saveCSettings = async e => {
+  e.preventDefault();
+  const f = e.target, btn = f.querySelector('[type=submit]');
+  const brs = (S.branches || []).filter(b => b.active !== false);
+  const pickBr = brs.length > 1 ? brs.filter(b => f['bbr_' + b.id]?.checked) : brs;
+  const main = {
+    remindTpl: f.remind.value.trim() || REMIND_DEF, consentText: f.consent.value.trim() || CONSENT_DEF, reportWa: f.rwa.value.trim(),
+    loyalty: { on: f.lon.checked, per100: Math.max(0, Number(f.lper.value) || 0), referral: Math.max(0, Math.round(Number(f.lref.value) || 0)), value: Math.max(0, Number(f.lval.value) || 0) },
+  };
+  const pub = { on: f.bon.checked, wa: f.bwa.value.trim(), branches: pickBr.map(b => ({ id: b.id, name: b.name })), services: (S.services || []).map(s => s.name).filter(Boolean).slice(0, 80) };
+  busy(btn, true, 'جاري الحفظ...');
+  try {
+    await Promise.all([setDoc(cdoc('cfg', 'main'), main, { merge: true }), setDoc(cdoc('cfg', 'public'), pub)]);
+    S.cfg = { ...(S.cfg || {}), ...main }; toast('اتحفظت الإعدادات ✓'); renderCSettings();
+  } catch (err) { console.error(err); busy(btn, false, 'حفظ الإعدادات'); toast('مقدرتش أحفظ: ' + (err.code || err.message)); }
+};
+// QR لصفحة الحجز (بنفس مكتبة QR بتاعة اللوحة)
+A.bookQr = async () => {
+  const link = bookLink(), b = brandOf(S.clinic);
+  openModal(`<h3>QR الحجز أونلاين</h3><div style="display:flex;justify-content:center"><canvas id="bookQr" width="640" height="820" style="width:100%;max-width:280px;border:1px solid var(--line);border-radius:14px;background:#fff"></canvas></div>
+    <div class="acts"><button class="btn gold" onclick="const a=document.createElement('a');a.download='booking-qr.png';a.href=document.getElementById('bookQr').toDataURL('image/png');a.click()">⬇️ تحميل الصورة</button><button class="btn ghost" onclick="A.closeModal()">قفل</button></div>`);
+  try {
+    await loadQrLib();
+    const tmp = document.createElement('div');
+    new window.QRCode(tmp, { text: link, width: 440, height: 440, colorDark: '#1E3B38', colorLight: '#ffffff', correctLevel: window.QRCode.CorrectLevel.H });
+    try { await document.fonts?.load('800 36px Cairo'); } catch (e) {}
+    const cv = document.getElementById('bookQr'); if (!cv) return;
+    const x = cv.getContext('2d'), W = cv.width, col = getComputedStyle(document.body).getPropertyValue('--brand').trim() || '#2F6F68';
+    x.fillStyle = '#fff'; x.fillRect(0, 0, W, cv.height);
+    x.fillStyle = col; x.fillRect(0, 0, W, 130);
+    x.direction = 'rtl'; x.textAlign = 'center'; x.fillStyle = '#fff'; x.font = '800 40px Cairo, sans-serif'; x.fillText(b.name, W / 2, 80);
+    x.fillStyle = '#1E3B38'; x.font = '800 34px Cairo, sans-serif'; x.fillText('احجز معادك أونلاين', W / 2, 200);
+    const qc = tmp.querySelector('canvas'); if (qc) x.drawImage(qc, (W - 440) / 2, 240, 440, 440);
+    x.fillStyle = '#5E7E79'; x.font = '700 24px Cairo, sans-serif'; x.fillText('امسح الكود واختار المعاد اللي يناسبك', W / 2, 740);
+  } catch (e) { toast('مقدرتش أعمل الـ QR دلوقتي — اتأكد من النت'); }
+};
+
+/* ----- تذكير الحجز على الواتساب ----- */
+function remindMsg(b) {
+  return fillTpl(S.cfg?.remindTpl || REMIND_DEF, { 'الاسم': (b.clientName || '').split(' ')[0], 'العيادة': brandOf(S.clinic).name, 'اليوم': dayName(b.date), 'الساعة': time12(b.time), 'الدكتور': b.doctorName ? ` مع ${b.doctorName}` : '' });
+}
+const remindHref = b => `https://wa.me/${waNum(b.clientPhone)}?text=${encodeURIComponent(remindMsg(b))}`;
+A.remindOne = async id => {
+  const b = [...(S.remindList || []), ...(S.bookings || [])].find(x => x.id === id); if (!b) return;
+  if (can('bookings_edit') && !b.reminded) { updateDoc(cdoc('bookings', id), { reminded: true }).catch(() => {}); b.reminded = true; }
+  const el = document.getElementById('rm_' + id); if (el) el.innerHTML = '<span class="chip ok">اتبعت ✓</span>';
+};
+A.remindModal = async (day) => {
+  await loadCfg();
+  const d = day || (() => { const x = new Date(); x.setDate(x.getDate() + 1); return toInput(x); })();
+  const s = await getDocs(query(ccol('bookings'), where('branchId', '==', S.branch), where('date', '==', d)));
+  S.remindList = s.docs.map(x => ({ id: x.id, ...x.data() })).filter(b => b.status === 'booked' && b.clientPhone).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+  const L = S.remindList;
+  openModal(`<h3>📲 تذكير حجوزات ${esc(dayName(d))}</h3>
+    <p class="meta">دوس "ابعت" قدام كل عميل — هيفتح الواتساب برسالة التذكير جاهزة. ${isOwner() ? 'تقدر تغيّر نص الرسالة من "إعدادات العيادة".' : ''}</p>
+    ${L.length ? `<div class="tbl-wrap"><table><thead><tr><th>الساعة</th><th>العميل</th><th>الخدمة</th><th></th></tr></thead><tbody>${L.map(b => `<tr><td><b>${esc(time12(b.time))}</b></td><td>${esc(b.clientName)}</td><td>${esc(b.service) || '—'}</td>
+      <td id="rm_${b.id}">${b.reminded ? '<span class="chip ok">اتبعت ✓</span> ' : ''}<a class="btn ${b.reminded ? 'ghost' : 'gold'} sm" style="text-decoration:none;display:inline-flex;align-items:center" target="_blank" rel="noopener" href="${esc(remindHref(b))}" onclick="A.remindOne('${b.id}')">💬 ${b.reminded ? 'ابعت تاني' : 'ابعت'}</a></td></tr>`).join('')}</tbody></table></div>
+      <p class="meta">${L.filter(b => b.reminded).length.toLocaleString('ar-EG')} من ${L.length.toLocaleString('ar-EG')} اتبعتلهم.</p>`
+      : '<p class="meta">مفيش حجوزات مستنية تذكير في اليوم ده.</p>'}
+    <div class="acts"><button class="btn ghost" onclick="A.closeModal();A.go('bookings')">قفل</button></div>`);
+};
+
+/* ----- طلبات الحجز أونلاين (عند الريسبشن) ----- */
+async function loadOnline() {
+  if (!can('bookings_view')) return [];
+  try {
+    const s = await getDocs(query(ccol('online'), where('status', '==', 'new')));
+    const mine = new Set(myBranches().map(b => b.id));
+    S.online = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(r => !r.branchId || mine.has(r.branchId)).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  } catch (e) { S.online = []; }
+  return S.online;
+}
+function onlineCard() {
+  const L = S.online || [];
+  if (!L.length) return '';
+  return `<div class="card fcol" style="border:1.5px solid var(--gold-l)">
+    <div class="head"><h3 style="flex:1">📥 طلبات حجز أونلاين (${L.length.toLocaleString('ar-EG')})</h3></div>
+    ${L.map(r => `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding-top:10px;border-top:1px solid var(--line)">
+      <div style="flex:1;min-width:220px"><b>${esc(r.name)}</b> <a dir="ltr" href="https://wa.me/${waNum(r.phone)}" target="_blank" rel="noopener">${esc(r.phone)}</a>
+        <div class="meta"><span>${esc(dayName(r.date))}${r.slot ? ' · ' + esc(r.slot) : ''}</span>${r.service ? `<span>${esc(r.service)}</span>` : ''}${r.branchName ? `<span>${esc(r.branchName)}</span>` : ''}</div>
+        ${r.notes ? `<div class="meta">${esc(r.notes)}</div>` : ''}</div>
+      ${can('bookings_edit') ? `<button class="btn gold sm" onclick="A.onlineOk('${r.id}')">✓ أكّد واحجز</button><button class="btn ghost sm" onclick="A.onlineNo('${r.id}')">مش هينفع</button>` : ''}</div>`).join('')}
+  </div>`;
+}
+A.onlineOk = async id => {
+  const r = (S.online || []).find(x => x.id === id); if (!r) return;
+  await ensureData();
+  const ph = latinDigits(r.phone).replace(/\D/g, '').slice(-10);
+  const cl = (S.clients || []).find(c => latinDigits(c.phone).replace(/\D/g, '').slice(-10) === ph);
+  S.onlineFill = { id, date: r.date, service: r.service || '', notes: [r.slot, r.notes].filter(Boolean).join(' · '), name: r.name, phone: r.phone };
+  if (cl) return A.bookingModal({ clientId: cl.id, online: true });
+  if (!can('clients_edit')) return toast('العميل مش متسجل، ومعندكش صلاحية تسجيل عملاء');
+  toast('العميل جديد — سجّله الأول وبعدين الحجز هيفتح لوحده');
+  A.clientModal('', { name: r.name, phone: r.phone, thenBook: true });
+};
+A.onlineNo = async id => {
+  const r = (S.online || []).find(x => x.id === id); if (!r) return;
+  const msg = `أهلاً ${(r.name || '').split(' ')[0]} 👋 معاك ${brandOf(S.clinic).name}.\nبخصوص طلب الحجز يوم ${dayName(r.date)}: للأسف المعاد ده مش متاح. تحب نشوفلك معاد تاني؟`;
+  openModal(`<h3>طلب ${esc(r.name)}</h3><p class="meta">هيتشال من الطلبات. تقدر تبعتله رسالة تقترح معاد تاني:</p>
+    <div class="acts"><a class="btn gold" style="text-decoration:none;display:inline-flex;align-items:center" target="_blank" rel="noopener" href="https://wa.me/${waNum(r.phone)}?text=${encodeURIComponent(msg)}">💬 ابعتله</a>
+    <button class="btn danger" onclick="A.onlineNoGo('${id}')">شيل الطلب</button><button class="btn ghost" onclick="A.closeModal()">إلغاء</button></div>`);
+};
+A.onlineNoGo = async id => {
+  try { await updateDoc(cdoc('online', id), { status: 'rejected', handledBy: S.profile.id, handledAt: serverTimestamp() }); A.closeModal(); toast('اتشال'); A.go('bookings'); }
+  catch (err) { toast('مقدرتش: ' + (err.code || err.message)); }
+};
+
+/* ----- إقرار الموافقة بالتوقيع ----- */
+A.consentModal = async clientId => {
+  await Promise.all([loadCfg(), ensureData()]);
+  const c = (S.clients || []).find(x => x.id === clientId); if (!c) return;
+  openModal(`<h3>✍️ إقرار موافقة — ${esc(c.name)}</h3>
+    <label class="f">الخدمة / المنطقة<input id="cnServ" list="servList" placeholder="مثلاً: ليزر إزالة شعر - الوش" oninput="A.consentText('${clientId}')"></label>${servDatalist()}
+    <div id="cnText" class="card" style="white-space:pre-line;line-height:1.8;background:var(--bg);max-height:260px;overflow:auto"></div>
+    <div class="meta">توقيع العميل (بالصباع أو الماوس):</div>
+    <canvas id="cnSig" width="600" height="200" style="width:100%;height:170px;border:1.5px dashed var(--line);border-radius:12px;background:#fff;touch-action:none;cursor:crosshair" aria-label="مكان التوقيع"></canvas>
+    <div class="acts"><button class="btn" onclick="A.consentSave('${clientId}')">حفظ الإقرار</button><button class="btn ghost" onclick="A.consentClear()">امسح التوقيع</button><button class="btn ghost" onclick="A.closeModal()">إلغاء</button></div>`);
+  A.consentText(clientId);
+  const cv = document.getElementById('cnSig'), x = cv.getContext('2d');
+  x.lineWidth = 3; x.lineCap = 'round'; x.lineJoin = 'round'; x.strokeStyle = '#1E3B38';
+  let on = false; S.sigDirty = false;
+  const pt = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * cv.width / r.width, (e.clientY - r.top) * cv.height / r.height]; };
+  cv.addEventListener('pointerdown', e => { on = true; cv.setPointerCapture(e.pointerId); const [a, b] = pt(e); x.beginPath(); x.moveTo(a, b); });
+  cv.addEventListener('pointermove', e => { if (!on) return; const [a, b] = pt(e); x.lineTo(a, b); x.stroke(); S.sigDirty = true; });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => cv.addEventListener(t, () => { on = false; }));
+};
+A.consentText = clientId => {
+  const c = (S.clients || []).find(x => x.id === clientId), el = document.getElementById('cnText'); if (!el || !c) return;
+  const serv = document.getElementById('cnServ')?.value.trim() || '..........';
+  el.textContent = fillTpl(S.cfg?.consentText || CONSENT_DEF, { 'الاسم': c.name, 'الخدمة': serv }) + `\n\nالتاريخ: ${dayTxtC(todayStr())}`;
+};
+const dayTxtC = s => { const d = new Date(s + 'T12:00:00'); return isNaN(d) ? s : d.toLocaleDateString('ar-EG', { day: 'numeric', month: 'long', year: 'numeric' }); };
+A.consentClear = () => { const cv = document.getElementById('cnSig'); cv?.getContext('2d').clearRect(0, 0, cv.width, cv.height); S.sigDirty = false; };
+A.consentSave = async clientId => {
+  const c = (S.clients || []).find(x => x.id === clientId); if (!c) return;
+  if (!S.sigDirty) return toast('العميل لازم يمضي الأول');
+  const cv = document.getElementById('cnSig');
+  const sm = document.createElement('canvas'); sm.width = 450; sm.height = 150;
+  const sx = sm.getContext('2d'); sx.fillStyle = '#fff'; sx.fillRect(0, 0, 450, 150); sx.drawImage(cv, 0, 0, 450, 150);
+  const serv = document.getElementById('cnServ').value.trim();
+  try {
+    await addDoc(ccol('consents'), { clientId, clientName: c.name, service: serv, text: document.getElementById('cnText').textContent, sig: sm.toDataURL('image/jpeg', 0.7), date: todayStr(), branchId: S.branch || '', createdAt: serverTimestamp(), createdBy: S.profile.id, createdByName: S.profile.name });
+    A.closeModal(); toast('اتحفظ الإقرار ✓'); A.openClient(clientId);
+  } catch (err) { console.error(err); toast('مقدرتش أحفظ: ' + (err.code || err.message)); }
+};
+A.consentView = id => {
+  const x = (S.consents || []).find(y => y.id === id); if (!x) return;
+  const b = brandOf(S.clinic), w = window.open('', '_blank');
+  if (!w) return toast('المتصفح منع فتح صفحة جديدة — اسمح بالنوافذ المنبثقة');
+  w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>إقرار ${esc(x.clientName)}</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap">
+  <style>body{font-family:Cairo,sans-serif;max-width:720px;margin:30px auto;padding:0 20px;color:#1E3B38;line-height:1.9}h1{font-size:22px;border-bottom:2px solid #2F6F68;padding-bottom:10px}.t{white-space:pre-line}img{border:1px solid #ddd;border-radius:8px;max-width:320px}.m{color:#5E7E79;font-size:14px}button{font:inherit;background:#2F6F68;color:#fff;border:0;border-radius:10px;padding:10px 22px;cursor:pointer;margin-top:20px}@media print{button{display:none}}</style></head><body>
+  <h1>${esc(b.name)} — إقرار موافقة</h1><p class="m">العميل: <b>${esc(x.clientName)}</b>${x.service ? ` · الخدمة: ${esc(x.service)}` : ''} · ${esc(dayTxtC(x.date))}</p>
+  <div class="t">${esc(x.text)}</div><p>توقيع العميل:</p><img src="${x.sig}" alt="التوقيع"><p class="m">سجّله: ${esc(x.createdByName || '')}</p>
+  <button onclick="print()">طباعة / حفظ PDF</button></body></html>`);
+  w.document.close();
+};
+
+/* ----- نقاط الولاء ----- */
+async function addPoints(clientId, clientName, pts, kind, note) {
+  pts = Math.round(pts); if (!pts) return;
+  await addDoc(ccol('points'), { clientId, clientName, pts, kind, note: note || '', date: todayStr(), branchId: S.branch || '', createdAt: serverTimestamp(), createdBy: S.profile.id, createdByName: S.profile.name });
+}
+A.redeemModal = (clientId, bal) => {
+  const L = loy(), c = (S.clients || []).find(x => x.id === clientId);
+  openModal(`<h3>🎁 استبدال نقاط ${esc(c?.name || '')}</h3><form onsubmit="A.redeemSave(event,'${clientId}',${bal})" class="fcol">
+    <p class="meta">الرصيد: <b>${bal.toLocaleString('ar-EG')} نقطة</b> = ${money(bal * L.value)}</p>
+    <label class="f">عدد النقاط اللي هيستبدلها<input name="pts" type="number" min="1" max="${bal}" step="1" required value="${bal}" oninput="this.form.querySelector('#rdV').textContent=(Number(this.value||0)*${L.value}).toLocaleString('ar-EG')+' ج.م'"></label>
+    <p class="meta">قيمة الخصم: <b id="rdV">${money(bal * L.value)}</b> — اخصمها من حسابه وإنت بتحصّل أو بتبيعله الباكدج.</p>
+    <label class="f">ملاحظة<input name="note" placeholder="مثلاً: خصم على جلسة ليزر"></label>
+    ${formActs('استبدال')}</form>`);
+};
+A.redeemSave = async (e, clientId, bal) => {
+  e.preventDefault(); const f = e.target, n = Math.round(Number(f.pts.value) || 0);
+  if (n < 1 || n > bal) return toast('عدد النقاط مش مظبوط');
+  const c = (S.clients || []).find(x => x.id === clientId);
+  try { await addPoints(clientId, c?.name || '', -n, 'redeem', f.note.value.trim() || `خصم ${money(n * loy().value)}`); A.closeModal(); toast('اتسجل الاستبدال ✓'); A.openClient(clientId); }
+  catch (err) { toast('مقدرتش أحفظ: ' + (err.code || err.message)); }
+};
+
+/* ----- تقرير آخر اليوم ----- */
+A.dayReport = async () => {
+  await loadCfg();
+  const d = todayStr(), mine = new Set(myBranches().map(b => b.id));
+  const get = col => qAll(col, 'date', d).then(l => l.filter(x => !x.branchId || mine.has(x.branchId))).catch(() => null);
+  toast('بيجهّز التقرير…');
+  const [bk, ss, pay, exp] = await Promise.all([can('bookings_view') ? get('bookings') : null, can('sessions_view') ? get('sessions') : null, can('payments_view') ? get('payments') : null, can('payments_view') ? get('expenses') : null]);
+  let newCl = null;
+  if (can('clients_view')) { try { await loadClients(true); newCl = (S.clients || []).filter(c => toInput(toDate(c.createdAt) || new Date(0)) === d && (!c.branchId || mine.has(c.branchId))).length; } catch (e) {} }
+  const b = brandOf(S.clinic), n = v => Number(v || 0).toLocaleString('ar-EG');
+  const lines = [`📊 تقرير ${b.name} — ${dayName(d)}`, myBranches().length > 1 ? `الفروع: ${myBranches().map(x => x.name).join('، ')}` : ''];
+  if (bk) { const a = bk.filter(x => x.status !== 'cancelled'); lines.push('', `📅 الحجوزات: ${n(a.length)}`, `  ✓ اتعملت: ${n(bk.filter(x => x.status === 'done').length)}`, `  ✗ محضروش: ${n(bk.filter(x => x.status === 'noshow').length)}`, `  ↩ اتلغت: ${n(bk.filter(x => x.status === 'cancelled').length)}`); }
+  if (ss) lines.push(`💆 الجلسات: ${n(ss.length)}`);
+  if (newCl != null) lines.push(`👤 عملاء جداد: ${n(newCl)}`);
+  if (pay) {
+    const by = {}; pay.forEach(p => { by[p.method] = (by[p.method] || 0) + (p.amount || 0); });
+    const tin = sumAmt(pay), tout = sumAmt(exp || []);
+    lines.push('', `💰 التحصيل: ${money(tin)}`, ...Object.entries(by).map(([k, v]) => `  ${METHODS[k] || k}: ${money(v)}`), `💸 المصروفات: ${money(tout)}`, `📌 الصافي: ${money(tin - tout)}`);
+  }
+  const txt = lines.filter((x, i) => x !== '' || lines[i - 1] !== '').join('\n').trim();
+  const to = waNum(S.cfg?.reportWa || S.clinic.contactPhone || '');
+  openModal(`<h3>📊 تقرير النهارده</h3>
+    <textarea id="drT" rows="14" style="width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;font:inherit;line-height:1.7">${esc(txt)}</textarea>
+    <div class="acts"><a class="btn gold" style="text-decoration:none;display:inline-flex;align-items:center" target="_blank" rel="noopener" href="https://wa.me/${to}" onclick="this.href='https://wa.me/${to}?text='+encodeURIComponent(document.getElementById('drT').value)">💬 ابعته على الواتساب${to ? '' : ' (اختار الرقم)'}</a>
+    <button class="btn ghost" onclick="navigator.clipboard.writeText(document.getElementById('drT').value);A.toast('اتنسخ')">نسخ</button><button class="btn ghost" onclick="A.closeModal()">قفل</button></div>`);
+};
+
+/* ----- صفحة الحجز أونلاين (للعملاء، من غير دخول) ----- */
+async function renderBookPage() {
+  const cid = BOOK_C;
+  $app.innerHTML = `<div class="loading">جاري التحميل...</div>`;
+  let br = null, pub = null;
+  try { const [a, b] = await Promise.all([getDoc(doc(db, 'brands', cid)), getDoc(doc(db, 'clinics', cid, 'cfg', 'public'))]); br = a.exists() ? a.data() : null; pub = b.exists() ? b.data() : null; } catch (e) { console.error(e); }
+  const B = brandOf(br ? { ...br, whiteLabel: true } : null);
+  document.title = 'احجز معادك — ' + B.name;
+  if (!br || !pub?.on) { $app.innerHTML = `<div class="locked"><div class="card">${logoHTML(B, 64)}<h2>${esc(B.name)}</h2><p>الحجز أونلاين مش متاح دلوقتي.${pub?.wa ? ` <a href="https://wa.me/${waNum(pub.wa)}" target="_blank" rel="noopener">كلّمنا على الواتساب</a>.` : ''}</p></div></div>`; return; }
+  const today = todayStr(), brs = pub.branches || [], sv = pub.services || [];
+  const SLOTS = ['الصبح (قبل ١٢)', 'الضهر (١٢ - ٤)', 'بالليل (بعد ٤)'];
+  $app.innerHTML = `<div class="login"><div class="login-card" style="max-width:520px">
+    <div class="login-brand">${logoHTML(B, 64)}<h1>${esc(B.name)}</h1><p>احجز معادك أونلاين — هنكلمك نأكّد المعاد</p></div>
+    <form id="bkF" class="fcol" novalidate>
+      <label class="f">اسمك *<input name="name" required maxlength="80" autocomplete="name"></label>
+      <label class="f">رقم الموبايل (واتساب) *<input name="phone" required dir="ltr" inputmode="tel" maxlength="16" autocomplete="tel" placeholder="01xxxxxxxxx"></label>
+      ${brs.length > 1 ? `<label class="f">الفرع *<select name="branch" required><option value="">اختار الفرع</option>${brs.map(b => `<option value="${esc(b.id)}">${esc(b.name)}</option>`).join('')}</select></label>` : ''}
+      ${sv.length ? `<label class="f">الخدمة<select name="service"><option value="">مش متأكد / استشارة</option>${sv.map(x => `<option>${esc(x)}</option>`).join('')}</select></label>` : `<label class="f">الخدمة<input name="service" maxlength="80"></label>`}
+      <div class="grid2"><label class="f">اليوم *<input name="date" type="date" required min="${today}" value="${today}"></label>
+      <label class="f">الوقت المناسب<select name="slot">${SLOTS.map(x => `<option>${x}</option>`).join('')}</select></label></div>
+      <label class="f">ملاحظات<input name="notes" maxlength="500"></label>
+      <input name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;width:1px;height:1px;padding:0;border:0;overflow:hidden;clip:rect(0 0 0 0);opacity:0;pointer-events:none">
+      <div id="bkErr"></div>
+      <button class="btn" type="submit">ابعت طلب الحجز</button>
+      ${pub.wa ? `<p class="meta" style="justify-content:center">أو <a href="https://wa.me/${waNum(pub.wa)}" target="_blank" rel="noopener">كلّمنا على الواتساب</a></p>` : ''}
+    </form></div></div>`;
+  const t0 = Date.now(), f = document.getElementById('bkF');
+  f.addEventListener('submit', async e => {
+    e.preventDefault();
+    const err = m => { document.getElementById('bkErr').innerHTML = `<div class="err" role="alert">${m}</div>`; };
+    const name = f.name.value.trim(), phone = latinDigits(f.phone.value).replace(/[^\d+]/g, '');
+    if (name.length < 2) return err('اكتب اسمك');
+    if (!/^[+]?[0-9]{8,15}$/.test(phone)) return err('اكتب رقم موبايل صحيح');
+    if (f.branch && !f.branch.value) return err('اختار الفرع');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(f.date.value) || f.date.value < today) return err('اختار يوم من النهارده أو بعده');
+    if (f.website.value) { f.outerHTML = '<div class="notice info">✓ طلبك اتبعت!</div>'; return; }
+    if (Date.now() - t0 < 4000) return err('ثانية واحدة… راجع بياناتك ودوس تاني.');
+    let sent = []; try { sent = JSON.parse(localStorage.getItem('bc-bk-' + cid) || '[]').filter(t => Date.now() - t < 864e5); } catch (x) {}
+    if (sent.length >= 3) return err('بعت طلبات كتير النهارده. لو محتاج حاجة كلّمنا على الواتساب.');
+    const b = brs.find(x => x.id === f.branch?.value) || (brs.length === 1 ? brs[0] : null);
+    const data = { name, phone, date: f.date.value, slot: f.slot.value, status: 'new', createdAt: serverTimestamp() };
+    if (b) { data.branchId = b.id; data.branchName = b.name; }
+    if (f.service.value.trim()) data.service = f.service.value.trim().slice(0, 80);
+    if (f.notes.value.trim()) data.notes = f.notes.value.trim().slice(0, 500);
+    const btn = f.querySelector('[type=submit]'); busy(btn, true, 'بيتبعت...');
+    try {
+      await addDoc(collection(db, 'clinics', cid, 'online'), data);
+      try { localStorage.setItem('bc-bk-' + cid, JSON.stringify([...sent, Date.now()])); } catch (x) {}
+      f.outerHTML = `<div class="fcol" style="text-align:center"><div style="font-size:44px">✅</div><h2>طلبك اتبعت!</h2><p class="meta" style="justify-content:center">هنكلمك على <b dir="ltr">${esc(phone)}</b> نأكّد معادك يوم ${esc(dayName(data.date))}.</p>${pub.wa ? `<a class="btn gold" style="text-decoration:none;display:inline-flex;justify-content:center;align-items:center" target="_blank" rel="noopener" href="https://wa.me/${waNum(pub.wa)}?text=${encodeURIComponent(`أهلاً 👋 بعتلكم طلب حجز باسم ${name} يوم ${dayName(data.date)}`)}">💬 ابعتلنا على الواتساب</a>` : ''}</div>`;
+    } catch (x) { console.error(x); busy(btn, false, 'ابعت طلب الحجز'); err('مقدرناش نبعت الطلب — جرّب تاني بعد شوية.'); }
+  });
+}
+
 /* ----- تصدير ----- */
 A.exportClients = () => downloadXLSX(`clients-${todayStr()}.xlsx`, 'العملاء', [
   ['الاسم', 'الموبايل', 'موبايل 2', 'العنوان', 'النوع', 'تاريخ الميلاد', 'فرع التسجيل', 'ملاحظات طبية', 'مديونية قديمة'],
@@ -4086,6 +4478,7 @@ A.exportClients = () => downloadXLSX(`clients-${todayStr()}.xlsx`, 'العملا
 ]);
 A.exportDebts = () => downloadXLSX(`debts-${todayStr()}.xlsx`, 'المديونيات', [['العميل', 'المتبقي'], ...(S.debts || []).map(([, b]) => [b.name, b.v])]);
 
+if (BOOK_C) renderBookPage();
 </script>
 </body>
 </html>
