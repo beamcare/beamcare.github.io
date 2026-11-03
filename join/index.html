@@ -127,7 +127,7 @@ const TYPES = {
   maint: { ic: '🔧', name: 'Beam Care Maintenance', short: 'شركة صيانة', one: 'الشركة', desc: 'سيستم إدارة شركات صيانة الأجهزة الطبية: التقارير والطلبات والمخزن والفواتير والموظفين',
     limits: [['maxUsers', 'يوزر (موظف)', 'يوزرات (موظفين)', 'يوزر واحد'], ['maxCustomers', 'عيادة (عميل)', 'عيادات (عملاء)', 'عيادة واحدة']], zeroOpen: true },
 };
-const FEATS = { whiteLabel: 'السيستم يظهر باسمك ولوجوك', ownerManagesPerms: 'تتحكم في صلاحيات موظفينك بنفسك', onlineBooking: 'حجز أونلاين لعملائك بالمواعيد المتاحة (لينك و QR)', reminders: 'تذكير الحجوزات على الواتساب', consents: 'إقرار موافقة بتوقيع العميل', dayReport: 'تقرير آخر اليوم على الواتساب', loyalty: 'نقاط ولاء وترشيح للعملاء' };
+const FEATS = { whiteLabel: 'السيستم يظهر باسمك ولوجوك', ownerManagesPerms: 'تتحكم في صلاحيات موظفينك بنفسك', onlineBooking: 'حجز أونلاين لعملائك بالمواعيد المتاحة (لينك و QR)', reminders: 'تذكير الحجوزات على الواتساب', consents: 'إقرار موافقة بتوقيع العميل', dayReport: 'تقرير آخر اليوم على الواتساب', loyalty: 'نقاط ولاء وترشيح للعملاء', campaigns: 'عروض مجمّعة وحملات واتساب بصور مصممة' };
 
 const P = new URLSearchParams(location.search);
 const S = { type: TYPES[P.get('t')] ? P.get('t') : '', plans: {}, planId: '', info: null, kind: P.get('trial') ? 'trial' : 'sub' };
