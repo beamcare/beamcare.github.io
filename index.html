@@ -4917,7 +4917,7 @@ async function renderBookPage() {
         getDocs(query(collection(db, 'clinics', cid, 'services'), where('online', '==', true))).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))),
         getDocs(query(collection(db, 'clinics', cid, 'cats'), where('online', '==', true))).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
       ]);
-      svs = sv.filter(x => !x.hidden && !['package', 'combo'].includes(x.kind)).sort((x, y) => (x.name || '').localeCompare(y.name || '', 'ar'));
+      svs = sv.filter(x => !x.hidden && x.kind !== 'combo').sort((x, y) => (x.name || '').localeCompare(y.name || '', 'ar'));
       offers = sv.filter(x => x.kind === 'combo' && !x.hidden && (!x.until || x.until >= todayStr()));
       cats = ct.sort((x, y) => (x.order ?? 99) - (y.order ?? 99));
     }
