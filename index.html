@@ -33,6 +33,24 @@ input,select{width:100%;padding:10px 12px;border:1.5px solid var(--line);border-
 input:focus,select:focus{outline:2px solid var(--mint);border-color:var(--brand)}
 label.f{display:flex;flex-direction:column;gap:6px;font-weight:600;font-size:14px;color:var(--muted)}
 label.chk{display:flex;align-items:center;gap:8px;font-weight:600;cursor:pointer}
+.pick{display:flex;gap:8px;flex-wrap:wrap}
+.pick label{cursor:pointer;position:relative}
+.pick input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+.pick span{display:inline-flex;align-items:center;gap:7px;padding:9px 14px;border-radius:12px;border:1.5px solid var(--line);background:#fff;font-weight:600;font-size:14px;color:var(--ink);transition:.12s}
+.pick label:hover span{border-color:var(--brand)}
+.pick input:checked+span{background:var(--brand);color:#fff;border-color:var(--brand)}
+.pick input:checked+span svg{stroke:#fff}
+.pick input:focus-visible+span{outline:2px solid var(--gold);outline-offset:2px}
+.pick input:disabled+span{opacity:.55;cursor:default}
+.pick input:disabled:checked+span{opacity:1}
+.pick.swatch span{width:34px;height:34px;padding:0;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 1px var(--line)}
+.pick.swatch input:checked+span{border-color:#fff;box-shadow:0 0 0 2.5px var(--ink)}
+label.sw{justify-content:space-between;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:#fff}
+label.sw input[type=checkbox]{appearance:none;-webkit-appearance:none;order:2;width:46px;height:27px;min-height:0;border-radius:99px;background:#cfd6d4;position:relative;flex:none;cursor:pointer;transition:.15s;margin:0;padding:0;border:0}
+label.sw input[type=checkbox]::after{content:'';position:absolute;top:3px;right:3px;width:21px;height:21px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:.15s}
+label.sw input[type=checkbox]:checked{background:var(--brand)}
+label.sw input[type=checkbox]:checked::after{right:22px}
+label.sw input[type=checkbox]:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 label.chk input{width:20px;height:20px;min-height:0;accent-color:var(--brand)}
 .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 .grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
@@ -79,6 +97,33 @@ body.lk-dark .btn,body.lk-dark .side button.on{color:#111}
 body.lk-dark .btn.ghost{color:var(--brand);background:transparent}
 body.lk-dark .chip.mute{background:#2A2A2E}
 body.lk-dark th{color:var(--muted)}
+.side .navsec{font-size:11.5px;font-weight:700;color:var(--muted);padding:12px 14px 4px;letter-spacing:.2px}
+.side .nico{width:21px;height:21px}
+@media (min-width:901px){
+  body.nav-mini:not(.nav-top) .side,body.nav-rail .side{width:76px;position:sticky;top:0;align-self:flex-start;height:calc(100vh - 61px);overflow-y:auto;overflow-x:hidden;z-index:30;transition:width .18s ease,margin .18s ease,box-shadow .18s}
+  body.nav-mini:not(.nav-top) .side:not(:hover) button,body.nav-rail .side:not(:hover) button{justify-content:center;padding:10px 6px}
+  body.nav-mini:not(.nav-top) .side:not(:hover) button span,body.nav-rail .side:not(:hover) button span,body.nav-mini:not(.nav-top) .side:not(:hover) .navsec{display:none}
+  body.nav-mini:not(.nav-top) .side:not(:hover) .navsec{display:block;height:1px;padding:0;margin:8px 10px;background:var(--line);font-size:0}
+  body.nav-mini:not(.nav-top) .side:hover,body.nav-rail .side:hover{width:250px;margin-left:-174px;box-shadow:-14px 0 34px rgba(20,25,40,.14)}
+  body.nav-rail .side:hover button span{display:inline}
+  body.nav-rail .side .navsec{display:none}
+  body.nav-mini:not(.nav-top) .side button,body.nav-rail .side button{min-height:40px;padding-top:8px;padding-bottom:8px}
+  body.nav-mini:not(.nav-top) .side .navsec{padding-top:8px}
+  body.nav-rail .side:hover .navsec{display:block}
+}
+body.nav-top .side .navsec,body.nav-top .side .mini-tg{display:none}
+.mbar{display:none}
+@media (max-width:900px){
+  .mbar{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:40;background:#fff;border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px));justify-content:space-around;box-shadow:0 -4px 18px rgba(0,0,0,.06)}
+  .mbar button{flex:1;background:none;border:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font:inherit;font-size:11.5px;color:var(--muted);cursor:pointer;min-height:54px;padding:2px}
+  .mbar button.on{color:var(--brand);font-weight:700}
+  .mbar button .nico{width:23px;height:23px}
+  .mbar .plus .pl{width:50px;height:40px;border-radius:14px;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:400;line-height:1;box-shadow:0 4px 12px rgba(0,0,0,.15)}
+  body:has(.mbar) .layout .side{display:none}
+  body:has(.mbar) .main{padding-bottom:96px}
+  body:has(.mbar) .toast{bottom:92px}
+}
+body.lk-dark .mbar{background:#1B1B1F}
 .side .side-end{margin-top:auto;border-top:1px solid var(--line);padding-top:8px;display:flex;flex-direction:column;gap:4px}
 .side .side-end button.out{color:var(--red)}
 .main{flex:1;padding:24px;min-width:0;display:flex;flex-direction:column;gap:20px}
@@ -86,6 +131,7 @@ body.lk-dark th{color:var(--muted)}
   .layout{flex-direction:column}
   .side{width:auto;flex-direction:row;overflow-x:auto;border-left:0;border-bottom:1px solid var(--line);padding:8px}
   .side button{white-space:nowrap}
+  .side .navsec,.side .mini-tg{display:none}
   .side .side-end{margin-top:0;margin-inline-start:auto;border-top:0;padding-top:0;flex-direction:row}
   body.nav-rail .side{width:auto;flex-direction:row}
   body.nav-bottom .side{position:fixed;bottom:0;left:0;right:0;z-index:20;justify-content:flex-start;overflow-x:auto;border-bottom:0;border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px))}
@@ -178,6 +224,8 @@ const $app = document.getElementById('app');
 const $modal = document.getElementById('modal');
 // صفحة الحجز أونلاين لعملاء العيادة: ?book=<id العيادة>
 const BOOK_C = new URLSearchParams(location.search).get('book');
+const FB_C = (() => { const v = new URLSearchParams(location.search).get('fb') || ''; return /^[A-Za-z0-9_-]{2,60}\.[A-Za-z0-9_-]{6,60}$/.test(v) ? v : ''; })();
+const ATT_Q = (() => { const v = new URLSearchParams(location.search).get('att') || ''; return /^[A-Za-z0-9_-]{2,60}\.[A-Za-z0-9_-]{1,60}$/.test(v) ? v : ''; })();
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 if (firebaseConfig.apiKey.startsWith('PASTE')) {
@@ -266,6 +314,8 @@ const ROLE_PERMS = {
 
 /* ---------------- أدوات ---------------- */
 let S = {};
+// علشان الأزرار اللي جوه الصفحة (onclick) تقدر توصل للحالة
+try { Object.defineProperty(window, 'S', { get: () => S, set: v => { S = v; }, configurable: true }); } catch (e) {}
 const A = window.A = {};
 
 function ICON(size = 36) {
@@ -362,7 +412,7 @@ A.login = async e => {
 };
 
 onAuthStateChanged(auth, async u => {
-  if (BOOK_C) return;
+  if (BOOK_C || FB_C) return;
   if (!u) { S = {}; stopReqs(); return renderLogin(); }
   S = { user: u };
   $app.innerHTML = `<div class="loading">جاري التحميل...</div>`;
@@ -470,6 +520,8 @@ const PRODUCTS = {
       { key: 'dayReport', label: 'تقرير آخر اليوم على الواتساب' },
       { key: 'loyalty', label: 'نقاط الولاء والترشيح' },
       { key: 'campaigns', label: 'حملات العروض على الواتساب (بصورة عرض مصممة)' },
+      { key: 'feedback', label: 'رأي العميل بعد الجلسة (لينك على الواتساب + صفحة ملاحظات العملاء)' },
+      { key: 'attendance', label: 'حضور وانصراف الفريق بالـ QR' },
     ],
   },
   maint: {
@@ -1798,6 +1850,8 @@ const LOOKS = {
 };
 const NAV_ICO = {
   home: '<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+  feedback: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/><path d="M7 12h2l1.5-2.5L13 14l1.5-2H17"/>',
+  attend: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/>',
   clients: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5 6.5-5s5.7 1.5 6.5 5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 15c2 .6 3.2 2.2 3.5 5"/>',
   bookings: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   sessions: '<path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="5"/>',
@@ -2777,6 +2831,16 @@ async function loadStaff(force) {
   S.staff = s.docs.map(d => ({ id: d.id, ...d.data() }));
   return S.staff;
 }
+// الخدمات + المناطق اللي جواها (كل منطقة كأنها خدمة لوحدها: "إزالة شعر - أندر آرم")
+const areaName = (sv, a) => sv.name + ' - ' + a.name;
+function svcFlat(list) {
+  const out = [];
+  (list || S.services || []).forEach(sv => {
+    out.push(sv);
+    if (sv.kind !== 'combo' && sv.kind !== 'package') (sv.areas || []).forEach(a => out.push({ ...sv, id: sv.id + '~' + a.id, name: areaName(sv, a), areaName: a.name, parentName: sv.name, parentId: sv.id, dur: Number(a.dur) || sv.dur, price: a.price === '' || a.price == null ? sv.price : Number(a.price) || 0, areas: [] }));
+  });
+  return out;
+}
 async function loadServices(force) {
   if (S.services && !force) return S.services;
   const s = await getDocs(ccol('services'));
@@ -2795,7 +2859,7 @@ function clientPicker(selId, onchange = '') {
   return `<label class="f">العميل<input name="client" list="clientsList" required autocomplete="off" placeholder="اكتب الاسم أو الموبايل واختار من القايمة" value="${sel ? esc(clientLabel(sel)) : ''}" ${onchange ? `onchange="${onchange}"` : ''}></label>
   <datalist id="clientsList">${(S.clients || []).map(c => `<option value="${esc(clientLabel(c))}"></option>`).join('')}</datalist>`;
 }
-const servDatalist = () => `<datalist id="servList">${(S.services || []).filter(s => !s.hidden).map(s => `<option value="${esc(s.name)}"></option>`).join('')}</datalist>`;
+const servDatalist = () => `<datalist id="servList">${svcFlat().filter(s => !s.hidden).map(s => `<option value="${esc(s.name)}"></option>`).join('')}</datalist>`;
 function afterSave(view) {
   if (S.openClientId) return A.openClient(S.openClientId);
   return A.go(view || S.view || 'home');
@@ -2816,15 +2880,30 @@ A.shiftDate = (k, n) => {
 };
 
 /* ----- الهيكل ----- */
+const NAV_GROUPS = [
+  ['الشغل اليومي', ['bookings', 'sessions', 'clients', 'feedback']],
+  ['المبيعات والفلوس', ['packages', 'offers', 'payments']],
+  ['العيادة', ['inventory', 'devices', 'staff', 'attend']],
+  ['الإدارة', ['reports', 'team', 'csettings']],
+];
+const navMiniOn = () => { try { return localStorage.getItem('bc-navmini') === '1'; } catch (e) { return false; } };
+function applyNavMini() { document.body.classList.toggle('nav-mini', navMiniOn()); }
+A.navMini = () => { try { localStorage.setItem('bc-navmini', navMiniOn() ? '0' : '1'); } catch (e) {} applyNavMini(); A.go(S.view || 'home'); };
 function clinicShell(view, content) {
+  applyNavMini();
   clearDevTheme(); applyBrand(S.clinic); applyLook(S.clinic?.look);
   S.view = view;
   const b = brandOf(S.clinic);
+  // القائمة متقسمة لمجموعات: الشغل اليومي، المبيعات والفلوس، العيادة، الإدارة
+  const ok = {};
+  if (S.profile.role !== 'client') MODULES.forEach(m => { if (can(m.key + '_view')) ok[m.key] = m.label; });
+  if (ownerPerms()) ok.team = 'اليوزرات والصلاحيات';
+  if (canCampaign()) ok.offers = 'العروض والحملات';
+  if (feat('feedback') && can('sessions_view')) ok.feedback = 'ملاحظات العملاء';
+  if (feat('attendance') && S.profile.role !== 'client') ok.attend = 'الحضور والانصراف';
+  if ((isOwner() && anyFeat()) || (!isOwner() && feat('onlineBooking') && rpv('sched'))) ok.csettings = isOwner() ? 'إعدادات العيادة' : 'الأجهزة ومواعيد الفريق';
   const nav = [['home', 'الرئيسية']];
-  if (S.profile.role !== 'client') MODULES.forEach(m => { if (can(m.key + '_view')) nav.push([m.key, m.label]); });
-  if (ownerPerms()) nav.push(['team', 'اليوزرات والصلاحيات']);
-  if (canCampaign()) nav.push(['offers', 'العروض والحملات']);
-  if ((isOwner() && anyFeat()) || (!isOwner() && feat('onlineBooking') && rpv('sched'))) nav.push(['csettings', isOwner() ? 'إعدادات العيادة' : 'الأجهزة ومواعيد الفريق']);
+  NAV_GROUPS.forEach(([sec, keys]) => { const L = keys.filter(k => ok[k]); if (!L.length) return; nav.push(['§', sec]); L.forEach(k => nav.push([k, ok[k]])); });
   const brs = myBranches();
   const brSel = S.profile.role === 'client' ? '' : brs.length > 1
     ? `<select aria-label="الفرع" style="width:auto;min-height:38px" onchange="A.setBranch(this.value)">${brs.map(x => `<option value="${x.id}" ${x.id === S.branch ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select>`
@@ -2834,10 +2913,34 @@ function clinicShell(view, content) {
   <div class="top">${logoHTML(b, 36)}<div><div class="name">${esc(b.name)}</div><div class="sub">${esc(S.profile.name)} · ${esc(ROLES[S.profile.role]?.label)}</div></div><div class="sp"></div>
     ${brSel}
     ${S.viewAs ? `<button class="btn ghost sm" onclick="A.logout()">رجوع</button>` : ''}</div>
-  <div class="layout"><nav class="side">${nav.map(([k, l]) => `<button class="${view === k ? 'on' : ''}" onclick="A.go('${k}')" title="${esc(l)}">${navIco(k)}<span>${l}</span></button>`).join('')}
-    ${S.viewAs ? '' : `<div class="side-end"><button onclick="A.pwModal()" title="تغيير كلمة السر">🔑 <span>تغيير كلمة السر</span></button><button class="out" onclick="A.logout()" title="تسجيل الخروج">↩ <span>تسجيل الخروج</span></button></div>`}</nav>
-  <div class="main">${content}</div></div>`;
+  <div class="layout"><nav class="side">${nav.map(([k, l]) => k === '§' ? `<div class="navsec">${esc(l)}</div>` : `<button class="${view === k ? 'on' : ''}" onclick="A.go('${k}')" title="${esc(l)}" aria-label="${esc(l)}">${navIco(k)}<span>${l}</span></button>`).join('')}
+    <div class="side-end"><button class="mini-tg" onclick="A.navMini()" title="${navMiniOn() ? 'كبّر القائمة' : 'صغّر القائمة لأيقونات'}"><svg class="nico" viewBox="0 0 24 24" aria-hidden="true">${navMiniOn() ? '<path d="M14 6l-6 6 6 6"/>' : '<path d="M10 6l6 6-6 6"/>'}</svg><span>${navMiniOn() ? 'كبّر القائمة' : 'صغّر القائمة'}</span></button>${S.viewAs ? '' : `<button onclick="A.pwModal()" title="تغيير كلمة السر"><svg class="nico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M15 8l2 2"/></svg><span>تغيير كلمة السر</span></button><button class="out" onclick="A.logout()" title="تسجيل الخروج"><svg class="nico" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10 17l-5-5 5-5M5 12h11"/></svg><span>تسجيل الخروج</span></button>`}</div></nav>
+  <div class="main">${content}</div></div>
+  ${S.profile.role === 'client' ? '' : mobileBar(view, ok)}`;
+  S.navOk = ok;
 }
+// شريط تحت للموبايل: الرئيسية، الحجوزات، + (إجراء سريع)، العملاء، المزيد
+function mobileBar(view, ok) {
+  const it = (k, l, on) => `<button class="${view === k ? 'on' : ''}" onclick="${on || `A.go('${k}')`}" aria-label="${l}">${navIco(k)}<span>${l}</span></button>`;
+  const more = !['home', 'bookings', 'clients'].includes(view);
+  return `<nav class="mbar" aria-label="القائمة السريعة">${it('home', 'الرئيسية')}${ok.bookings ? it('bookings', 'الحجوزات') : ''}<button class="plus" onclick="A.quickSheet()" aria-label="إجراء سريع"><span class="pl">+</span><span>جديد</span></button>${ok.clients ? it('clients', 'العملاء') : ''}<button class="${more ? 'on' : ''}" onclick="A.moreSheet()" aria-label="المزيد"><svg class="nico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg><span>المزيد</span></button></nav>`;
+}
+A.quickSheet = () => {
+  const L = [];
+  if (can('bookings_edit')) L.push(['📅', 'حجز جديد', 'A.bookingModal()']);
+  if (can('clients_edit')) L.push(['👤', 'عميل جديد', 'A.clientModal()']);
+  if (can('sessions_edit')) L.push(['✨', 'تسجيل جلسة', 'A.sessionModal()']);
+  if (can('packages_edit')) L.push(['🎁', 'بيع باكدج', 'A.sellModal()']);
+  if (can('payments_edit')) L.push(['💵', 'تحصيل', 'A.payModal()']);
+  if (feat('attendance')) L.push(['⏱️', 'حضور / انصراف', 'A.closeModal();A.punchNow()']);
+  openModal(`<h3>إجراء سريع</h3><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">${L.map(([ic, l, on]) => `<button class="btn ghost" style="min-height:64px;flex-direction:column;gap:4px;display:flex;align-items:center;justify-content:center" onclick="${on}"><span style="font-size:22px">${ic}</span>${l}</button>`).join('')}</div><div class="acts"><button class="btn ghost" onclick="A.closeModal()">قفل</button></div>`);
+};
+A.moreSheet = () => {
+  const ok = S.navOk || {};
+  openModal(`<h3>كل الأقسام</h3>${NAV_GROUPS.map(([sec, keys]) => { const L = keys.filter(k => ok[k]); return L.length ? `<div class="section-t">${esc(sec)}</div><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:6px">${L.map(k => `<button class="btn ghost" style="justify-content:flex-start;gap:8px;display:flex;align-items:center" onclick="A.closeModal();A.go('${k}')">${navIco(k)}${esc(ok[k])}</button>`).join('')}</div>` : ''; }).join('')}
+    <div class="section-t">حسابي</div><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">${S.viewAs ? '' : `<button class="btn ghost" onclick="A.closeModal();A.pwModal()">🔑 تغيير كلمة السر</button><button class="btn ghost" style="color:var(--red)" onclick="A.closeModal();A.logout()">↩ تسجيل الخروج</button>`}</div>
+    <div class="acts"><button class="btn ghost" onclick="A.closeModal()">قفل</button></div>`);
+};
 
 A.go = async view => {
   if (S.clinic?.upd && !S.viewAs && !S.isDev) return renderUpdate();
@@ -2847,6 +2950,8 @@ A.go = async view => {
     if (view === 'team') return await renderTeam();
     if (view === 'csettings') return await renderCSettings();
     if (view === 'offers') return await renderOffers();
+    if (view === 'feedback') return await renderFeedback();
+    if (view === 'attend') return await renderAttend();
     const m = MODULES.find(x => x.key === view);
     if (!m || !can(m.key + '_view')) return await renderHome();
     const R = { clients: renderClients, bookings: renderBookings, sessions: renderSessions, packages: renderPackages, payments: renderPayments, inventory: renderInventory, staff: renderStaff, devices: renderDevices, reports: renderReports }[view];
@@ -2865,6 +2970,7 @@ A.go = async view => {
 /* ----- الرئيسية ----- */
 async function renderHome() {
   if (S.profile.role === 'client') return renderPortal();
+  if (ATT_Q && !S._attDone) setTimeout(handleAttQ, 300);
   clinicShell('home', LOADING);
   const c = S.clinic, d = daysLeft(c), today = todayStr();
   const seesSub = ['owner', 'accounts'].includes(S.profile.role);
@@ -2880,6 +2986,31 @@ async function renderHome() {
     if (can('payments_view')) jobs.push(q2('payments').then(l => stats.push([money(l.reduce((a, x) => a + (x.amount || 0), 0)), 'تحصيل النهارده'])));
     await Promise.all(jobs);
   }
+  // ابدأ شغلك في 4 خطوات (لصاحب العيادة لحد ما يخلصها أو يخفيها)
+  let onb = '';
+  const onbKey = 'bc-onb-' + c.id;
+  let onbOff = false; try { onbOff = localStorage.getItem(onbKey) === '1'; } catch (e) {}
+  if (isOwner() && !onbOff) {
+    try {
+      const one = col => getDocs(query(ccol(col), limit(1))).then(x => !x.empty).catch(() => false);
+      const [svOk, clOk, payOk, bkOk] = await Promise.all([loadServices().then(L => (L || []).some(x => !x.hidden && Number(x.price) > 0)).catch(() => false), one('clients'), Promise.all([one('payments'), one('cpackages')]).then(a => a.some(Boolean)), one('bookings')]);
+      const st = [[svOk, 'ضيف خدماتك', 'ابدأ من قالب جاهز أو ضيف خدمة بإيدك — حدد الأسعار وشيل "مخفية" علشان تظهر في البيع والحجز.', 'افتح الخدمات', "S.pTab='prices';A.go('packages')"],
+        [clOk, 'سجّل أول عميل', 'اسم ورقم موبايل بس يكفي.', 'افتح العملاء', "A.clientModal()"],
+        [payOk, 'اعمل أول فاتورة', 'بيع باكدج أو سجّل تحصيل.', 'بيع باكدج', "A.sellModal()"],
+        [bkOk, 'احجز أول معاد', 'من هنا أو من صفحة الحجوزات.', 'احجز معاد', "A.bookingModal()"]];
+      const done = st.filter(x => x[0]).length, next = st.findIndex(x => !x[0]);
+      if (done < 4) onb = `<div class="card" style="display:flex;flex-direction:column;gap:12px;border:1.5px solid var(--gold-l)">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><h3 style="flex:1;margin:0">👋 أهلاً بيك — ابدأ شغلك في ٤ خطوات</h3><span class="chip mute">${done.toLocaleString('ar-EG')} من ٤</span><button class="btn ghost sm" onclick="A.onbHide()">إخفاء</button></div>
+        <div style="height:6px;border-radius:99px;background:var(--line);overflow:hidden"><span style="display:block;height:100%;width:${done * 25}%;background:var(--brand)"></span></div>
+        ${st.map(([ok, t, d, bt, on], i) => `<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px;border-radius:14px;${i === next ? 'background:var(--ok-bg);border:1.5px solid var(--brand)' : 'border:1px solid var(--line)'}${ok ? ';opacity:.6' : ''}">
+          <span style="width:32px;height:32px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:800;flex:none;${ok ? 'background:var(--brand);color:#fff' : 'border:2px solid var(--brand);color:var(--brand)'}">${ok ? '✓' : (i + 1).toLocaleString('ar-EG')}</span>
+          <span style="flex:1;min-width:180px;display:flex;flex-direction:column"><b>${t}</b><span class="meta" style="font-size:13px">${d}</span></span>
+          ${ok ? '' : `<button class="btn ${i === next ? '' : 'ghost'} sm" onclick="${on}">${bt}</button>`}</div>`).join('')}</div>`;
+    } catch (e) { console.error(e); }
+  }
+  // المتابعات المستحقة (الخدمات اللي ليها "تتكرر كل كام يوم")
+  let fu = '';
+  if (can('sessions_view') && (can('bookings_edit') || can('clients_view'))) { try { const L = await followUps(); if (L.length) fu = `<div class="card" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="font-size:26px">🔁</span><span style="flex:1;min-width:200px;display:flex;flex-direction:column"><b>${L.length.toLocaleString('ar-EG')} عميل ميعاد متابعتهم جه</b><span class="meta" style="font-size:13px">ابعتلهم واتساب يحجزوا الجلسة الجاية.</span></span><button class="btn sm" onclick="A.followUpModal()">افتح المتابعات</button></div>`; } catch (e) { console.error(e); } }
   const quick = [];
   if (can('clients_edit')) quick.push(`<button class="btn" onclick="A.clientModal()">+ عميل جديد</button>`);
   if (can('bookings_edit')) quick.push(`<button class="btn" onclick="A.bookingModal()">+ حجز</button>`);
@@ -2890,13 +3021,168 @@ async function renderHome() {
   clinicShell('home', `
     <div class="head"><h2>أهلاً ${esc(S.profile.name)}</h2></div>
     ${seesSub && d <= 7 ? `<div class="notice warn">الاشتراك هيخلص بعد ${d} يوم (${fmt(c.expiresAt)}). كلّم Beam Care علشان التجديد.</div>` : ''}
+    ${onb}
     ${quick.length ? `<div style="display:flex;gap:10px;flex-wrap:wrap">${quick.join('')}</div>` : ''}
+    ${fu}
     ${stats.length ? `<div class="cards">${stats.map(([n, l]) => `<div class="card stat"><b>${n}</b><span>${l}</span></div>`).join('')}</div>` : ''}
     ${isOwner() ? `<div class="card" style="display:flex;flex-direction:column;gap:10px"><h3>الاشتراك والباكدج</h3>
       <div class="meta"><span>ينتهي: ${fmt(c.expiresAt)} (فاضل ${d} يوم)</span><span>الفروع: ${S.branches.length} من ${c.plan?.maxBranches ?? 0}</span><span>اليوزرات: حتى ${c.plan?.maxUsers ?? 0}</span><span>العملاء: حتى ${c.plan?.maxClients ?? 0}</span></div></div>` : ''}
     ${S.profile.role === 'client' ? `<div class="card empty">صفحة حجوزاتك وباكدجاتك هتكون هنا قريب.</div>` : ''}
   `);
 }
+
+A.onbHide = () => { try { localStorage.setItem('bc-onb-' + S.clinic.id, '1'); } catch (e) {} renderHome(); };
+// مين ميعاد متابعته جه: آخر جلسة لكل عميل في خدمة ليها "كل كام يوم"، ومفيش له حجز جاي
+async function followUps() {
+  const flat = svcFlat(await loadServices());
+  const ev = name => { const x = flat.find(s => s.name === name); return x ? Number(x.every) || 0 : 0; };
+  if (!flat.some(x => Number(x.every) > 0)) return [];
+  const today = todayStr(), back = d => { const x = new Date(); x.setDate(x.getDate() - d); return toInput(x); };
+  const ss = await getDocs(query(ccol('sessions'), where('date', '>=', back(400)))).then(r => r.docs.map(d => d.data())).catch(() => []);
+  const last = {};
+  ss.forEach(x => { const nm = x.area || x.packageName || ''; const e = ev(nm) || ev(x.packageName || ''); if (!e) return; const parent = flat.find(s => s.name === nm)?.parentName || nm; const k = x.clientId + '|' + parent; if (!last[k] || last[k].date < x.date) last[k] = { clientId: x.clientId, clientName: x.clientName, svc: parent, date: x.date, every: e }; });
+  const fut = new Set(await getDocs(query(ccol('bookings'), where('date', '>=', today))).then(r => r.docs.map(d => d.data()).filter(b => b.status !== 'cancelled').map(b => b.clientId)).catch(() => []));
+  const sent = (() => { try { return JSON.parse(localStorage.getItem('bc-fu-' + S.clinic.id) || '{}'); } catch (e) { return {}; } })();
+  return Object.values(last).map(x => { const due = new Date(x.date + 'T12:00:00'); due.setDate(due.getDate() + x.every); return { ...x, due: toInput(due) }; })
+    .filter(x => x.due <= today && x.due >= back(45) && !fut.has(x.clientId) && sent[x.clientId + '|' + x.svc] !== x.date)
+    .sort((a, b) => a.due.localeCompare(b.due));
+}
+A.followUpModal = async () => {
+  const [L] = await Promise.all([followUps(), loadClients()]);
+  const ph = id => (S.clients || []).find(c => c.id === id)?.phone || '';
+  S.fuList = L;
+  openModal(`<h3>🔁 المتابعات المستحقة</h3><p class="meta">العملاء دول آخر جلسة ليهم عدّى عليها المدة اللي حددتها في الخدمة، ومفيش ليهم حجز جاي.</p>
+    ${L.length ? `<div class="fcol" style="gap:8px">${L.map((x, i) => `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;border:1px solid var(--line);border-radius:12px;padding:10px 12px">
+      <span style="flex:1;min-width:180px;display:flex;flex-direction:column"><b>${esc(x.clientName || '')}</b><span class="meta" style="font-size:12.5px">${esc(x.svc)} · آخر جلسة ${esc(x.date)} · كل ${x.every.toLocaleString('ar-EG')} يوم</span></span>
+      ${ph(x.clientId) ? `<button class="btn sm" onclick="A.fuSend(${i})">💬 واتساب</button>` : '<span class="chip mute">مفيش رقم</span>'}${can('bookings_edit') ? `<button class="btn ghost sm" onclick="A.closeModal();A.bookingModal({clientId:'${x.clientId}'})">احجز</button>` : ''}</div>`).join('')}</div>` : '<div class="empty">مفيش متابعات مستحقة دلوقتي 👌</div>'}
+    <div class="acts"><button class="btn ghost" onclick="A.closeModal()">قفل</button></div>`);
+};
+A.fuSend = i => {
+  const x = S.fuList?.[i]; if (!x) return;
+  const c = (S.clients || []).find(y => y.id === x.clientId); if (!c?.phone) return;
+  const B = brandOf(S.clinic);
+  const msg = `أهلاً ${(c.name || '').split(' ')[0]} 🌸\nمعاك ${B.name} — ميعاد جلسة ${x.svc} الجاية جه ✨\nتحبي نحجزلك معاد؟ ردّي علينا بالمعاد اللي يناسبك.`;
+  window.open(`https://wa.me/${waNum(c.phone)}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
+  try { const k = 'bc-fu-' + S.clinic.id, o = JSON.parse(localStorage.getItem(k) || '{}'); o[x.clientId + '|' + x.svc] = x.date; localStorage.setItem(k, JSON.stringify(o)); } catch (e) {}
+};
+
+/* ----- رأي العميل بعد الجلسة ----- */
+const FB_R = { ok: ['👍', 'كله تمام'], pain: ['😣', 'ألم'], red: ['🔴', 'احمرار'], burn: ['🔥', 'حرق'], other: ['📝', 'ملاحظة'] };
+const fbLink = id => location.origin + location.pathname.replace(/[^/]*$/, '') + '?fb=' + S.clinic.id + '.' + id;
+A.fbAsk = (sid, cl, area) => {
+  S.fbAskD = { sid, cl, area };
+  openModal(`<h3>💬 تبعت للعميل يقول رأيه في الجلسة؟</h3><p class="meta">هيوصله لينك على الواتساب، يدوس فيه على "كله تمام" أو "ألم" أو "احمرار"… وردّه يظهر عندك في "ملاحظات العملاء".</p>
+    <div class="acts"><button class="btn" onclick="A.fbSend()">ابعت على الواتساب</button><button class="btn ghost" onclick="A.closeModal()">مش دلوقتي</button></div>`);
+};
+A.fbSend = async (d) => {
+  d = d || S.fbAskD; if (!d) return;
+  const B = brandOf(S.clinic);
+  const w = window.open('', '_blank');
+  try { await setDoc(cdoc('feedback', d.sid), { clientId: d.cl.id, clientName: d.cl.name || '', phone: d.cl.phone || '', area: String(d.area || '').slice(0, 120), date: todayStr(), branchId: S.branch || '', r: '', note: '', seen: false, sentBy: S.profile.name, createdAt: serverTimestamp() }); }
+  catch (e) { console.error(e); if (w) w.close(); return toast('مقدرتش أجهّز اللينك'); }
+  const msg = `أهلاً ${(d.cl.name || '').split(' ')[0]} 🌸\nشكراً إنك اخترتي ${B.name} النهارده.\nطمنينا عليكي بعد جلسة ${d.area} — دوسي على اللينك وقوليلنا رأيك (ثواني بس):\n${fbLink(d.sid)}`;
+  const url = `https://wa.me/${waNum(d.cl.phone)}?text=${encodeURIComponent(msg)}`;
+  if (w) w.location = url; else location.href = url;
+  A.closeModal();
+};
+async function renderFeedbackPage() {
+  const [cid, id] = FB_C.split('.');
+  $app.innerHTML = `<div class="loading">جاري التحميل...</div>`;
+  let br = null, d = null;
+  try { const [a, b] = await Promise.all([getDoc(doc(db, 'brands', cid)), getDoc(doc(db, 'clinics', cid, 'feedback', id))]); br = a.exists() ? a.data() : null; d = b.exists() ? b.data() : null; } catch (e) { console.error(e); }
+  const B = brandOf(br ? { ...br, whiteLabel: true } : null);
+  document.title = 'رأيك يهمنا — ' + B.name;
+  const shell = inner => `<div style="max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;background:var(--bg)"><div style="background:var(--brand);color:#fff;padding:18px;display:flex;gap:10px;align-items:center">${logoHTML(B, 36)}<b style="font-size:17px">${esc(B.name)}</b></div><main style="flex:1;padding:20px 18px;display:flex;flex-direction:column;gap:14px">${inner}</main></div>`;
+  if (!d) { $app.innerHTML = shell(`<div class="card empty">اللينك ده مش شغال.</div>`); return; }
+  if (d.r) { $app.innerHTML = shell(`<div style="text-align:center;padding-top:30px"><div style="font-size:48px">💚</div><h2>شكراً، رأيك وصلنا</h2><p class="meta" style="justify-content:center">لو محتاج حاجة كلّم العيادة على طول.</p></div>`); return; }
+  let pick = '';
+  const draw = () => { $app.innerHTML = shell(`<h2 style="margin:0">أهلاً ${esc((d.clientName || '').split(' ')[0])} 🌸</h2><p class="meta" style="margin:0">طمنينا عليكي بعد جلسة <b>${esc(d.area || '')}</b> يوم ${esc(d.date || '')}:</p>
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">${Object.entries(FB_R).map(([k, [ic, l]]) => `<button type="button" onclick="FBP.pick('${k}')" style="font:inherit;font-size:16px;cursor:pointer;border-radius:16px;padding:16px 10px;display:flex;flex-direction:column;align-items:center;gap:6px;${pick === k ? 'background:var(--ok-bg);border:2px solid var(--brand);font-weight:800' : 'background:#fff;border:1.5px solid var(--line)'}${k === 'other' ? ';grid-column:1/-1' : ''}"><span style="font-size:30px">${ic}</span>${l}</button>`).join('')}</div>
+    <label class="f">عايزة تقولي حاجة؟ (اختياري)<textarea id="fbNote" rows="3" maxlength="300"></textarea></label>
+    <button class="btn" style="min-height:52px;font-size:16px" ${pick ? '' : 'disabled'} onclick="FBP.send()">ابعت رأيي</button><div id="fbErr"></div>`); };
+  window.FBP = {
+    pick: k => { const n = document.getElementById('fbNote')?.value || ''; pick = k; draw(); document.getElementById('fbNote').value = n; },
+    send: async () => {
+      const note = (document.getElementById('fbNote')?.value || '').trim().slice(0, 300);
+      try { await updateDoc(doc(db, 'clinics', cid, 'feedback', id), { r: pick, note, at: serverTimestamp() }); d.r = pick; $app.innerHTML = shell(`<div style="text-align:center;padding-top:30px"><div style="font-size:48px">💚</div><h2>شكراً، رأيك وصلنا</h2><p class="meta" style="justify-content:center">${pick === 'ok' ? 'مبسوطين إن كله تمام ✨' : 'هنتابع معاكي على طول.'}</p></div>`); }
+      catch (e) { console.error(e); document.getElementById('fbErr').innerHTML = '<div class="err">مقدرناش نبعت — جرّبي تاني.</div>'; }
+    },
+  };
+  draw();
+}
+async function renderFeedback() {
+  clinicShell('feedback', LOADING);
+  let L = [];
+  try { L = (await getDocs(query(ccol('feedback'), orderBy('createdAt', 'desc'), limit(300)))).docs.map(d => ({ id: d.id, ...d.data() })); } catch (e) { console.error(e); }
+  const F = S.fbF || 'all', onlyNew = !!S.fbNew;
+  const cnt = k => L.filter(x => x.r === k).length;
+  const vis = L.filter(x => (F === 'all' ? true : F === 'wait' ? !x.r : x.r === F) && (!onlyNew || (x.r && !x.seen)));
+  clinicShell('feedback', `<div class="head"><h2>🩺 ملاحظات العملاء</h2></div>
+    <p class="meta">دي ردود العملاء على رسالة «رأيك بعد الجلسة». بعد ما تسجّل أي جلسة، السيستم بيسألك تبعت اللينك للعميل.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><div class="pick">${[['all', 'الكل', L.length], ...Object.entries(FB_R).map(([k, [ic, l]]) => [k, ic + ' ' + l, cnt(k)]), ['wait', '⏳ لسه مردّش', L.filter(x => !x.r).length]].map(([k, l, n]) => `<label><input type="radio" name="fbf" ${F === k ? 'checked' : ''} onchange="S.fbF='${k}';A.go('feedback')"><span style="padding:6px 12px;font-size:13px">${l} (${n.toLocaleString('ar-EG')})</span></label>`).join('')}</div>
+      <label class="chk"><input type="checkbox" ${onlyNew ? 'checked' : ''} onchange="S.fbNew=this.checked;A.go('feedback')"> الجديد بس</label></div>
+    ${vis.length ? `<div class="fcol" style="gap:8px">${vis.map(x => `<div class="card" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px 14px;${x.r && x.r !== 'ok' && !x.seen ? 'border:1.5px solid #E5A4A4' : ''}">
+      <span style="font-size:28px">${x.r ? FB_R[x.r]?.[0] || '' : '⏳'}</span>
+      <span style="flex:1;min-width:200px;display:flex;flex-direction:column"><b>${esc(x.clientName || '')} <span class="meta" style="display:inline;font-weight:400">· ${esc(x.area || '')} · ${esc(x.date || '')}</span></b><span>${x.r ? `<b>${esc(FB_R[x.r]?.[1] || '')}</b>${x.note ? ' — ' + esc(x.note) : ''}` : '<span class="meta">لسه مردّش</span>'}</span></span>
+      ${x.phone ? `<a class="btn ghost sm" style="text-decoration:none" target="_blank" rel="noopener" href="https://wa.me/${waNum(x.phone)}">💬 كلّمه</a>` : ''}${x.r && !x.seen ? `<button class="btn sm" onclick="A.fbSeen('${x.id}')">تمام، اتشاف</button>` : ''}<button class="btn ghost sm" onclick="A.openClient('${x.clientId}')">ملف العميل</button></div>`).join('')}</div>` : '<div class="card empty">مفيش ملاحظات لسه.</div>'}`);
+}
+A.fbSeen = async id => { try { await updateDoc(cdoc('feedback', id), { seen: true, seenBy: S.profile.name }); } catch (e) { return toast('مقدرتش أحفظ'); } renderFeedback(); };
+
+/* ----- الحضور والانصراف بالـ QR ----- */
+const attLink = (bid, tok) => location.origin + location.pathname.replace(/[^/]*$/, '') + '?att=' + S.clinic.id + '.' + (bid || 'main') + '-' + tok;
+const hm = ts => { try { const d = ts?.toDate ? ts.toDate() : ts ? new Date(ts) : null; return d ? d.toLocaleTimeString('ar-EG', { hour: 'numeric', minute: '2-digit' }) : '—'; } catch (e) { return '—'; } };
+async function punch(src) {
+  const id = S.user.uid + '_' + todayStr(), ref = cdoc('punches', id);
+  let cur = null; try { const d = await getDoc(ref); cur = d.exists() ? d.data() : null; } catch (e) {}
+  const base = { uid: S.user.uid, name: S.profile.name, role: S.profile.role, date: todayStr(), month: todayStr().slice(0, 7), branchId: S.branch || '' };
+  if (!cur?.in) { await setDoc(ref, { ...base, in: serverTimestamp(), src: src || 'app' }, { merge: true }); return 'in'; }
+  if (!cur.out) { await setDoc(ref, { ...base, out: serverTimestamp() }, { merge: true }); return 'out'; }
+  return 'done';
+}
+async function handleAttQ() {
+  if (!ATT_Q || S._attDone) return; S._attDone = true;
+  try { history.replaceState(null, '', location.pathname); } catch (e) {}
+  const [cid, rest] = ATT_Q.split('.'); const tok = (rest || '').split('-').pop();
+  if (cid !== S.clinic?.id || !feat('attendance')) return toast('كود الحضور ده مش بتاع عيادتك');
+  try { await loadCfg(); } catch (e) {}
+  if (S.cfg?.attToken && tok !== S.cfg.attToken) return toast('كود الحضور ده قديم — اطلب من الإدارة الكود الجديد');
+  try { const r = await punch('qr'); toast(r === 'in' ? '✅ اتسجل حضورك' : r === 'out' ? '👋 اتسجل انصرافك' : 'إنت سجلت حضور وانصراف النهارده خلاص'); } catch (e) { console.error(e); toast('مقدرتش أسجل الحضور'); }
+}
+async function renderAttend() {
+  clinicShell('attend', LOADING);
+  const all = isOwner() || can('staff_view'), today = todayStr(), mon = S.attM || today.slice(0, 7);
+  let T = [], M = [];
+  try {
+    const qT = all ? query(ccol('punches'), where('date', '==', today)) : query(ccol('punches'), where('uid', '==', S.user.uid));
+    T = (await getDocs(qT)).docs.map(d => d.data()); if (!all) { M = T.filter(x => x.month === mon); T = T.filter(x => x.date === today); }
+    if (all) M = (await getDocs(query(ccol('punches'), where('month', '==', mon)))).docs.map(d => d.data());
+  } catch (e) { console.error(e); }
+  const me = T.find(x => x.uid === S.user.uid);
+  const hrs = x => x.in && x.out ? Math.max(0, (tsMs(x.out) - tsMs(x.in)) / 36e5) : 0;
+  const per = {}; M.forEach(x => { const p = per[x.uid] = per[x.uid] || { name: x.name, days: 0, h: 0, open: 0 }; p.days++; p.h += hrs(x); if (x.in && !x.out && x.date !== today) p.open++; });
+  const now = T.filter(x => x.in && !x.out);
+  await loadCfg().catch(() => {});
+  clinicShell('attend', `<div class="head"><h2>⏱️ الحضور والانصراف</h2>${isOwner() ? `<button class="btn ghost" onclick="A.attQr()">📱 QR الحضور</button>` : ''}</div>
+    <div class="card" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:200px;display:flex;flex-direction:column"><b>${!me?.in ? 'لسه ما سجلتش حضور النهارده' : !me.out ? `حاضر من ${hm(me.in)}` : `حضرت ${hm(me.in)} وانصرفت ${hm(me.out)}`}</b><span class="meta" style="font-size:13px">امسح QR الحضور اللي في العيادة بكاميرا الموبايل، أو دوس هنا.</span></span>
+      ${!me?.out ? `<button class="btn" onclick="A.punchNow()">${!me?.in ? '✅ سجّل حضور' : '👋 سجّل انصراف'}</button>` : ''}</div>
+    ${all ? `<div class="card fcol"><h3>👥 مين شغال دلوقتي <span class="chip mute">${now.length.toLocaleString('ar-EG')}</span></h3>${now.length ? `<div style="display:flex;gap:8px;flex-wrap:wrap">${now.map(x => `<span class="chip ok" style="padding:8px 12px">🟢 ${esc(x.name)} · من ${hm(x.in)}</span>`).join('')}</div>` : '<p class="meta">محدش مسجل حضور دلوقتي.</p>'}
+      ${T.length ? `<div class="tbl-wrap"><table><thead><tr><th>الاسم</th><th>حضور</th><th>انصراف</th><th>ساعات</th></tr></thead><tbody>${T.map(x => `<tr><td>${esc(x.name)}</td><td>${hm(x.in)}</td><td>${hm(x.out)}</td><td>${hrs(x) ? hrs(x).toFixed(1) : '—'}</td></tr>`).join('')}</tbody></table></div>` : ''}</div>` : ''}
+    <div class="card fcol"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><h3 style="flex:1;margin:0">📊 تقرير الساعات</h3><input type="month" aria-label="الشهر" style="width:auto" value="${mon}" onchange="S.attM=this.value;A.go('attend')"></div>
+      ${Object.keys(per).length ? `<div class="tbl-wrap"><table><thead><tr><th>الاسم</th><th>أيام الحضور</th><th>إجمالي الساعات</th><th>متوسط اليوم</th><th>نسي يسجل انصراف</th></tr></thead><tbody>${Object.values(per).sort((a, b) => b.h - a.h).map(p => `<tr><td>${esc(p.name)}</td><td>${p.days.toLocaleString('ar-EG')}</td><td>${p.h.toFixed(1)}</td><td>${p.days ? (p.h / p.days).toFixed(1) : '—'}</td><td>${p.open ? `<span class="chip warn">${p.open.toLocaleString('ar-EG')}</span>` : '—'}</td></tr>`).join('')}</tbody></table></div>` : '<p class="meta">مفيش حضور متسجل في الشهر ده.</p>'}</div>`);
+}
+A.punchNow = async () => { try { const r = await punch('app'); toast(r === 'in' ? '✅ اتسجل حضورك' : r === 'out' ? '👋 اتسجل انصرافك' : 'اتسجل خلاص'); } catch (e) { console.error(e); toast('مقدرتش أسجل'); } renderAttend(); };
+A.attQr = async () => {
+  await loadCfg(true).catch(() => {});
+  let tok = S.cfg?.attToken;
+  if (!tok) { tok = Math.random().toString(36).slice(2, 10); try { await setDoc(cdoc('cfg', 'main'), { attToken: tok }, { merge: true }); S.cfg = { ...(S.cfg || {}), attToken: tok }; } catch (e) { return toast('مقدرتش أعمل الكود'); } }
+  const link = attLink(S.branch, tok);
+  openModal(`<h3>📱 QR الحضور والانصراف</h3><p class="meta">اطبعه وحطه عند الريسبشن. كل واحد في الفريق يمسحه بكاميرا موبايله وهو داخل (حضور) وهو خارج (انصراف) — لازم يكون عامل دخول على السيستم من موبايله.</p>
+    <div style="display:flex;justify-content:center"><div id="attQrBox" style="background:#fff;padding:14px;border-radius:14px;border:1px solid var(--line)"></div></div>
+    <div class="acts"><button class="btn" onclick="A.attPrint()">🖨️ طباعة</button><button class="btn ghost" onclick="A.attNewTok()">كود جديد (القديم يبطل)</button><button class="btn ghost" onclick="A.closeModal()">قفل</button></div>`);
+  try { await loadQrLib(); new window.QRCode(document.getElementById('attQrBox'), { text: link, width: 220, height: 220, correctLevel: window.QRCode.CorrectLevel.M }); } catch (e) { document.getElementById('attQrBox').textContent = link; }
+};
+A.attNewTok = async () => { try { await setDoc(cdoc('cfg', 'main'), { attToken: Math.random().toString(36).slice(2, 10) }, { merge: true }); } catch (e) { return toast('مقدرتش'); } S.cfg = null; A.attQr(); };
+A.attPrint = () => { const img = document.querySelector('#attQrBox img, #attQrBox canvas'); const src = img?.tagName === 'CANVAS' ? img.toDataURL() : img?.src; if (!src) return; const w = window.open('', '_blank'); if (!w) return; const B = brandOf(S.clinic); w.document.write(`<html dir="rtl"><body style="font-family:sans-serif;text-align:center;padding:40px"><h1>${esc(B.name)}</h1><h2>حضور وانصراف الفريق</h2><img src="${src}" style="width:320px;height:320px"><p>امسح الكود بكاميرا الموبايل وإنت داخل وإنت خارج</p><script>setTimeout(()=>print(),400)<\/script></body></html>`); w.document.close(); };
 
 /* ----- العملاء ----- */
 async function renderClients() {
@@ -2907,23 +3193,38 @@ async function renderClients() {
   clinicShell('clients', `
     <div class="head"><h2>العملاء (${S.clients.length})</h2>${S.clients.length ? `<button class="btn ghost" onclick="A.exportClients()">تحميل Excel</button>` : ''}${can('clients_edit') ? `<button class="btn gold" onclick="A.clientModal()">+ عميل جديد</button>` : ''}</div>
     ${cnt !== null ? `<div class="meta"><span>مستخدم ${cnt} من ${S.clinic.plan?.maxClients ?? 0} عميل في الباكدج</span></div>` : ''}
-    <input type="search" placeholder="دوّر بالاسم أو رقم الموبايل" aria-label="بحث في العملاء" oninput="A.filterClients(this.value)">
-    <div id="clientsTbl">${clientsTable(S.clients)}</div>`);
+    <input type="search" placeholder="دوّر بالاسم أو رقم الموبايل" aria-label="بحث في العملاء" value="${esc(S.clQ || '')}" oninput="S.clQ=this.value;A.filterClients()">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><div class="pick" role="radiogroup" aria-label="فلتر التصنيف">${[['', 'الكل'], ...CL_TAGS.slice(1), ['med', '🩺 تنبيه طبي']].map(([k, l]) => `<label><input type="radio" name="clf" value="${k}" ${(S.clF || '') === k ? 'checked' : ''} onchange="S.clF=this.value;A.filterClients()"><span style="padding:6px 12px;font-size:13px">${l}</span></label>`).join('')}</div>
+      <select aria-label="الحالة" style="width:auto;min-height:38px" onchange="S.clS=this.value;A.filterClients()"><option value="">كل الحالات</option>${CL_STATUS.map(([k, l]) => `<option value="${k}" ${S.clS === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
+      <select aria-label="الترتيب" style="width:auto;min-height:38px" onchange="S.clO=this.value;A.filterClients()"><option value="">الأحدث إضافة</option><option value="name" ${S.clO === 'name' ? 'selected' : ''}>بالاسم</option><option value="old" ${S.clO === 'old' ? 'selected' : ''}>الأقدم</option></select></div>
+    <div id="clientsTbl">${clientsTable(clFiltered())}</div>`);
 }
 function clientsTable(list) {
   if (!list.length) return `<div class="card empty">مفيش عملاء.</div>`;
   return `<div class="card tbl-wrap" style="padding:0"><table>
     <thead><tr><th>الاسم</th><th>الموبايل</th><th>فرع التسجيل</th><th>تاريخ التسجيل</th><th></th></tr></thead>
-    <tbody>${list.slice(0, 200).map(c => `<tr><td><b>${esc(c.name)}</b></td><td dir="ltr" style="text-align:right">${esc(c.phone)}</td><td>${esc(branchName(c.branchId))}</td><td>${fmt(c.createdAt)}</td>
+    <tbody>${list.slice(0, 200).map(c => `<tr><td><b>${esc(c.name)}</b>${c.tag ? ` <span class="chip" style="font-size:11px">${esc(tagLabel(c.tag))}</span>` : ''}${medFlags(c).length ? ' <span title="تنبيه طبي" aria-label="تنبيه طبي">🩺</span>' : ''}</td><td dir="ltr" style="text-align:right">${esc(c.phone)}</td><td>${esc(branchName(c.branchId))}</td><td>${fmt(c.createdAt)}</td>
       <td><button class="btn ghost sm" onclick="A.openClient('${c.id}')">فتح الملف</button></td></tr>`).join('')}</tbody></table></div>
     ${list.length > 200 ? `<p class="meta">ظاهر أول 200 عميل، استخدم البحث.</p>` : ''}`;
 }
-A.filterClients = q => {
-  q = q.trim().toLowerCase();
-  const l = q ? S.clients.filter(c => (c.name || '').toLowerCase().includes(q) || (c.phone || '').includes(q) || (c.phone2 || '').includes(q) || (c.address || '').toLowerCase().includes(q)) : S.clients;
-  document.getElementById('clientsTbl').innerHTML = clientsTable(l);
-};
+function clFiltered() {
+  const q = (S.clQ || '').trim().toLowerCase(), F = S.clF || '', St = S.clS || '';
+  let l = (S.clients || []).filter(c => (!q || (c.name || '').toLowerCase().includes(q) || (c.phone || '').includes(q) || (c.phone2 || '').includes(q) || (c.address || '').toLowerCase().includes(q))
+    && (!F || (F === 'med' ? (medFlags(c).length || c.notes) : c.tag === F)) && (!St || (c.status || 'active') === St));
+  const ts = c => c.createdAt?.toMillis?.() || 0;
+  if (S.clO === 'name') l = [...l].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ar'));
+  else if (S.clO === 'old') l = [...l].sort((a, b) => ts(a) - ts(b));
+  else l = [...l].sort((a, b) => ts(b) - ts(a));
+  return l;
+}
+A.filterClients = () => { const el = document.getElementById('clientsTbl'); if (el) el.innerHTML = clientsTable(clFiltered()); };
 
+const CL_STATUS = [['active', 'نشط'], ['lead', 'محتمل'], ['done', 'أتم العلاج'], ['dormant', 'خامل']];
+const CL_TAGS = [['', '—'], ['vip', '⭐ VIP'], ['loyal', '💎 مخلص'], ['valuable', '💰 قيّم'], ['new', '🆕 جديد'], ['dormant', '💤 خامل'], ['banned', '🚫 محظور']];
+const CL_SRC = ['فيسبوك', 'إنستجرام', 'تيك توك', 'جوجل', 'ترشيح من عميل', 'إعلان', 'مرّ على العيادة', 'غير ذلك'];
+const CL_FLAGS = [['allergy', '⚠️ حساسية'], ['chronic', '💊 مرض مزمن'], ['pregnant', '🤰 حمل']];
+const tagLabel = k => (CL_TAGS.find(t => t[0] === k) || [])[1] || '';
+const medFlags = c => CL_FLAGS.filter(([k]) => c?.flags?.[k]).map(([, l]) => l);
 A.clientModal = async (id, pre) => {
   if (can('clients_view')) await loadClients();
   await loadCfg();
@@ -2941,7 +3242,18 @@ A.clientModal = async (id, pre) => {
       <label class="f">تاريخ الميلاد<input name="birth" type="date" value="${esc(c?.birth)}"></label>
     </div>
     <label class="f">العنوان<input name="address" value="${esc(c?.address)}"></label>
-    <label class="f">ملاحظات طبية (حساسية، أدوية، تحذيرات)<input name="notes" value="${esc(c?.notes)}"></label>
+    <div class="fcol" style="gap:6px"><span class="section-t" style="margin:0">الحالة</span><div class="pick" role="radiogroup" aria-label="حالة العميل">${CL_STATUS.map(([k, l]) => `<label><input type="radio" name="cst" value="${k}" ${(c?.status || 'active') === k ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div></div>
+    <div class="fcol" style="gap:6px"><span class="section-t" style="margin:0">التصنيف</span><div class="pick" role="radiogroup" aria-label="تصنيف العميل">${CL_TAGS.map(([k, l]) => `<label><input type="radio" name="ctag" value="${k}" ${(c?.tag || (c ? '' : 'new')) === k ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div></div>
+    <div class="grid2">
+      <label class="f">المصدر (عرفنا منين؟)<select name="src"><option value="">—</option>${CL_SRC.map(x => `<option ${c?.source === x ? 'selected' : ''}>${x}</option>`).join('')}</select></label>
+      <label class="f">آخر باور اتعمل مع العميل (J/cm²)<input name="lastPower" type="number" min="0" step="any" placeholder="مثال: 18" value="${esc(c?.lastPower ?? '')}"></label>
+    </div>
+    <div class="fcol" style="gap:6px"><span class="section-t" style="margin:0">إشارات طبية</span><div class="pick">${CL_FLAGS.map(([k, l]) => `<label><input type="checkbox" name="fl_${k}" ${c?.flags?.[k] ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div></div>
+    <label class="f">ملاحظات طبية (حساسية لمادة معينة، أمراض مزمنة، أدوية…)<input name="notes" value="${esc(c?.notes)}"></label>
+    ${!c ? `<details class="card" style="padding:10px 12px"><summary style="cursor:pointer;font-weight:700;color:var(--brand)">📋 كان عميل قبل كده؟ سجّل آخر جلسة من الورق</summary>
+      <p class="meta" style="margin:8px 0">أقرب تخمين كفاية — دي مرجع للدكتور، مش جلسة حقيقية في السيستم.</p>
+      <div class="grid3"><label class="f">تاريخ آخر جلسة<input name="pDate" type="date"></label><label class="f">المنطقة<input name="pArea" placeholder="مثال: الإبط"></label><label class="f">الباور (J)<input name="pPower" type="number" min="0" step="any"></label></div>
+      <div class="grid3"><label class="f">البلصات<input name="pPulses" type="number" min="0"></label><label class="f">المدة (ms)<input name="pMs" type="number" min="0" step="any"></label><label class="f">ملاحظة<input name="pNote" placeholder="مثال: كانت عاملة باكدج فل بادي"></label></div></details>` : ''}
     ${isOwner() ? `<label class="f">مديونية قديمة (قبل السيستم)<input name="opening" type="number" min="0" step="any" value="${c?.openingBalance || 0}"></label>` : ''}
     ${!c && loy().on ? `<label class="f">جاي من طرف عميل؟ (اختياري — ياخد ${loy().referral.toLocaleString('ar-EG')} نقطة مكافأة)<input name="ref" list="refList" autocomplete="off" placeholder="اكتب اسم أو موبايل العميل اللي رشّحه"></label>
       <datalist id="refList">${(S.clients || []).map(x => `<option value="${esc(clientLabel(x))}"></option>`).join('')}</datalist>` : ''}
@@ -2951,7 +3263,10 @@ A.clientModal = async (id, pre) => {
 A.saveClient = async (e, id) => {
   e.preventDefault();
   const f = e.target, btn = f.querySelector('[type=submit]');
-  const data = { name: f.name.value.trim(), phone: f.phone.value.trim(), phone2: f.phone2.value.trim(), gender: f.gender.value, birth: f.birth.value, notes: f.notes.value.trim(), address: f.address.value.trim() };
+  const data = { name: f.name.value.trim(), phone: f.phone.value.trim(), phone2: f.phone2.value.trim(), gender: f.gender.value, birth: f.birth.value, notes: f.notes.value.trim(), address: f.address.value.trim(),
+    status: f.cst?.value || 'active', tag: f.ctag?.value || '', source: f.src?.value || '', lastPower: f.lastPower?.value === '' ? '' : Number(f.lastPower?.value) || 0,
+    flags: Object.fromEntries(CL_FLAGS.map(([k]) => [k, !!f['fl_' + k]?.checked])) };
+  if (f.pDate && (f.pDate.value || f.pArea.value.trim() || f.pPower.value)) data.prior = { date: f.pDate.value, area: f.pArea.value.trim().slice(0, 60), power: Number(f.pPower.value) || 0, pulses: Number(f.pPulses.value) || 0, ms: Number(f.pMs.value) || 0, note: f.pNote.value.trim().slice(0, 200) };
   if (f.opening) data.openingBalance = Number(f.opening.value) || 0;
   const refC = !id && f.ref?.value.trim() ? findClient(f.ref.value) : null;
   if (!id && f.ref?.value.trim() && !refC) return toast('اختار العميل اللي رشّحه من القايمة، أو سيب الخانة فاضية');
@@ -3024,7 +3339,9 @@ A.openClient = async id => {
       <div class="head"><h2>${esc(c.name)}</h2></div>
       <div class="meta"><span dir="ltr">${esc(c.phone)}</span>${c.phone2 ? `<span dir="ltr">${esc(c.phone2)}</span>` : ''}<span>${c.gender === 'm' ? 'ذكر' : 'أنثى'}</span>${c.birth ? `<span>ميلاد: ${esc(c.birth)}</span>` : ''}${c.address ? `<span>${esc(c.address)}</span>` : ''}<span>فرع التسجيل: ${esc(branchName(c.branchId))}</span>${c.imported ? '<span class="chip mute">مستورد من إكسل</span>' : ''}</div>
       ${c.openingBalance ? `<div class="notice info">فيه مديونية قديمة من قبل السيستم: ${money(c.openingBalance)} (داخلة في المطلوب)</div>` : ''}
-      ${c.notes ? `<div class="notice warn">⚠ ${esc(c.notes)}</div>` : ''}
+      ${medFlags(c).length || c.notes ? `<div class="notice" style="background:#FDECEC;border:1.5px solid #E5A4A4;color:#9B2C2C;font-weight:700">🩺 تنبيه طبي: ${esc([...medFlags(c), c.notes].filter(Boolean).join(' · '))}</div>` : ''}
+      ${c.tag || c.status || c.source || c.lastPower ? `<div style="display:flex;gap:6px;flex-wrap:wrap">${c.tag ? `<span class="chip">${esc(tagLabel(c.tag))}</span>` : ''}${c.status ? `<span class="chip mute">${esc((CL_STATUS.find(x => x[0] === c.status) || [])[1] || '')}</span>` : ''}${c.source ? `<span class="chip mute">المصدر: ${esc(c.source)}</span>` : ''}${c.lastPower ? `<span class="chip mute">آخر باور: ${esc(c.lastPower)} J</span>` : ''}</div>` : ''}
+      ${c.prior ? `<div class="notice info" style="font-size:13.5px">📋 آخر جلسة قبل السيستم: ${esc([c.prior.date, c.prior.area, c.prior.power ? c.prior.power + ' J' : '', c.prior.pulses ? c.prior.pulses + ' بلصة' : '', c.prior.ms ? c.prior.ms + ' ms' : '', c.prior.note].filter(Boolean).join(' · '))}</div>` : ''}
       ${acts.length ? `<div style="display:flex;gap:8px;flex-wrap:wrap">${acts.join('')}</div>` : ''}
       <div class="grid3">
         <div class="card stat"><b>${money(charged)}</b><span>إجمالي المطلوب</span></div>
@@ -3114,7 +3431,7 @@ A.saveBooking = async (e, id) => {
   if (!cl) return toast('اختار العميل من القايمة، أو سجّله الأول');
   const dr = (S.staff || []).find(x => x.id === f.doctor.value);
   const data = { clientId: cl.id, clientName: cl.name, clientPhone: cl.phone || '', date: f.date.value, time: f.time.value, doctorId: dr?.id || '', doctorName: dr?.name || '', service: f.service.value.trim(), notes: f.notes.value.trim(), branchId: S.branch, month: f.date.value.slice(0, 7) };
-  const sv = (S.services || []).find(x => x.name === data.service);
+  const sv = svcFlat().find(x => x.name === data.service);
   data.dur = (S.onlineArm && S.onlineFill?.dur) || Number(sv?.dur) || 0;
   data.resId = (S.onlineArm && S.onlineFill?.resId) || sv?.resId || (id ? (S.bookings || []).find(x => x.id === id)?.resId : '') || '';
   const old = id ? (S.bookings || []).find(x => x.id === id) : null;
@@ -3203,6 +3520,9 @@ A.sessionModal = async (o = {}) => {
 };
 A.loadClientPkgs = async f => {
   const cl = findClient(f.client.value);
+  { let w = f.querySelector('#medWarn'); if (!w) { w = document.createElement('div'); w.id = 'medWarn'; f.client.closest('label, .f, div')?.insertAdjacentElement('afterend', w); }
+    const m = cl ? [...medFlags(cl), cl.notes].filter(Boolean) : [];
+    w.innerHTML = m.length || cl?.lastPower || cl?.prior ? `${m.length ? `<div class="notice" role="alert" style="background:#FDECEC;border:1.5px solid #E5A4A4;color:#9B2C2C;font-weight:700">🩺 قبل الجلسة: ${esc(m.join(' · '))}</div>` : ''}${cl.lastPower ? `<div class="meta">آخر باور: <b>${esc(cl.lastPower)} J</b></div>` : ''}` : ''; }
   const sel = f.pkg;
   sel.innerHTML = `<option value="">بدون باكدج (جلسة منفردة)</option>`;
   S.mPkgs = [];
@@ -3234,7 +3554,7 @@ A.itemChanged = f => {
 };
 A.areaChanged = f => {
   if (f.pkg.value) return;
-  const sv = (S.services || []).find(s => s.name === f.area.value.trim() && s.kind === 'session');
+  const sv = svcFlat().find(s => s.name === f.area.value.trim() && (s.kind || 'session') === 'session');
   if (sv) f.price.value = sv.price;
 };
 A.saveSession = async (e, bookingId) => {
@@ -3285,7 +3605,9 @@ A.saveSession = async (e, bookingId) => {
     A.closeModal();
     toast(pkg ? `اتسجلت الجلسة (فاضل ${(pLeft(pkg) - deduct).toLocaleString('ar-EG')} ${unitOf(pkg)} في الباكدج)` : 'اتسجلت الجلسة');
     S.sDate = data.date;
+    if (data.fluence) updateDoc(cdoc('clients', cl.id), { lastPower: data.fluence }).catch(() => {});
     afterSave(bookingId ? 'bookings' : 'sessions');
+    if (feat('feedback') && cl.phone) setTimeout(() => A.fbAsk(sref.id, cl, data.area || data.packageName || 'الجلسة'), 400);
   } catch (err) { console.error(err); busy(btn, false, 'حفظ الجلسة'); toast('مقدرتش أحفظ: ' + err.code); }
 };
 
@@ -3366,7 +3688,7 @@ async function renderPriceList() {
   const offN = sv.filter(x => !x.hidden && !['package', 'combo'].includes(x.kind) && !x.online).length;
   return `
     ${feat('onlineBooking') && editCat && offN ? `<div class="notice warn" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="flex:1">فيه ${offN.toLocaleString('ar-EG')} خدمة مش ظاهرة للعملاء في الحجز أونلاين.</span><button class="btn sm" onclick="A.allOnline()">اعرضهم كلهم أونلاين</button></div>` : ''}
-    ${!cats.length && editCat ? `<div class="notice info" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="flex:1">ابدأ بالأقسام: ليزر، بشرة، ديرما… وبعدين ضيف الخدمات جوه كل قسم.</span><button class="btn sm" onclick="A.catsStarter()">ضيف الأقسام الجاهزة</button></div>` : ''}
+    ${editCat ? `<div class="notice info" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="flex:1">${sv.length ? 'عايز تضيف خدمات بسرعة؟ اختار من القوالب الجاهزة (ليزر بالمناطق، تنظيف بشرة، ميزو، ديرمابن، حقن…) وحط أسعارك.' : 'ابدأ بسرعة: اختار من القوالب الجاهزة — الأقسام والخدمات والمناطق بتتضاف لوحدها، وإنت تحط الأسعار بس.'}</span><button class="btn sm" onclick="A.tplModal()">📋 من قوالب جاهزة</button>${!cats.length ? `<button class="btn ghost sm" onclick="A.catsStarter()">الأقسام بس</button>` : ''}</div>` : ''}
     <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">
       <div class="card" style="flex:0 1 250px;min-width:220px;display:flex;flex-direction:column;gap:4px;padding:12px">
         <div class="head" style="padding:2px 4px 8px"><b style="flex:1">الأقسام</b>${editCat ? `<button class="btn gold sm" onclick="A.catModal()">+ قسم</button>` : ''}</div>
@@ -3379,7 +3701,7 @@ async function renderPriceList() {
           ${cur && editCat ? `<button class="btn ghost sm" onclick="A.catModal('${cur.id}')">تعديل القسم</button>` : ''}
           ${edit ? `<button class="btn sm" onclick="A.serviceModal('', '${sel === '_none' ? '' : sel}')">+ خدمة / باكدج</button>` : ''}</div>
         ${list.length ? `<div class="tbl-wrap"><table><thead><tr><th>الاسم</th><th>النوع</th><th>لمين</th><th>المدة</th><th>السعر</th>${feat('onlineBooking') ? '<th>الجهاز</th><th>مين يعملها</th><th>أونلاين</th>' : ''}<th></th></tr></thead>
-          <tbody>${list.map(x => `<tr style="${x.hidden ? 'opacity:.55' : ''}"><td><b>${esc(x.name)}</b>${x.hidden ? ' <span class="chip mute">مخفي</span>' : ''}</td><td>${x.kind === 'combo' ? `<span class="chip warn">مجمّع</span> ${esc(comboTxt(x))}` : x.kind === 'package' ? `باكدج · ${x.sessions} ${unitOf(x)}` : 'جلسة'}</td><td>${GEN[x.gender || 'all']}</td><td>${(Number(x.dur) || 30).toLocaleString('ar-EG')} د</td><td>${pv ? money(x.price) : '—'}</td>
+          <tbody>${list.map(x => `<tr style="${x.hidden ? 'opacity:.55' : ''}"><td>${x.color ? `<span aria-hidden="true" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${esc(x.color)};margin-inline-end:6px"></span>` : ''}<b>${esc(x.name)}</b>${x.hidden ? ' <span class="chip mute">مخفي</span>' : ''}${(x.areas || []).length ? `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">${x.areas.map(a => `<span class="chip mute" style="font-size:11.5px">${esc(a.name)} · ${(Number(a.dur) || 0).toLocaleString('ar-EG')}د${pv && a.price !== '' && a.price != null ? ' · ' + money(a.price) : ''}</span>`).join('')}</div>` : ''}${x.every ? `<div class="meta" style="font-size:11.5px">🔁 متابعة كل ${Number(x.every).toLocaleString('ar-EG')} يوم</div>` : ''}</td><td>${x.kind === 'combo' ? `<span class="chip warn">مجمّع</span> ${esc(comboTxt(x))}` : x.kind === 'package' ? `باكدج · ${x.sessions} ${unitOf(x)}` : 'جلسة'}</td><td>${GEN[x.gender || 'all']}</td><td>${(Number(x.dur) || 30).toLocaleString('ar-EG')} د</td><td>${pv ? money(x.price) : '—'}</td>
             ${feat('onlineBooking') ? `<td>${esc(resName(x.resId)) || '—'}</td><td>${(x.staffIds || []).map(staffName).filter(Boolean).map(esc).join('، ') || 'أي حد'}</td><td>${x.online && !x.hidden ? '<span class="chip ok">ظاهرة</span>' : '<span class="chip mute">لأ</span>'}</td>` : ''}
             <td>${canEditSvc(x) ? `<button class="btn ghost sm" onclick="A.serviceModal('${x.id}')">تعديل</button>` : ''}</td></tr>`).join('')}</tbody></table></div>`
           : `<p class="meta">مفيش خدمات في القسم ده لسه.</p>`}
@@ -3387,6 +3709,48 @@ async function renderPriceList() {
     </div>`;
 }
 A.pCatSet = id => { S.pCat = id; A.go('packages'); };
+// قوالب خدمات جاهزة: [الاسم، أيقونة القسم، اسم القسم، المدة، المناطق [اسم، دقايق]، كل كام يوم متابعة]
+const SVC_TPL = [
+  ['إزالة شعر بالليزر', 'laser', 'ليزر إزالة الشعر', 30, [['شارب', 5], ['ذقن', 5], ['الوجه', 10], ['الوجه + الرقبة', 15], ['أندر آرم', 5], ['بيكيني + بيكيني لاين', 5], ['أندر آرم + بيكيني + لاين', 10], ['نص ذراع', 20], ['ذراع كامل', 20], ['نص رجل علوي', 20], ['نص رجل سفلي', 20], ['رجل كاملة', 30], ['بطن', 15], ['ظهر', 20], ['ظهر + بطن', 30], ['هاف بادي', 45], ['فل بادي بدون بطن وظهر', 60], ['فل بادي', 80]], 42],
+  ['تنظيف بشرة', 'skin', 'العناية بالبشرة', 30, [['مستوى 1', 30], ['مستوى 2', 45], ['مستوى 3', 60], ['هيدرافيشيال', 60], ['أوكسجينو', 40]], 30],
+  ['تقشير', 'skin', 'العناية بالبشرة', 20, [['تقشير كيميائي', 20], ['تقشير بارد', 20], ['تقشير جرين بيل', 20]], 21],
+  ['ميزوثيرابي', 'derma', 'ديرما وحقن', 15, [['تفتيح', 15], ['سكين بوستر', 15], ['إصلاح بشرة', 15], ['للشعر', 15], ['الهالات', 15], ['توريد شفايف', 15]], 21],
+  ['ديرمابن', 'derma', 'ديرما وحقن', 30, [['تفتيح ونضارة', 30], ['علاجي', 30], ['بالبلازما', 30], ['للشعر', 30], ['هالات سوداء', 30], ['شفايف', 30]], 28],
+  ['حقن وعلاجات تجميلية', 'derma', 'ديرما وحقن', 30, [['بوتوكس الجبهة', 30], ['بوتوكس التعرق', 30], ['ميزو بوتوكس', 30], ['فيلر', 30], ['توريد شفايف', 30], ['سكين بوستر', 30], ['فراكشنال', 30], ['هايفو وجه', 30]], 0],
+  ['ليزر كربوني', 'carbon', 'ليزر كربوني وتفتيح', 30, [['الوجه', 30], ['الوجه + الرقبة', 40], ['الظهر', 40]], 21],
+  ['تخسيس ونحت', 'body', 'تخسيس ونحت', 45, [['كافيتيشن', 45], ['ريديو فريكوينسي', 30], ['تصريف لمفاوي', 45]], 7],
+  ['كشف جلدية', 'consult', 'استشارة دكتور', 30, [], 0],
+  ['متابعة تغذية', 'consult', 'استشارة دكتور', 30, [], 14],
+];
+A.tplModal = async () => {
+  await Promise.all([loadServices(true), loadCats(true)]);
+  const have = new Set((S.services || []).map(x => x.name));
+  openModal(`<h3>📋 قوالب الخدمات</h3>
+    <p class="meta">اختار اللي بتعمله عيادتك وراجع المناطق. الخدمات بتتضاف <b>مخفية ومن غير أسعار</b> — إنت تحط السعر وتشيل "مخفية" علشان تظهر في البيع والحجز.</p>
+    <form onsubmit="A.tplImport(event)" class="fcol" style="gap:10px">
+      ${SVC_TPL.map(([name, ic, cat, dur, areas], i) => { const got = have.has(name); return `<div style="border:1.5px solid var(--line);border-radius:14px;padding:12px 14px;background:${got ? 'var(--bg)' : '#fff'}">
+        <label class="chk" style="gap:12px"><input type="checkbox" name="t${i}" ${got ? 'disabled' : ''} style="width:20px;height:20px;min-height:0;accent-color:var(--brand)"><span style="display:inline-flex;width:38px;height:38px;border-radius:12px;background:var(--ok-bg);align-items:center;justify-content:center;flex:none">${catIco(ic, 22)}</span><span style="flex:1;display:flex;flex-direction:column"><b>${esc(name)}</b><span class="meta" style="font-size:12.5px">${esc(cat)} · ${dur} د${areas.length ? ` · ${areas.length} منطقة/نوع` : ''}${got ? ' · موجودة عندك' : ''}</span></span></label>
+        ${areas.length ? `<details style="margin-top:6px"><summary style="cursor:pointer;color:var(--brand);font-size:13px;font-weight:600">شوف المحتوى</summary><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${areas.map(([a, d]) => `<span class="chip mute">${esc(a)} · ${d}د</span>`).join('')}</div></details>` : ''}</div>`; }).join('')}
+      <div class="acts" style="position:sticky;bottom:-1px;background:#fff;padding-top:8px"><button class="btn" type="submit">استيراد</button><button class="btn ghost" type="button" onclick="A.closeModal()">إلغاء</button></div>
+    </form>`);
+};
+A.tplImport = async e => {
+  e.preventDefault();
+  const f = e.target, pick = SVC_TPL.filter((t, i) => f['t' + i]?.checked);
+  if (!pick.length) return toast('اختار قالب واحد على الأقل');
+  const btn = f.querySelector('button[type=submit]'); busy(btn, true, 'بيضيف...');
+  try {
+    await loadCats(true);
+    const catIds = {}; (S.cats || []).forEach(c => { catIds[c.name] = c.id; });
+    const b = writeBatch(db); let order = (S.cats || []).length;
+    pick.forEach(([, ic, cat]) => { if (!catIds[cat]) { const r = doc(ccol('cats')); catIds[cat] = r.id; b.set(r, { name: cat, icon: ic, order: order++, online: true }); } });
+    pick.forEach(([name, , cat, dur, areas, every], i) => b.set(doc(ccol('services')), { name, catId: catIds[cat], kind: 'session', unit: 'sessions', sessions: 1, price: 0, dur, gender: 'all', hidden: true, online: true, every: every || 0, color: SVC_COLORS[i % SVC_COLORS.length], areas: areas.map(([a, d], k) => ({ id: 'a' + k, name: a, dur: d, price: '' })), staffIds: [], updatedByName: S.profile.name, updatedAt: todayStr() }));
+    await b.commit();
+    A.closeModal(); S.pShowHidden = true; S.pTab = 'prices'; S.pCat = catIds[pick[0][2]];
+    toast(`اتضاف ${pick.length} خدمة ✓ — حط الأسعار وشيل "مخفية"`);
+    await loadServices(true); A.go('packages');
+  } catch (err) { console.error(err); busy(btn, false, 'استيراد'); toast('مقدرتش أضيف: ' + (err.code || err.message)); }
+};
 A.catsStarter = async () => {
   try { const b = writeBatch(db); CAT_DEF.forEach(([name, icon], i) => b.set(doc(ccol('cats')), { name, icon, order: i, online: true })); await b.commit(); toast('اتضافت الأقسام ✓'); A.go('packages'); }
   catch (err) { toast('مقدرتش أحفظ: ' + (err.code || err.message)); }
@@ -3413,6 +3777,7 @@ A.catDel = async id => {
   try { await deleteDoc(cdoc('cats', id)); S.pCat = ''; A.closeModal(); toast('اتمسح'); A.go('packages'); }
   catch (err) { toast('مقدرتش أمسح: ' + (err.code || err.message)); }
 };
+const SVC_COLORS = ['#2F6F68', '#C8A15A', '#5B8DEF', '#3DAA7D', '#E07B53', '#9B59D0', '#D9577F', '#2EC4B6'];
 A.serviceModal = async (id, catId) => {
   await Promise.all([loadCats(), loadStaff(), feat('onlineBooking') ? loadPubCfg() : null]);
   const x = id ? (S.services || []).find(s => s.id === id) : null;
@@ -3420,14 +3785,17 @@ A.serviceModal = async (id, catId) => {
   const team = (S.staff || []).filter(s => s.active !== false && !['owner', 'accounts', 'client'].includes(s.role));
   const ob = feat('onlineBooking');
   S.comboDraft = (x?.items || []).map(i => ({ ...i }));
+  S.areaDraft = (x?.areas || []).map(a => ({ ...a }));
   openModal(`<h3>${x ? 'تعديل' : 'إضافة'} خدمة / باكدج</h3>
   <form onsubmit="A.saveService(event,'${id || ''}')" class="fcol">
-    <div class="grid2">
-      <label class="f">الاسم (مثلاً: أندر آرم، هيدرافيشيال)<input name="name" required value="${esc(x?.name)}"></label>
-      <label class="f">القسم<select name="cat"><option value="">من غير قسم</option>${cats.map(c => `<option value="${c.id}" ${(x?.catId ?? catId) === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></label>
-    </div>
+    <label class="f">اسم الخدمة *<input name="name" required placeholder="مثلاً: إزالة شعر بالليزر، هيدرافيشيال" value="${esc(x?.name)}"></label>
+    <div class="fcol" style="gap:6px"><span class="section-t" style="margin:0">نوع الخدمة</span><div class="pick" role="radiogroup" aria-label="نوع الخدمة">${[
+      ...(rpv('svc') || (x && x.kind !== 'combo') ? [['session', 'بالجلسة', '🗓️'], ['package', 'باكدج (جلسات أو نبضات)', '📦']] : []),
+      ...(rpv('combo') || x?.kind === 'combo' ? [['combo', 'باكدج مجمّع (كذا خدمة)', '🎁']] : []),
+    ].map(([v, l, ic]) => { const cur = x ? (['package', 'combo'].includes(x.kind) ? x.kind : 'session') : (rpv('svc') ? 'session' : 'combo'); return `<label><input type="radio" name="kind" value="${v}" ${cur === v ? 'checked' : ''} ${x ? 'disabled' : ''} onchange="A.kindChanged(this.form)"><span>${ic} ${l}</span></label>`; }).join('')}</div></div>
+    <div class="fcol" style="gap:6px"><span class="section-t" style="margin:0">التصنيف</span><div class="pick" role="radiogroup" aria-label="القسم">${[{ id: '', name: 'من غير قسم', icon: 'other' }, ...cats].map(c => `<label><input type="radio" name="cat" value="${c.id}" ${((x?.catId ?? catId) || '') === c.id ? 'checked' : ''}><span>${catIco(c.icon, 18)} ${esc(c.name)}</span></label>`).join('')}</div></div>
+    <div class="fcol" style="gap:6px"><span class="section-t" style="margin:0">اللون</span><div class="pick swatch" role="radiogroup" aria-label="اللون">${SVC_COLORS.map((c, i) => `<label title="لون ${i + 1}"><input type="radio" name="color" value="${c}" ${(x?.color || SVC_COLORS[0]) === c ? 'checked' : ''}><span style="background:${c}"></span></label>`).join('')}</div></div>
     <div class="grid3">
-      <label class="f">النوع<select name="kind" onchange="A.kindChanged(this.form)" ${x ? 'disabled' : ''}>${rpv('svc') || x?.kind !== 'combo' && x ? `<option value="session" ${!['package', 'combo'].includes(x?.kind) ? 'selected' : ''}>جلسة منفردة</option><option value="package" ${x?.kind === 'package' ? 'selected' : ''}>باكدج (نفس الخدمة)</option>` : ''}${rpv('combo') || x?.kind === 'combo' ? `<option value="combo" ${x?.kind === 'combo' || (!x && !rpv('svc')) ? 'selected' : ''}>باكدج مجمّع (كذا خدمة)</option>` : ''}</select></label>
       <label class="f" data-k="pkg">الباكدج بـ<select name="unit" ${x?.kind === 'package' ? '' : 'disabled'}><option value="sessions" ${x?.unit !== 'pulses' ? 'selected' : ''}>جلسات</option><option value="pulses" ${x?.unit === 'pulses' ? 'selected' : ''}>نبضات</option></select></label>
       <label class="f" data-k="pkg">العدد<input name="sessions" type="number" min="1" value="${x?.sessions || 6}" ${x?.kind === 'package' ? '' : 'disabled'}></label>
       <label class="f">السعر${x && !rpv('price') ? ' (مش مسموحلك تغيّره)' : ''}<input name="price" type="number" min="0" step="any" required value="${x?.price ?? ''}" ${x && !rpv('price') ? 'readonly' : ''}></label>
@@ -3435,12 +3803,17 @@ A.serviceModal = async (id, catId) => {
       <label class="f">لمين<select name="gender">${Object.entries(GEN).map(([k, l]) => `<option value="${k}" ${(x?.gender || 'all') === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
     </div>
     <div id="comboEd" class="fcol" style="gap:8px"></div>
+    <div id="areaEd" data-k="one" class="fcol" style="gap:8px"></div>
+    <div class="grid2" data-k="one">
+      <label class="f">تذكير متابعة: يتكرر كل كام يوم؟ (0 = من غير تذكير)<input name="every" type="number" min="0" max="365" value="${Number(x?.every) || 0}"></label>
+      <label class="f">وصف قصير (بيظهر للعميل في الحجز أونلاين)<input name="desc" maxlength="160" value="${esc(x?.desc || '')}"></label>
+    </div>
     ${ob ? `<label class="f">بيتعمل على (جهاز أو أوضة)<select name="res"><option value="">مش محتاجة جهاز معيّن</option>${res.map(r => `<option value="${r.id}" ${x?.resId === r.id ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}</select></label>
       ${res.length ? '' : '<p class="meta">مفيش أجهزة متسجلة. صاحب العيادة يضيفها من "إعدادات العيادة".</p>'}
       ${team.length ? `<div class="meta">مين يعملها (سيبها كلها فاضية = أي حد):</div><div class="grid3">${team.map(s => `<label class="chk"><input type="checkbox" name="st_${s.id}" ${(x?.staffIds || []).includes(s.id) ? 'checked' : ''}> ${esc(s.name)}</label>`).join('')}</div>` : ''}
-      <label class="chk"><input type="checkbox" name="online" ${x?.online ? 'checked' : ''}> تظهر للعملاء في الحجز أونلاين</label>` : ''}
+      <label class="chk sw"><input type="checkbox" name="online" ${x?.online ? 'checked' : ''}> تظهر للعملاء في الحجز أونلاين</label>` : ''}
     ${x?.priceLog?.length ? `<p class="meta">آخر تغيير سعر: من ${money(x.priceLog[x.priceLog.length - 1].from)} لـ ${money(x.priceLog[x.priceLog.length - 1].to)} · ${esc(x.priceLog[x.priceLog.length - 1].by || '')} · ${esc(x.priceLog[x.priceLog.length - 1].at || '')}</p>` : ''}
-    <label class="chk"><input type="checkbox" name="hidden" ${x?.hidden ? 'checked' : ''}> مخفية (متظهرش في البيع ولا الحجز، بس اللي اتباع قبل كده بيفضل زي ما هو)</label>
+    <label class="chk sw"><input type="checkbox" name="hidden" ${x?.hidden ? 'checked' : ''}> مخفية (متظهرش في البيع ولا الحجز، بس اللي اتباع قبل كده بيفضل زي ما هو)</label>
     <div class="acts"><button class="btn" type="submit">حفظ</button>${x && isOwner() ? `<button class="btn ghost" type="button" style="color:var(--red)" onclick="A.serviceDel('${id}')">مسح نهائي</button>` : ''}<button class="btn ghost" type="button" onclick="A.closeModal()">إلغاء</button></div>
   </form>`);
   S.comboX = x;
@@ -3450,10 +3823,26 @@ A.serviceModal = async (id, catId) => {
 A.kindChanged = f => {
   const k = f.kind.value;
   f.sessions.disabled = f.unit.disabled = k !== 'package';
-  f.querySelectorAll('[data-k=pkg]').forEach(el => { el.style.display = k === 'combo' ? 'none' : ''; });
+  f.querySelectorAll('[data-k=pkg]').forEach(el => { el.style.display = k === 'package' ? '' : 'none'; });
   f.querySelectorAll('[data-k=one]').forEach(el => { el.style.display = k === 'combo' ? 'none' : ''; });
-  comboEdDraw();
+  comboEdDraw(); areaEdDraw();
 };
+// المناطق جوه الخدمة: شارب 5 د، أندر آرم 5 د، فل بادي 80 د…
+function areaEdDraw() {
+  const box = document.getElementById('areaEd'), f = $modal.querySelector('form'); if (!box || !f) return;
+  if (f.kind.value !== 'session') { box.innerHTML = ''; return; }
+  const D = S.areaDraft || [];
+  box.innerHTML = `<div class="section-t">المناطق / الأنواع جوه الخدمة <span class="meta" style="display:inline">(اختياري — مثلاً: شارب، أندر آرم، فل بادي. لو فاضية بتاخد مدة وسعر الخدمة)</span></div>
+    ${D.map((a, k) => `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+      <input aria-label="اسم المنطقة" placeholder="اسم المنطقة" value="${esc(a.name || '')}" style="flex:3 1 160px" oninput="A.areaSet(${k},'name',this.value)">
+      <input aria-label="المدة بالدقيقة" type="number" min="5" max="600" step="5" placeholder="دقيقة" value="${a.dur ?? ''}" style="flex:1 1 80px" oninput="A.areaSet(${k},'dur',this.value)">
+      <input aria-label="السعر" type="number" min="0" step="any" placeholder="السعر" value="${a.price ?? ''}" style="flex:1 1 90px" oninput="A.areaSet(${k},'price',this.value)">
+      <button type="button" class="btn ghost sm" aria-label="شيل المنطقة" onclick="A.areaDel(${k})">✕</button></div>`).join('')}
+    <div><button type="button" class="btn ghost sm" onclick="A.areaAdd()">+ منطقة</button></div>`;
+}
+A.areaAdd = () => { (S.areaDraft = S.areaDraft || []).push({ id: Math.random().toString(36).slice(2, 8), name: '', dur: '', price: '' }); areaEdDraw(); };
+A.areaDel = k => { S.areaDraft.splice(k, 1); areaEdDraw(); };
+A.areaSet = (k, key, v) => { const a = S.areaDraft[k]; if (a) a[key] = v; };
 function comboEdDraw() {
   const box = document.getElementById('comboEd'), f = $modal.querySelector('form'); if (!box || !f) return;
   if (f.kind.value !== 'combo') { box.innerHTML = ''; return; }
@@ -3499,6 +3888,12 @@ A.saveService = async (e, id) => {
   if (f.res) data.resId = f.res.value;
   if (f.online) data.online = (kind === 'combo' ? data.offerOnline : f.online.checked) && !data.hidden;
   if (feat('onlineBooking')) data.staffIds = (S.staff || []).filter(s => f['st_' + s.id]?.checked).map(s => s.id);
+  if (kind === 'session') {
+    data.areas = (S.areaDraft || []).filter(a => String(a.name || '').trim()).slice(0, 40).map(a => ({ id: a.id || Math.random().toString(36).slice(2, 8), name: String(a.name).trim().slice(0, 60), dur: Math.max(5, Math.round(Number(a.dur) || data.dur)), price: a.price === '' || a.price == null ? '' : Number(a.price) || 0 }));
+  }
+  if (kind !== 'combo') data.every = Math.max(0, Math.round(Number(f.every?.value) || 0));
+  if (f.desc) data.desc = f.desc.value.trim().slice(0, 160);
+  if (f.color && SVC_COLORS.includes(f.color.value)) data.color = f.color.value;
   data.updatedByName = S.profile.name; data.updatedAt = todayStr();
   if (old && Number(old.price) !== data.price) {
     if (!rpv('price')) return toast('مش مسموحلك تغيّر الأسعار');
@@ -4557,7 +4952,7 @@ async function syncBusy(branchId, date) {
       }
       if (hold) h[fromMin(m)] = 1;
     };
-    const svcOf = name => (S.services || []).find(x => x.name === name);
+    const svcOf = name => svcFlat().find(x => x.name === name);
     bs.docs.forEach(d => {
       const b = d.data(); if (!['booked', 'arrived', 'done'].includes(b.status || 'booked')) return;
       const sv = svcOf(b.service);
@@ -4932,10 +5327,11 @@ async function renderBookPage() {
   if (loose.length) groups.push({ id: '_other', name: groups.length ? 'خدمات تانية' : 'الخدمات', icon: 'other', items: loose });
   const today = todayStr(), brs = pub.branches || [];
   const maxD = (() => { const x = new Date(); x.setDate(x.getDate() + (Number(pub.ahead) || 30)); return toInput(x); })();
-  const P = { offer: null, want: false, step: groups.length > 1 || offers.length ? 1 : 2, cat: groups.length === 1 ? groups[0] : null, gender: 'f', picked: [], br: brs.length === 1 ? brs[0] : null, staff: '', date: today, time: '', who: '', name: '', phone: '', notes: '' };
+  const P = { offer: null, want: false, step: 2, cat: groups[0] || null, gender: 'f', picked: [], br: brs.length === 1 ? brs[0] : null, staff: '', date: today, time: '', who: '', name: '', phone: '', notes: '' };
   const t0 = Date.now();
   const n = v => Number(v || 0).toLocaleString('ar-EG');
-  const sel = () => svs.filter(x => P.picked.includes(x.id));
+  const svx = svcFlat(svs);
+  const sel = () => svx.filter(x => P.picked.includes(x.id));
   const totDur = () => sel().reduce((a, x) => a + (Number(x.dur) || Number(pub.step) || 30), 0);
   const totPrice = () => sel().reduce((a, x) => a + (Number(x.price) || 0), 0);
   const btn = (txt, on, dis) => `<button type="button" class="btn" style="width:100%;min-height:50px;font-size:16px" ${dis ? 'disabled' : ''} onclick="${on}">${txt}</button>`;
@@ -4951,31 +5347,35 @@ async function renderBookPage() {
     draw();
   }
   function head() {
-    const steps = [1, 2, 3, 4].map(i => `<span style="flex:1;height:4px;border-radius:4px;background:${i <= P.step ? 'var(--gold-l)' : 'rgba(255,255,255,.3)'}"></span>`).join('');
-    const back = P.step > (groups.length > 1 || offers.length ? 1 : 2) && P.step < 5 ? `<button type="button" aria-label="رجوع" onclick="BK.back()" style="background:none;border:0;color:#fff;cursor:pointer;width:36px;height:36px;display:flex;align-items:center;justify-content:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>` : '';
-    const ttl = ['', 'إيه اللي محتاجه؟', P.cat?.name || 'اختار الخدمة', 'اختار المعاد', 'تأكيد الحجز', 'اتبعت ✓'][P.step];
-    return `<div style="background:var(--brand);color:#fff;padding:16px 18px 18px;display:flex;flex-direction:column;gap:12px">
-      <div style="display:flex;align-items:center;gap:10px">${back}${logoHTML(B, 36)}<div style="flex:1;display:flex;flex-direction:column"><b style="font-size:17px">${esc(B.name)}</b><span style="font-size:13px;opacity:.85">${esc(ttl)}</span></div>${P.step < 5 ? `<span style="font-size:13px;opacity:.85">${n(P.step)} من ${n(4)}</span>` : ''}</div>
-      ${P.step < 5 ? `<div style="display:flex;gap:6px" aria-hidden="true">${steps}</div>` : ''}</div>`;
+    const S3 = [[2, 'الخدمات'], [3, 'المعاد'], [4, 'بياناتك']];
+    const can = k => k === 2 || (k === 3 && (P.picked.length || P.offer)) || (k === 4 && P.time);
+    const back = P.step > 2 && P.step < 5 ? `<button type="button" aria-label="رجوع" onclick="BK.back()" style="background:rgba(255,255,255,.16);border:0;border-radius:12px;color:#fff;cursor:pointer;width:40px;height:40px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>` : '';
+    const bar = P.step < 5 ? `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">${S3.map(([k, l], i) => { const cur = P.step === k, done = P.step > k, ok = can(k) && !cur;
+      return `<button type="button" ${ok ? `onclick="BK.jump(${k})"` : 'disabled'} aria-current="${cur ? 'step' : 'false'}" style="font:inherit;font-size:13px;border:0;border-radius:99px;padding:7px 4px;display:flex;align-items:center;justify-content:center;gap:6px;cursor:${ok ? 'pointer' : 'default'};${cur ? 'background:#fff;color:var(--brand);font-weight:800' : done ? 'background:rgba(255,255,255,.22);color:#fff;font-weight:700' : 'background:rgba(255,255,255,.08);color:rgba(255,255,255,.7)'}"><span style="width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;${cur ? 'background:var(--brand);color:#fff' : 'background:rgba(255,255,255,.25)'}">${done ? '✓' : n(i + 1)}</span>${l}</button>`; }).join('')}</div>` : '';
+    return `<div style="background:var(--brand);color:#fff;padding:16px 16px 14px;display:flex;flex-direction:column;gap:12px;position:sticky;top:0;z-index:5">
+      <div style="display:flex;align-items:center;gap:10px">${back}${logoHTML(B, 36)}<div style="flex:1;display:flex;flex-direction:column;min-width:0"><b style="font-size:17px">${esc(B.name)}</b><span style="font-size:13px;opacity:.85">${P.step === 5 ? 'طلبك وصل' : 'احجز معادك أونلاين'}</span></div></div>
+      ${bar}</div>`;
   }
   function body() {
     const offerCards = offers.map(o => `<button type="button" onclick="BK.offer('${o.id}')" style="font:inherit;text-align:right;cursor:pointer;background:var(--warn-bg);border:1.5px solid var(--gold-l);border-radius:16px;padding:12px 14px;display:flex;gap:12px;align-items:center;color:var(--warn)">
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="8" width="18" height="13" rx="2"/><path d="M3 12h18M12 8v13M8 8c-2 0-3-1.5-3-3s2-2 3 0l4 3 4-3c1-2 3-1.5 3 0s-1 3-3 3"/></svg>
       <span style="flex:1;display:flex;flex-direction:column"><b style="font-size:15px">عرض: ${esc(o.name)}</b><span style="font-size:13px">${esc(comboTxt(o))}${pub.showPrice ? ` · ${money(o.price)}` : ''}</span></span><b style="font-size:13px">احجز ←</b></button>`).join('');
-    if (P.step === 1) return `${offerCards}<h2 style="margin:0;font-size:20px">إيه اللي محتاجه؟</h2>
-      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">${groups.map(g => `<button type="button" onclick="BK.cat('${g.id}')" style="font:inherit;text-align:right;cursor:pointer;background:#fff;border:1.5px solid var(--line);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:8px;min-height:104px;color:var(--ink)">${catIco(g.icon, 30)}<b style="font-size:15px">${esc(g.name)}</b><span style="font-size:12px;color:var(--muted)">${esc(g.items.slice(0, 3).map(x => x.name).join('، '))}${g.items.length > 3 ? '…' : ''}</span></button>`).join('')}</div>`;
     if (P.step === 2) {
-      const items = P.cat.items;
-      const gendered = items.some(x => x.gender === 'f' || x.gender === 'm');
-      const vis = items.filter(x => !gendered || (x.gender || 'all') === 'all' || x.gender === P.gender);
-      return `${gendered ? `<div role="radiogroup" aria-label="لمين" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));background:#fff;border:1px solid var(--line);border-radius:12px;padding:4px">${[['f', 'ستات'], ['m', 'رجالة']].map(([k, l]) => `<button type="button" role="radio" aria-checked="${P.gender === k}" onclick="BK.gender('${k}')" style="font:inherit;border:0;border-radius:9px;min-height:40px;cursor:pointer;${P.gender === k ? 'background:var(--brand);color:#fff;font-weight:700' : 'background:transparent;color:var(--ink)'}">${l}</button>`).join('')}</div>` : ''}
-        <p class="meta" style="margin:0">اختار خدمة أو أكتر — هنحسبلك الوقت كله في معاد واحد</p>
-        <div class="fcol" style="gap:8px">${vis.map(x => { const on = P.picked.includes(x.id); return `<label style="display:flex;align-items:center;gap:12px;background:${on ? 'var(--ok-bg)' : '#fff'};border:${on ? '2px solid var(--brand)' : '1.5px solid var(--line)'};border-radius:14px;padding:12px 14px;min-height:48px;cursor:pointer"><input type="checkbox" ${on ? 'checked' : ''} onchange="BK.pick('${x.id}',this.checked)" style="width:20px;height:20px;min-height:0;accent-color:var(--brand)"><span style="flex:1;display:flex;flex-direction:column"><b style="font-size:15px">${esc(x.name)}</b><span style="font-size:12px;color:var(--muted)">${n(Number(x.dur) || pub.step)} دقيقة</span></span>${pub.showPrice ? `<b style="font-size:14px">${money(x.price)}</b>` : ''}</label>`; }).join('') || '<p class="meta">مفيش خدمات متاحة هنا.</p>'}</div>`;
+      const gendered = svs.some(x => x.gender === 'f' || x.gender === 'm');
+      const okG = x => !gendered || (x.gender || 'all') === 'all' || x.gender === P.gender;
+      const cur = P.cat && groups.includes(P.cat) ? P.cat : groups[0];
+      const vis = (cur?.items || []).filter(okG);
+      const pickedIn = g => P.picked.filter(id => g.items.some(x => id === x.id || id.startsWith(x.id + '~'))).length;
+      return `${P.offer ? `<div style="background:var(--warn-bg);border:1.5px solid var(--gold-l);border-radius:14px;padding:10px 14px;display:flex;gap:10px;align-items:center;color:var(--warn);font-size:14px"><span style="flex:1">اخترت عرض <b>${esc(P.offer.name)}</b></span><button type="button" onclick="BK.noOffer()" style="font:inherit;font-size:13px;background:#fff;border:1px solid var(--gold-l);color:var(--warn);border-radius:99px;padding:5px 12px;cursor:pointer">إلغاء العرض</button></div>` : offerCards}
+        ${gendered ? `<div role="radiogroup" aria-label="لمين" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));background:#fff;border:1px solid var(--line);border-radius:12px;padding:4px">${[['f', 'ستات'], ['m', 'رجالة']].map(([k, l]) => `<button type="button" role="radio" aria-checked="${P.gender === k}" onclick="BK.gender('${k}')" style="font:inherit;border:0;border-radius:9px;min-height:40px;cursor:pointer;${P.gender === k ? 'background:var(--brand);color:#fff;font-weight:700' : 'background:transparent;color:var(--ink)'}">${l}</button>`).join('')}</div>` : ''}
+        ${groups.length > 1 ? `<div role="tablist" aria-label="الأقسام" style="display:flex;gap:8px;overflow-x:auto;padding:2px 0 6px;margin:0 -2px;scrollbar-width:none">${groups.map(g => { const on = g === cur, k = pickedIn(g); return `<button type="button" role="tab" aria-selected="${on}" onclick="BK.cat('${g.id}')" style="font:inherit;font-size:14px;flex:none;display:flex;align-items:center;gap:7px;cursor:pointer;border-radius:99px;padding:8px 14px 8px 12px;min-height:42px;${on ? 'background:var(--brand);color:#fff;border:1.5px solid var(--brand);font-weight:700' : 'background:#fff;color:var(--ink);border:1.5px solid var(--line)'}">${catIco(g.icon, 20, on ? '#fff' : 'var(--brand)')}${esc(g.name)}${k ? `<span style="min-width:20px;height:20px;border-radius:99px;font-size:11px;display:inline-flex;align-items:center;justify-content:center;${on ? 'background:#fff;color:var(--brand)' : 'background:var(--brand);color:#fff'}">${n(k)}</span>` : ''}</button>`; }).join('')}</div>` : ''}
+        <p class="meta" style="margin:0">اختار خدمة أو أكتر من أي قسم — تقدر تتنقّل بين الأقسام وكل اللي اخترته بيفضل محفوظ.</p>
+        <div class="fcol" style="gap:8px">${vis.map(x => { if ((x.areas || []).length) { const A2 = svx.filter(y => y.parentId === x.id); const k = A2.filter(y => P.picked.includes(y.id)).length; return `<div style="background:${k ? 'var(--ok-bg)' : '#fff'};border:${k ? '2px solid var(--brand)' : '1.5px solid var(--line)'};border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:10px"><div style="display:flex;flex-direction:column"><b style="font-size:15px">${esc(x.name)}</b><span style="font-size:12px;color:var(--muted)">${x.desc ? esc(x.desc) + ' · ' : ''}اختار المنطقة أو أكتر</span></div><div style="display:flex;gap:6px;flex-wrap:wrap">${A2.map(y => { const on = P.picked.includes(y.id); return `<button type="button" aria-pressed="${on}" onclick="BK.pick('${y.id}',${!on})" style="font:inherit;font-size:13.5px;cursor:pointer;border-radius:99px;padding:7px 12px;min-height:38px;${on ? 'background:var(--brand);color:#fff;border:1.5px solid var(--brand);font-weight:700' : 'background:#fff;color:var(--ink);border:1.5px solid var(--line)'}">${on ? '✓ ' : ''}${esc(y.areaName)} · ${n(y.dur)}د${pub.showPrice ? ' · ' + money(y.price) : ''}</button>`; }).join('')}</div></div>`; } const on = P.picked.includes(x.id); return `<label style="display:flex;align-items:center;gap:12px;background:${on ? 'var(--ok-bg)' : '#fff'};border:${on ? '2px solid var(--brand)' : '1.5px solid var(--line)'};border-radius:14px;padding:12px 14px;min-height:52px;cursor:pointer"><input type="checkbox" ${on ? 'checked' : ''} onchange="BK.pick('${x.id}',this.checked)" style="width:20px;height:20px;min-height:0;accent-color:var(--brand)"><span style="flex:1;display:flex;flex-direction:column"><b style="font-size:15px">${esc(x.name)}</b><span style="font-size:12px;color:var(--muted)">${x.desc ? esc(x.desc) + ' · ' : ''}${n(Number(x.dur) || pub.step)} دقيقة${x.kind === 'package' ? ' · باكدج' : ''}</span></span>${pub.showPrice ? `<b style="font-size:14px">${money(x.price)}</b>` : ''}</label>`; }).join('') || '<p class="meta">مفيش خدمات هنا.</p>'}</div>`;
     }
     if (P.step === 3) {
       const t = team();
       const days = []; for (let i = 0; i < 14; i++) { const x = new Date(); x.setDate(x.getDate() + i); const d = toInput(x); if (d > maxD) break; days.push(d); }
-      return `${P.offer ? `<div class="notice warn" style="font-size:14px">عرض: ${esc(P.offer.name)} — هنحجزلك أول جلسة، والعيادة هتكلمك تأكد تفاصيل العرض.</div>` : ''}<div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px 14px;font-size:14px;display:flex;justify-content:space-between;gap:8px"><span>${esc(sel().map(x => x.name).join(' + ') || 'جلسة')}</span><b>${n(totDur())} دقيقة</b></div>
+      return `${P.offer ? `<div class="notice warn" style="font-size:14px">عرض: ${esc(P.offer.name)} — هنحجزلك أول جلسة، والعيادة هتكلمك تأكد تفاصيل العرض.</div>` : ''}<div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px 14px;font-size:14px;display:flex;justify-content:space-between;gap:8px;align-items:center"><span>${esc(sel().map(x => x.name).join(' + ') || 'جلسة')}</span><span style="white-space:nowrap"><b>${n(totDur())} دقيقة</b><button type="button" onclick="BK.jump(2)" style="font:inherit;font-size:12.5px;background:none;border:0;color:var(--brand);text-decoration:underline;cursor:pointer;padding:0 6px">تعديل</button></span></div>
         ${brs.length > 1 ? `<label class="f">الفرع<select onchange="BK.branch(this.value)"><option value="">اختار الفرع</option>${brs.map(b => `<option value="${esc(b.id)}" ${P.br?.id === b.id ? 'selected' : ''}>${esc(b.name)}</option>`).join('')}</select></label>` : ''}
         ${t && t.length > 1 ? `<div class="fcol" style="gap:8px"><b style="font-size:15px">مع مين؟</b><div style="display:flex;gap:8px;flex-wrap:wrap">${[{ id: '', name: 'أي حد متاح' }, ...t].map(s => `<button type="button" onclick="BK.staff('${s.id}')" style="font:inherit;font-size:14px;cursor:pointer;border-radius:99px;padding:8px 14px;min-height:40px;${P.staff === s.id ? 'border:2px solid var(--brand);background:var(--ok-bg);font-weight:700' : 'border:1.5px solid var(--line);background:#fff'}">${esc(s.name)}</button>`).join('')}</div></div>` : ''}
         <div class="fcol" style="gap:8px"><b style="font-size:15px">اليوم</b>
@@ -4989,8 +5389,8 @@ async function renderBookPage() {
     if (P.step === 4) {
       const who = (pub.staff || []).find(s => s.id === (P.staff || P.who));
       return `<div class="card fcol" style="gap:6px;font-size:14px;padding:14px 16px">
-          <div style="display:flex;justify-content:space-between;gap:8px"><span class="meta">الخدمة</span><b>${esc(sel().map(x => x.name).join(' + '))}</b></div>
-          <div style="display:flex;justify-content:space-between;gap:8px"><span class="meta">المعاد</span><b>${esc(dayName(P.date))} · ${esc(time12(P.time))}</b></div>
+          <div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><span class="meta">الخدمة</span><span style="text-align:left"><b>${esc(sel().map(x => x.name).join(' + ') || (P.offer ? 'عرض: ' + P.offer.name : ''))}</b><button type="button" onclick="BK.jump(2)" style="font:inherit;font-size:12.5px;background:none;border:0;color:var(--brand);text-decoration:underline;cursor:pointer;padding:0 6px">تعديل</button></span></div>
+          <div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><span class="meta">المعاد</span><span style="text-align:left"><b>${esc(dayName(P.date))} · ${esc(time12(P.time))}</b><button type="button" onclick="BK.jump(3)" style="font:inherit;font-size:12.5px;background:none;border:0;color:var(--brand);text-decoration:underline;cursor:pointer;padding:0 6px">تعديل</button></span></div>
           ${P.staff && who ? `<div style="display:flex;justify-content:space-between;gap:8px"><span class="meta">مع</span><b>${esc(who.name)}</b></div>` : ''}
           ${P.br && brs.length > 1 ? `<div style="display:flex;justify-content:space-between;gap:8px"><span class="meta">الفرع</span><b>${esc(P.br.name)}</b></div>` : ''}
           ${P.offer ? `<div style="display:flex;justify-content:space-between;gap:8px"><span class="meta">العرض</span><b>${esc(P.offer.name)}${pub.showPrice ? ` · ${money(P.offer.price)}` : ''}</b></div>`
@@ -5008,8 +5408,8 @@ async function renderBookPage() {
       ${wa ? `<a class="btn gold" style="text-decoration:none;display:inline-flex;justify-content:center;align-items:center" target="_blank" rel="noopener" href="${wa}?text=${encodeURIComponent(`أهلاً 👋 حجزت أونلاين باسم ${P.name}: ${sel().map(x => x.name).join(' + ')} يوم ${dayName(P.date)} الساعة ${time12(P.time)}`)}">💬 ابعتلنا على الواتساب</a>` : ''}</div>`;
   }
   function foot() {
-    if (P.step === 1 || P.step === 5) return wa ? `<p class="meta" style="justify-content:center;margin:0">محتاج مساعدة؟ <a href="${wa}" target="_blank" rel="noopener">كلّمنا على الواتساب</a></p>` : '';
-    if (P.step === 2) return `${P.picked.length ? `<div style="display:flex;justify-content:space-between;font-size:14px"><span>${n(P.picked.length)} ${P.picked.length === 1 ? 'خدمة' : 'خدمات'} · ${n(totDur())} دقيقة</span>${pub.showPrice ? `<b>${money(totPrice())}</b>` : ''}</div>` : ''}${btn('اختار المعاد', 'BK.go(3)', !P.picked.length)}`;
+    if (P.step === 5) return wa ? `<p class="meta" style="justify-content:center;margin:0">محتاج مساعدة؟ <a href="${wa}" target="_blank" rel="noopener">كلّمنا على الواتساب</a></p>` : '';
+    if (P.step === 2) return `${P.picked.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;max-height:76px;overflow-y:auto">${sel().map(x => `<span style="display:inline-flex;align-items:center;gap:4px;background:var(--ok-bg);color:var(--brand);border-radius:99px;padding:4px 6px 4px 10px;font-size:13px;font-weight:600">${esc(x.name)}<button type="button" aria-label="شيل ${esc(x.name)}" onclick="BK.pick('${x.id}',false)" style="border:0;background:transparent;color:inherit;cursor:pointer;font-size:15px;line-height:1;padding:0 2px">×</button></span>`).join('')}</div><div style="display:flex;justify-content:space-between;font-size:14px"><span>${n(P.picked.length)} ${P.picked.length === 1 ? 'خدمة' : 'خدمات'} · ${n(totDur())} دقيقة</span>${pub.showPrice ? `<b>${money(totPrice())}</b>` : ''}</div>` : wa ? `<p class="meta" style="justify-content:center;margin:0">محتاج مساعدة؟ <a href="${wa}" target="_blank" rel="noopener">كلّمنا على الواتساب</a></p>` : ''}${btn('كمّل واختار المعاد ←', 'BK.go(3)', !P.picked.length && !P.offer)}`;
     if (P.step === 3) return btn(P.time ? `${esc(dayName(P.date))} · ${esc(time12(P.time))} ← التالي` : 'اختار معاد', 'BK.go(4)', !P.time);
     return btn('احجز المعاد', 'BK.submit()', false);
   }
@@ -5018,20 +5418,24 @@ async function renderBookPage() {
       <main style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:14px">${body()}</main>
       <footer style="position:sticky;bottom:0;padding:12px 18px calc(16px + env(safe-area-inset-bottom,0px));background:#fff;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:10px">${foot()}</footer></div>`;
   }
+  try { history.replaceState({ bk: 2 }, ''); } catch (e) {}
+  window.onpopstate = e => { if (P.step === 5) return; const st = e.state?.bk || 2; if (st === 3) return BK.go(3, true); P.step = st; draw(); window.scrollTo(0, 0); };
   window.BK = {
-    back: () => { P.step = P.step === 3 && P.offer ? 1 : P.step - 1; if (P.step === 3) loadSlots(); else draw(); },
-    cat: id => { P.cat = groups.find(g => g.id === id); P.picked = []; P.offer = null; P.step = 2; draw(); },
+    back: () => { if (P.step > 2 && P.step < 5) history.back(); },
+    jump: k => { if (k === P.step) return; if (k < P.step) { history.go(k - P.step); return; } BK.go(k); },
+    cat: id => { P.cat = groups.find(g => g.id === id) || P.cat; draw(); },
+    noOffer: () => { P.offer = null; draw(); },
     offer: id => {
       const o = offers.find(x => x.id === id); if (!o) return;
       P.offer = o; P.cat = null;
-      const first = (o.items || []).map(i => svs.find(s => s.id === i.svcId)).find(Boolean);
+      const first = (o.items || []).map(i => svx.find(s => s.id === i.svcId)).find(Boolean);
       P.picked = first ? [first.id] : [];
       if (first && (first.gender === 'f' || first.gender === 'm')) P.gender = first.gender;
       BK.go(3);
     },
-    gender: g => { P.gender = g; P.picked = P.picked.filter(id => { const x = svs.find(y => y.id === id); return (x?.gender || 'all') === 'all' || x.gender === g; }); draw(); },
+    gender: g => { P.gender = g; P.picked = P.picked.filter(id => { const x = svx.find(y => y.id === id); return (x?.gender || 'all') === 'all' || x.gender === g; }); draw(); },
     pick: (id, on) => { P.picked = on ? [...new Set([...P.picked, id])] : P.picked.filter(x => x !== id); draw(); },
-    go: s => { P.step = s; if (s === 3) { P.time = ''; if (P.staff && !(team() || []).some(x => x.id === P.staff)) P.staff = ''; return loadSlots(); } draw(); window.scrollTo(0, 0); },
+    go: (s, fromPop) => { if (!fromPop && s > P.step) { try { history.pushState({ bk: s }, ''); } catch (e) {} } P.step = s; if (s === 3) { P.time = ''; if (P.staff && !(team() || []).some(x => x.id === P.staff)) P.staff = ''; return loadSlots(); } draw(); window.scrollTo(0, 0); },
     branch: id => { P.br = brs.find(b => b.id === id) || null; P.time = ''; loadSlots(); },
     staff: id => { P.staff = id; P.time = ''; loadSlots(); },
     date: d => { P.date = d; P.time = ''; loadSlots(); },
@@ -5252,6 +5656,7 @@ A.exportClients = () => downloadXLSX(`clients-${todayStr()}.xlsx`, 'العملا
 A.exportDebts = () => downloadXLSX(`debts-${todayStr()}.xlsx`, 'المديونيات', [['العميل', 'المتبقي'], ...(S.debts || []).map(([, b]) => [b.name, b.v])]);
 
 if (BOOK_C) renderBookPage();
+if (FB_C) renderFeedbackPage();
 </script>
 </body>
 </html>
