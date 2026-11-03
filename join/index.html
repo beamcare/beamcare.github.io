@@ -130,7 +130,9 @@ const TYPES = {
 const FEATS = { whiteLabel: 'السيستم يظهر باسمك ولوجوك', ownerManagesPerms: 'تتحكم في صلاحيات موظفينك بنفسك' };
 
 const P = new URLSearchParams(location.search);
-const S = { type: TYPES[P.get('t')] ? P.get('t') : '', plans: {}, planId: '', info: null };
+const S = { type: TYPES[P.get('t')] ? P.get('t') : '', plans: {}, planId: '', info: null, kind: P.get('trial') ? 'trial' : 'sub' };
+const trialDays = () => S.type === 'clinic' ? Math.max(0, Number(S.info?.trialDays) || 0) : 0;
+const isTrial = () => S.kind === 'trial' && trialDays() > 0;
 
 /* ----- رقم الواتساب وطرق الدفع (من اللوحة) ----- */
 async function loadInfo() {
@@ -209,25 +211,31 @@ function renderForm() {
   if (!ds.includes(S.months)) S.months = ds[0];
   const today = ymd(new Date());
   const v = S.draft || {};
+  const td = trialDays(), tr = isTrial();
   box.innerHTML = `
     <section class="step" aria-labelledby="s3"><h2 class="step-t" id="s3"><span class="n">٣</span>بياناتك</h2>
+      ${td ? `<div class="types" role="radiogroup" aria-label="عايز تشترك ولا تجرب">
+        <label class="opt"><input type="radio" name="kind" value="sub" ${tr ? '' : 'checked'} onchange="J.setKind(this.value)"><b>اشترك</b><span>تبدأ بالباكدج اللي اخترته على طول</span></label>
+        <label class="opt"><input type="radio" name="kind" value="trial" ${tr ? 'checked' : ''} onchange="J.setKind(this.value)"><b>🎁 جرّب مجاناً ${num(td)} ${td <= 10 ? 'أيام' : 'يوم'}</b><span>نسخة حقيقية باسم عيادتك بحدود الباكدج ده، من غير ما تدفع حاجة</span></label></div>` : ''}
       <form id="reqF" class="step" style="margin-top:0" novalidate>
         <div class="grid2">
           <label class="f">اسم ${esc(T.one)} *<input name="name" required maxlength="120" autocomplete="organization" value="${esc(v.name)}"></label>
           <label class="f">اسم المسؤول<input name="contact" maxlength="120" autocomplete="name" value="${esc(v.contact)}"></label>
           <label class="f">رقم الموبايل (واتساب) *<input name="phone" required dir="ltr" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="01xxxxxxxxx" value="${esc(v.phone)}"></label>
           <label class="f">المحافظة / المدينة<input name="city" maxlength="80" value="${esc(v.city)}"></label>
-          <label class="f">عايز تبدأ من يوم *<input name="start" type="date" required min="${today}" value="${esc(v.start || today)}"></label>
-          <label class="f">لمدة *<select name="months" onchange="J.setMonths(this.value)">${ds.map(m => `<option value="${m}" ${m === S.months ? 'selected' : ''}>${monthsTxt(m)}</option>`).join('')}</select></label>
+          <label class="f" ${tr ? 'hidden' : ''}>عايز تبدأ من يوم *<input name="start" type="date" required min="${today}" value="${esc(v.start || today)}"></label>
+          <label class="f" ${tr ? 'hidden' : ''}>لمدة *<select name="months" onchange="J.setMonths(this.value)">${ds.map(m => `<option value="${m}" ${m === S.months ? 'selected' : ''}>${monthsTxt(m)}</option>`).join('')}</select></label>
         </div>
+        <input name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;width:1px;height:1px;padding:0;border:0;overflow:hidden;clip:rect(0 0 0 0);opacity:0;pointer-events:none">
         <label class="f">ملاحظات (اختياري)<textarea name="notes" rows="3" maxlength="1000" placeholder="مثلاً: عدد الفروع، أو أي حاجة محتاجها">${esc(v.notes)}</textarea></label>
         <div class="sum" id="sum"></div>
         <div id="ferr"></div>
-        <button class="btn big" type="submit">ابعت الطلب</button>
-        <p class="muted" style="text-align:center">مش هتدفع حاجة دلوقتي — هنراجع طلبك ونكلمك على الواتساب.</p>
+        <button class="btn big" type="submit">${tr ? '🎁 اطلب التجربة المجانية' : 'ابعت الطلب'}</button>
+        <p class="muted" style="text-align:center">${tr ? 'هنجهّزلك النسخة التجريبية ونبعتلك بيانات الدخول على الواتساب.' : 'مش هتدفع حاجة دلوقتي — هنراجع طلبك ونكلمك على الواتساب.'}</p>
       </form>
     </section>`;
   $('reqF').addEventListener('submit', submit);
+  if (!S.formAt) S.formAt = Date.now();
   $('reqF').addEventListener('input', e => { $('ferr').innerHTML = ''; S.draft = Object.fromEntries(new FormData($('reqF'))); if (e.target.name === 'start') renderSum(); });
   renderSum();
 }
@@ -235,6 +243,13 @@ const totalOf = (p, m) => Math.round((Number(p.price) || 0) * m / Math.max(1, p.
 function renderSum() {
   const p = (S.plans[S.type] || []).find(x => x.id === S.planId), box = $('sum');
   if (!p || !box) return;
+  if (isTrial()) {
+    const td = trialDays();
+    box.innerHTML = `<div class="row"><span>الباكدج</span><b>${esc(p.name)}</b></div>
+      <div class="row"><span>المدة</span><b>تجربة ${num(td)} ${td <= 10 ? 'أيام' : 'يوم'} من يوم ما نفعّلهالك</b></div>
+      <div class="row" style="align-items:center"><span>الإجمالي</span><span class="tot">مجاناً 🎁</span></div>`;
+    return;
+  }
   const f = $('reqF'), start = f?.start.value || ymd(new Date());
   const end = new Date(start + 'T00:00:00'); end.setMonth(end.getMonth() + S.months); end.setDate(end.getDate() - 1);
   box.innerHTML = `
@@ -250,23 +265,30 @@ async function submit(e) {
   const bad = m => { err.innerHTML = `<div class="err" role="alert">${m}</div>`; };
   if (!p) return bad('اختار الباكدج الأول');
   if (name.length < 2) { f.name.focus(); return bad(`اكتب اسم ${T.one}`); }
-  if (phone.replace(/\D/g, '').length < 8) { f.phone.focus(); return bad('اكتب رقم موبايل صحيح علشان نقدر نكلمك'); }
+  if (!/^[+]?[0-9]{8,15}$/.test(phone)) { f.phone.focus(); return bad('اكتب رقم موبايل صحيح علشان نقدر نكلمك'); }
+  // حماية من الروبوتات: خانة مخفية + وقت ملء الفورم + حد للطلبات من نفس الجهاز
+  if (f.website.value) { S.justSent = true; $app.innerHTML = '<div class="ok">✓ طلبك اتبعت بنجاح!</div>'; return; }
+  if (Date.now() - (S.formAt || 0) < 4000) return bad('ثانية واحدة… راجع بياناتك ودوس تاني.');
+  let sent = []; try { sent = JSON.parse(LS.get('bc-req-times') || '[]').filter(t => Date.now() - t < 864e5); } catch (x) {}
+  if (sent.length >= 3) return bad('بعت طلبات كتير النهارده من الجهاز ده. لو محتاج حاجة كلّمنا على الواتساب.');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(f.start.value)) { f.start.focus(); return bad('اختار تاريخ البداية'); }
+  const tr = isTrial();
   const data = {
-    type: S.type, name, phone, planId: p.id, months: S.months, start: f.start.value, status: 'new', createdAt: serverTimestamp(),
-    planName: String(p.name || '').slice(0, 120), price: Number(p.price) || 0, total: totalOf(p, S.months),
+    type: S.type, kind: tr ? 'trial' : 'sub', name, phone, planId: p.id, months: tr ? 1 : S.months, start: tr ? ymd(new Date()) : f.start.value, status: 'new', createdAt: serverTimestamp(),
+    planName: String(p.name || '').slice(0, 120), price: Number(p.price) || 0, total: tr ? 0 : totalOf(p, S.months),
   };
   const opt = { contact: f.contact.value.trim(), city: f.city.value.trim(), notes: f.notes.value.trim() };
   Object.entries(opt).forEach(([k, v]) => { if (v) data[k] = v; });
-  const btn = f.querySelector('[type=submit]'); btn.disabled = true; btn.textContent = 'بيتبعت...';
+  const btn = f.querySelector('[type=submit]'), btnTxt = btn.textContent; btn.disabled = true; btn.textContent = 'بيتبعت...';
   try {
     const r = await addDoc(collection(db, 'requests'), data);
     LS.set('bc-req', r.id);
+    LS.set('bc-req-times', JSON.stringify([...sent, Date.now()]));
     history.replaceState(null, '', '?r=' + r.id);
     S.justSent = true;
     showStatus(r.id);
   } catch (e2) {
-    console.error(e2); btn.disabled = false; btn.textContent = 'ابعت الطلب';
+    console.error(e2); btn.disabled = false; btn.textContent = btnTxt;
     bad('مقدرناش نبعت الطلب — اتأكد من النت وجرّب تاني.');
   }
 }
@@ -274,6 +296,7 @@ async function submit(e) {
 /* =========================================================
    2) متابعة الطلب
    ========================================================= */
+const TSTEPS = [['new', 'طلب التجربة اتبعت', ''], ['paid', 'تجهيز النسخة التجريبية', 'بنراجع طلبك ونجهّز نسختك'], ['active', 'النسخة التجريبية جاهزة', 'بنجهّز نسختك دلوقتي']];
 const STEPS = [['new', 'الطلب اتبعت', ''], ['approved', 'الموافقة على الطلب', 'بنراجع طلبك دلوقتي'], ['paid', 'الدفع', 'مستنيين التحويل منك'], ['active', 'تشغيل السيستم', 'بنجهّز سيستمك دلوقتي']];
 async function showStatus(id) {
   $('heroT').textContent = 'متابعة طلب الاشتراك';
@@ -284,19 +307,33 @@ async function showStatus(id) {
   await loadInfo();
   if (!d) { $app.innerHTML = `<div class="err">مش لاقيين الطلب ده. اتأكد من الرابط، أو <a href="./">ابعت طلب جديد</a>.</div>`; return; }
   const T = TYPES[d.type] || TYPES.clinic;
+  const trial = d.kind === 'trial';
+  const steps = trial ? TSTEPS : STEPS;
   const link = location.origin + location.pathname + '?r=' + id;
-  const idx = d.status === 'rejected' ? -1 : STEPS.findIndex(s => s[0] === d.status);
+  const idx = d.status === 'rejected' ? -1 : steps.findIndex(s => s[0] === d.status);
   const amount = d.amount ?? d.total;
   const sum = `<div class="sum">
       <div class="row"><span>${esc(T.one)}</span><b>${esc(d.name)}</b></div>
       <div class="row"><span>المنتج</span><b>${esc(T.name)}</b></div>
       <div class="row"><span>الباكدج</span><b>${esc(d.planName || '')}</b></div>
-      <div class="row"><span>المدة</span><b>${monthsTxt(d.months || 1)} · من ${fmtDate(d.start)}</b></div>
-      ${amount != null ? `<div class="row" style="align-items:center"><span>${d.status === 'new' ? 'الإجمالي المتوقع' : 'المطلوب'}</span><span class="tot">${money(amount)}</span></div>` : ''}
+      <div class="row"><span>المدة</span><b>${trial ? `تجربة مجانية${d.trialEnd ? ` لحد ${fmtDate(d.trialEnd)}` : ''}` : `${monthsTxt(d.months || 1)} · من ${fmtDate(d.start)}`}</b></div>
+      ${amount != null && !trial ? `<div class="row" style="align-items:center"><span>${d.status === 'new' ? 'الإجمالي المتوقع' : 'المطلوب'}</span><span class="tot">${money(amount)}</span></div>` : ''}
     </div>`;
   const msgUs = (txt) => waLink(`${txt}\nالطلب: ${d.name} — ${d.planName || ''}\n${link}`);
   let body = '';
-  if (d.status === 'new') {
+  if (trial && d.status === 'new') {
+    const w = msgUs('السلام عليكم 👋 طلبت تجربة مجانية لسيستم ' + T.name);
+    body = `${S.justSent ? '<div class="ok" role="status">✓ طلب التجربة اتبعت بنجاح!</div>' : ''}
+      <p>هنجهّزلك نسخة تجريبية باسم عيادتك ونبعتلك بيانات الدخول على الواتساب على رقم <b dir="ltr">${esc(d.phone)}</b>.</p>
+      ${w ? `<a class="btn wa big" href="${esc(w)}" target="_blank" rel="noopener">💬 ابعتلنا على الواتساب علشان نرد أسرع</a>` : ''}`;
+  } else if (trial && d.status === 'paid') {
+    body = `<div class="ok">✓ طلبك اتقبل!</div><p>بنجهّز نسختك التجريبية دلوقتي، وأول ما تخلص هنبعتلك الرابط واسم المستخدم وكلمة السر على الواتساب.</p>`;
+  } else if (trial && d.status === 'active') {
+    const w = msgUs('السلام عليكم 👋 جربت السيستم وعايز أشترك');
+    body = `<div class="ok">🎉 نسختك التجريبية جاهزة!</div>
+      <p>اسم المستخدم وكلمة السر اتبعتولك على الواتساب.${d.trialEnd ? ` التجربة شغالة لحد <b>${fmtDate(d.trialEnd)}</b>.` : ''}</p>
+      <div class="row-btns">${d.sysUrl ? `<a class="btn gold" href="${esc(d.sysUrl)}" target="_blank" rel="noopener">ادخل السيستم</a>` : ''}${w ? `<a class="btn wa" href="${esc(w)}" target="_blank" rel="noopener">💬 عايز أشترك</a>` : ''}</div>`;
+  } else if (d.status === 'new') {
     const w = msgUs('السلام عليكم 👋 بعتلكم طلب اشتراك في ' + T.name);
     body = `${S.justSent ? '<div class="ok" role="status">✓ طلبك اتبعت بنجاح!</div>' : ''}
       <p>طلبك وصلنا وهنراجعه ونكلمك على الواتساب على رقم <b dir="ltr">${esc(d.phone)}</b> قريب.</p>
@@ -323,7 +360,7 @@ async function showStatus(id) {
       <div class="row-btns">${w ? `<a class="btn wa" href="${esc(w)}" target="_blank" rel="noopener">💬 كلّمنا</a>` : ''}<a class="btn ghost" href="./">ابعت طلب جديد</a></div>`;
   }
   $app.innerHTML = `
-    ${idx >= 0 ? `<ol class="track" aria-label="مراحل الطلب" style="list-style:none;padding:0;margin:0 0 6px">${STEPS.map(([, l, wait], i) => `<li class="ts ${i <= idx ? 'done' : i === idx + 1 ? 'now' : ''}"><span class="dot" aria-hidden="true">${i <= idx ? '✓' : num(i + 1)}</span><div><b>${l}</b>${i === idx + 1 ? `<span class="muted">${wait}</span>` : ''}</div></li>`).join('')}</ol>` : ''}
+    ${idx >= 0 ? `<ol class="track" aria-label="مراحل الطلب" style="list-style:none;padding:0;margin:0 0 6px">${steps.map(([, l, wait], i) => `<li class="ts ${i <= idx ? 'done' : i === idx + 1 ? 'now' : ''}"><span class="dot" aria-hidden="true">${i <= idx ? '✓' : num(i + 1)}</span><div><b>${l}</b>${i === idx + 1 ? `<span class="muted">${wait}</span>` : ''}</div></li>`).join('')}</ol>` : ''}
     <div class="step" style="margin-top:8px">${body}</div>
     <div class="step">${sum}</div>
     <div class="step" style="gap:8px"><p class="muted">احتفظ برابط الصفحة دي علشان تتابع طلبك:</p>
@@ -336,6 +373,7 @@ window.J = {
   pickType: t => { S.type = t; S.planId = ''; S.draft = S.draft || null; history.replaceState(null, '', '?t=' + t); render(); setTimeout(() => $('s2')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300); },
   pickPlan: id => { const had = !!$('reqF'); S.planId = id; renderForm(); if (!had) setTimeout(() => $('s3')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100); },
   setMonths: m => { S.months = Number(m) || 1; renderSum(); },
+  setKind: k => { S.kind = k; if ($('reqF')) S.draft = Object.fromEntries(new FormData($('reqF'))); renderForm(); },
   copy: (t, b) => { navigator.clipboard?.writeText(t).then(() => { b.textContent = 'اتنسخ ✓'; setTimeout(() => { b.textContent = 'نسخ'; }, 1500); }).catch(() => {}); },
 };
 
