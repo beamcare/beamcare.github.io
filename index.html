@@ -430,6 +430,11 @@ const PRODUCTS = {
     features: [
       { key: 'whiteLabel', top: true, label: 'السيستم يظهر باسم العيادة ولوجوها' },
       { key: 'ownerManagesPerms', label: 'صاحب العيادة يقدر يعدّل صلاحيات يوزراته' },
+      { key: 'onlineBooking', label: 'الحجز أونلاين للعملاء (لينك و QR بالمواعيد المتاحة)' },
+      { key: 'reminders', label: 'تذكير الحجوزات على الواتساب' },
+      { key: 'consents', label: 'إقرار الموافقة بتوقيع العميل' },
+      { key: 'dayReport', label: 'تقرير آخر اليوم على الواتساب' },
+      { key: 'loyalty', label: 'نقاط الولاء والترشيح' },
     ],
   },
   maint: {
@@ -2164,7 +2169,7 @@ function tenantFields(f, P) {
   if (P.remote) remoteFieldsRead(f, data);
   return data;
 }
-const brandDoc = (P, d) => ({ product: P.key, name: d.name, logoUrl: d.logoUrl || '', color: d.color || '#2F6F68', whiteLabel: !!d.whiteLabel, ...(P.remote && d.fb ? { fb: d.fb } : {}) });
+const brandDoc = (P, d) => ({ product: P.key, name: d.name, logoUrl: d.logoUrl || '', color: d.color || '#2F6F68', whiteLabel: !!d.whiteLabel, ...(P.key === 'clinic' ? { book: !!d.features?.onlineBooking } : {}), ...(P.remote && d.fb ? { fb: d.fb } : {}) });
 // رابط واحد لكل شركات الصيانة: كل شركة بالكود بتاعها
 const MAINT_APP = 'https://beamcare.github.io/m/';
 A.saveTenant = async (e, pk, id) => {
@@ -2777,7 +2782,7 @@ function clinicShell(view, content) {
   const nav = [['home', 'الرئيسية']];
   if (S.profile.role !== 'client') MODULES.forEach(m => { if (can(m.key + '_view')) nav.push([m.key, m.label]); });
   if (ownerPerms()) nav.push(['team', 'اليوزرات والصلاحيات']);
-  if (isOwner()) nav.push(['csettings', 'إعدادات العيادة']);
+  if (isOwner() && anyFeat()) nav.push(['csettings', 'إعدادات العيادة']);
   const brs = myBranches();
   const brSel = S.profile.role === 'client' ? '' : brs.length > 1
     ? `<select aria-label="الفرع" style="width:auto;min-height:38px" onchange="A.setBranch(this.value)">${brs.map(x => `<option value="${x.id}" ${x.id === S.branch ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select>`
@@ -2838,7 +2843,7 @@ async function renderHome() {
   if (can('sessions_edit')) quick.push(`<button class="btn" onclick="A.sessionModal()">+ تسجيل جلسة</button>`);
   if (can('packages_edit')) quick.push(`<button class="btn" onclick="A.sellModal()">+ بيع باكدج</button>`);
   if (can('payments_edit')) quick.push(`<button class="btn gold" onclick="A.payModal()">+ تحصيل</button>`);
-  if (can('payments_view') || isOwner()) quick.push(`<button class="btn ghost" onclick="A.dayReport()">📊 تقرير النهارده</button>`);
+  if (feat('dayReport') && (can('payments_view') || isOwner())) quick.push(`<button class="btn ghost" onclick="A.dayReport()">📊 تقرير النهارده</button>`);
   clinicShell('home', `
     <div class="head"><h2>أهلاً ${esc(S.profile.name)}</h2></div>
     ${seesSub && d <= 7 ? `<div class="notice warn">الاشتراك هيخلص بعد ${d} يوم (${fmt(c.expiresAt)}). كلّم Beam Care علشان التجديد.</div>` : ''}
@@ -2959,7 +2964,7 @@ A.openClient = async id => {
     if (can('sessions_edit')) acts.push(`<button class="btn sm" onclick="A.sessionModal({clientId:'${id}'})">+ جلسة</button>`);
     if (can('packages_edit')) acts.push(`<button class="btn sm" onclick="A.sellModal('${id}')">+ بيع باكدج</button>`);
     if (can('payments_edit')) acts.push(`<button class="btn gold sm" onclick="A.payModal('${id}')">+ تحصيل</button>`);
-    if (can('clients_edit') || can('sessions_edit')) acts.push(`<button class="btn ghost sm" onclick="A.consentModal('${id}')">✍️ إقرار موافقة</button>`);
+    if (feat('consents') && (can('clients_edit') || can('sessions_edit'))) acts.push(`<button class="btn ghost sm" onclick="A.consentModal('${id}')">✍️ إقرار موافقة</button>`);
     if (can('clients_edit')) acts.push(`<button class="btn ghost sm" onclick="A.clientModal('${id}')">تعديل البيانات</button>`);
     const section = (title, rows, head, empty) => `<div class="card" style="display:flex;flex-direction:column;gap:10px;padding:16px">
       <h3>${title}</h3>${rows.length ? `<div class="tbl-wrap"><table><thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>` : `<p class="meta">${empty}</p>`}</div>`;
@@ -2997,6 +3002,7 @@ async function renderBookings() {
   clinicShell('bookings', LOADING);
   await ensureData();
   const [s] = await Promise.all([getDocs(query(ccol('bookings'), where('branchId', '==', S.branch), where('date', '==', d))), loadOnline(), loadCfg()]);
+  syncBusyRange(S.branch);
   S.bookings = s.docs.map(x => ({ id: x.id, ...x.data() })).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
   const active = S.bookings.filter(b => b.status !== 'cancelled');
   const rows = S.bookings.map(b => {
@@ -3004,7 +3010,7 @@ async function renderBookings() {
     const open = ['booked', 'arrived'].includes(b.status);
     if (can('bookings_edit') && b.status === 'booked') acts.push(`<button class="btn sm" onclick="A.bStatus('${b.id}','arrived')">وصل</button>`);
     if (can('sessions_edit') && open) acts.push(`<button class="btn gold sm" onclick="A.sessionModal({bookingId:'${b.id}'})">تسجيل جلسة</button>`);
-    if (b.status === 'booked' && b.clientPhone && d >= todayStr()) acts.push(`<a class="btn ghost sm" style="text-decoration:none;display:inline-flex;align-items:center" title="تذكير على الواتساب" aria-label="تذكير على الواتساب" target="_blank" rel="noopener" href="${esc(remindHref(b))}" onclick="A.remindOne('${b.id}')">💬${b.reminded ? ' ✓' : ''}</a>`);
+    if (feat('reminders') && b.status === 'booked' && b.clientPhone && d >= todayStr()) acts.push(`<a class="btn ghost sm" style="text-decoration:none;display:inline-flex;align-items:center" title="تذكير على الواتساب" aria-label="تذكير على الواتساب" target="_blank" rel="noopener" href="${esc(remindHref(b))}" onclick="A.remindOne('${b.id}')">💬${b.reminded ? ' ✓' : ''}</a>`);
     if (can('bookings_edit') && open) {
       acts.push(`<button class="btn ghost sm" onclick="A.bookingModal({id:'${b.id}'})">تعديل</button>`);
       acts.push(`<button class="btn ghost sm" onclick="A.bStatus('${b.id}','noshow')">محضرش</button>`);
@@ -3014,7 +3020,7 @@ async function renderBookings() {
       <td>${esc(b.service) || '—'}</td><td>${esc(b.doctorName) || '—'}</td><td>${bChip(b.status)}</td><td>${esc(b.notes)}</td><td><div style="display:flex;gap:6px">${acts.join('')}</div></td></tr>`;
   });
   clinicShell('bookings', `
-    <div class="head"><h2>الحجوزات</h2><button class="btn ghost" onclick="A.remindModal()">📲 تذكير حجوزات بكرة</button>${can('bookings_edit') ? `<button class="btn gold" onclick="A.bookingModal()">+ حجز جديد</button>` : ''}</div>
+    <div class="head"><h2>الحجوزات</h2>${feat('reminders') ? `<button class="btn ghost" onclick="A.remindModal()">📲 تذكير حجوزات بكرة</button>` : ''}${can('bookings_edit') ? `<button class="btn gold" onclick="A.bookingModal()">+ حجز جديد</button>` : ''}</div>
     ${onlineCard()}
     ${dateBar('bDate', d)}
     <div class="meta"><span>${active.length} حجز</span><span>${S.bookings.filter(b => b.status === 'arrived').length} منتظر</span><span>${S.bookings.filter(b => b.status === 'done').length} خلص</span></div>
@@ -3022,7 +3028,8 @@ async function renderBookings() {
       : `<div class="card empty">مفيش حجوزات في اليوم ده.</div>`}`);
 }
 A.bStatus = async (id, st) => {
-  try { await updateDoc(cdoc('bookings', id), { status: st }); toast('اتحدّث'); A.go('bookings'); }
+  const b = (S.bookings || []).find(x => x.id === id);
+  try { await updateDoc(cdoc('bookings', id), { status: st }); if (b) await syncBusy(b.branchId, b.date); toast('اتحدّث'); A.go('bookings'); }
   catch (err) { console.error(err); toast('مقدرتش أحدّث: ' + err.code); }
 };
 A.bookingModal = async (o = {}) => {
@@ -3032,13 +3039,13 @@ A.bookingModal = async (o = {}) => {
   const on = !b && o.online && S.onlineFill ? S.onlineFill : null;
   S.onlineArm = !!on;
   openModal(`<h3>${b ? 'تعديل حجز' : on ? 'تأكيد حجز أونلاين' : 'حجز جديد'}</h3>
-  ${on ? `<div class="notice info">من طلب الحجز أونلاين: ${esc(on.name)}${on.notes ? ` — ${esc(on.notes)}` : ''}. حدد الساعة ودوس حفظ.</div>` : ''}
+  ${on ? `<div class="notice info">من طلب الحجز أونلاين: ${esc(on.name)}${on.notes ? ` — ${esc(on.notes)}` : ''}. ${on.time ? 'راجع البيانات واختار الدكتور ودوس حفظ.' : 'حدد الساعة ودوس حفظ.'}</div>` : ''}
   <form onsubmit="A.saveBooking(event,'${o.id || ''}')" class="fcol">
     ${clientPicker(b?.clientId || o.clientId)}
     ${can('clients_edit') ? `<button type="button" class="btn ghost sm" style="align-self:flex-start" onclick="A.clientModal()">العميل مش متسجل؟ سجّله الأول</button>` : ''}
     <div class="grid2">
       <label class="f">التاريخ<input type="date" name="date" required value="${b?.date || on?.date || S.bDate || todayStr()}"></label>
-      <label class="f">الساعة<input type="time" name="time" required value="${esc(b?.time)}"></label>
+      <label class="f">الساعة<input type="time" name="time" required value="${esc(b?.time ?? on?.time)}"></label>
     </div>
     <div class="grid2">
       <label class="f">الدكتور<select name="doctor"><option value="">من غير تحديد</option>${docs.map(d => `<option value="${d.id}" ${b?.doctorId === d.id ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</select></label>
@@ -3056,6 +3063,9 @@ A.saveBooking = async (e, id) => {
   if (!cl) return toast('اختار العميل من القايمة، أو سجّله الأول');
   const dr = (S.staff || []).find(x => x.id === f.doctor.value);
   const data = { clientId: cl.id, clientName: cl.name, clientPhone: cl.phone || '', date: f.date.value, time: f.time.value, doctorId: dr?.id || '', doctorName: dr?.name || '', service: f.service.value.trim(), notes: f.notes.value.trim(), branchId: S.branch, month: f.date.value.slice(0, 7) };
+  const sv = (S.services || []).find(x => x.name === data.service);
+  data.dur = Number(sv?.dur) || (S.onlineArm && S.onlineFill?.dur) || 0;
+  const old = id ? (S.bookings || []).find(x => x.id === id) : null;
   if (dr && data.date === (S.bDate || todayStr()) && (S.bookings || []).some(x => x.id !== id && x.doctorId === dr.id && x.time === data.time && !['cancelled', 'noshow'].includes(x.status))
     && !confirm(`${dr.name} عنده حجز تاني في نفس الساعة. تكمّل؟`)) return;
   busy(btn, true, 'جاري الحفظ...');
@@ -3063,8 +3073,15 @@ A.saveBooking = async (e, id) => {
     if (id) await updateDoc(cdoc('bookings', id), data);
     else {
       const nr = await addDoc(ccol('bookings'), { ...data, status: 'booked', createdAt: serverTimestamp(), createdBy: S.profile.id, createdByName: S.profile.name });
-      if (S.onlineArm && S.onlineFill) { await updateDoc(cdoc('online', S.onlineFill.id), { status: 'done', bookingId: nr.id, handledBy: S.profile.id, handledAt: serverTimestamp() }).catch(er => console.error(er)); S.onlineFill = null; S.onlineArm = false; }
+      if (S.onlineArm && S.onlineFill) {
+        const of = S.onlineFill;
+        await updateDoc(cdoc('online', of.id), { status: 'done', bookingId: nr.id, handledBy: S.profile.id, handledAt: serverTimestamp() }).catch(er => console.error(er));
+        if (of.branchId && (of.branchId !== data.branchId || of.date !== data.date)) syncBusy(of.branchId, of.date);
+        S.onlineFill = null; S.onlineArm = false;
+      }
     }
+    syncBusy(data.branchId, data.date);
+    if (old && (old.date !== data.date || old.branchId !== data.branchId)) syncBusy(old.branchId, old.date);
     A.closeModal(); toast('اتحفظ الحجز');
     S.bDate = data.date;
     afterSave('bookings');
@@ -3250,7 +3267,9 @@ A.serviceModal = id => {
       <label class="f">الباكدج بـ<select name="unit" ${x?.kind === 'package' ? '' : 'disabled'}><option value="sessions" ${x?.unit !== 'pulses' ? 'selected' : ''}>جلسات</option><option value="pulses" ${x?.unit === 'pulses' ? 'selected' : ''}>نبضات</option></select></label>
       <label class="f">العدد<input name="sessions" type="number" min="1" value="${x?.sessions || 6}" ${x?.kind === 'package' ? '' : 'disabled'}></label>
       <label class="f">السعر<input name="price" type="number" min="0" step="any" required value="${x?.price ?? ''}"></label>
+      <label class="f">مدة الجلسة (دقيقة)<input name="dur" type="number" min="5" max="600" step="5" value="${x?.dur || 30}"></label>
     </div>
+    ${feat('onlineBooking') ? `<label class="chk"><input type="checkbox" name="online" ${x?.online ? 'checked' : ''}> تظهر للعملاء في الحجز أونلاين</label>` : ''}
     ${formActs()}
   </form>`);
 };
@@ -3258,7 +3277,8 @@ A.saveService = async (e, id) => {
   e.preventDefault();
   const f = e.target;
   const kind = f.kind.value;
-  const data = { name: f.name.value.trim(), kind, unit: kind === 'package' ? f.unit.value : 'sessions', sessions: kind === 'package' ? (Number(f.sessions.value) || 1) : 1, price: Number(f.price.value) || 0 };
+  const data = { name: f.name.value.trim(), kind, unit: kind === 'package' ? f.unit.value : 'sessions', sessions: kind === 'package' ? (Number(f.sessions.value) || 1) : 1, price: Number(f.price.value) || 0, dur: Math.max(5, Math.round(Number(f.dur.value) || 30)) };
+  if (f.online) data.online = f.online.checked;
   try {
     if (id) await updateDoc(cdoc('services', id), data);
     else await addDoc(ccol('services'), data);
@@ -4158,7 +4178,75 @@ async function loadCfg(force) {
   S.cfgFor = S.clinic?.id;
   return S.cfg;
 }
-const loy = () => ({ ...LOY_DEF, ...(S.cfg?.loyalty || {}) });
+const loy = () => { const L = { ...LOY_DEF, ...(S.cfg?.loyalty || {}) }; if (!feat('loyalty')) L.on = false; return L; };
+// المميزات اللي Beam Care بتفعّلها لكل عيادة
+const feat = k => !!S.clinic?.features?.[k];
+const anyFeat = () => ['onlineBooking', 'reminders', 'consents', 'dayReport', 'loyalty'].some(feat);
+// المواعيد: كل معاد = دقايق من نص الليل
+const toMin = t => { const m = /^(\d{1,2}):(\d{2})$/.exec(t || ''); return m ? +m[1] * 60 + +m[2] : null; };
+const fromMin = n => String(Math.floor(n / 60)).padStart(2, '0') + ':' + String(n % 60).padStart(2, '0');
+const PUB_DEF = { open: '12:00', close: '22:00', step: 30, cap: 1, off: [5], ahead: 30 };
+async function loadPubCfg(force) {
+  if (S.pubCfg && S.pubCfgFor === S.clinic?.id && !force) return S.pubCfg;
+  try { const d = await getDoc(cdoc('cfg', 'public')); S.pubCfg = { ...PUB_DEF, ...(d.exists() ? d.data() : {}) }; } catch (e) { S.pubCfg = { ...PUB_DEF }; }
+  S.pubCfgFor = S.clinic?.id;
+  return S.pubCfg;
+}
+// شبكة المواعيد لليوم: من الفتح للقفل كل "step" دقيقة
+function slotGrid(pub) { const o = toMin(pub.open), c = toMin(pub.close), st = Number(pub.step) || 30, L = []; if (o == null || c == null) return L; for (let m = o; m + st <= c; m += st) L.push(m); return L; }
+// المواعيد الفاضية لخدمة مدتها dur في يوم معيّن (null = اليوم إجازة)
+function freeSlots(pub, busy, dur, date) {
+  const st = Number(pub.step) || 30, cap = Math.max(1, Number(pub.cap) || 1), c = toMin(pub.close);
+  const need = Math.max(1, Math.ceil((Number(dur) || st) / st));
+  const wd = new Date(date + 'T12:00:00').getDay();
+  if ((pub.off || []).includes(wd)) return null;
+  const now = new Date(), isToday = date === todayStr(), nowM = now.getHours() * 60 + now.getMinutes() + 30;
+  return slotGrid(pub).filter(m => {
+    if (isToday && m < nowM) return false;
+    if (m + need * st > c) return false;
+    for (let i = 0; i < need; i++) if ((busy?.[fromMin(m + i * st)] || 0) >= cap) return false;
+    return true;
+  });
+}
+// مرة في اليوم: نحسب المواعيد المشغولة لكل الأيام الجاية (علشان الحجوزات اللي اتعملت قبل تشغيل الحجز أونلاين)
+async function syncBusyRange(branchId, force) {
+  if (!feat('onlineBooking') || !branchId || (!can('bookings_edit') && !can('sessions_edit'))) return;
+  const key = 'bc-busy-' + S.clinic.id + '-' + branchId;
+  try { if (!force && localStorage.getItem(key) === todayStr()) return; } catch (e) {}
+  try {
+    const pub = await loadPubCfg(), today = todayStr();
+    const end = (() => { const x = new Date(); x.setDate(x.getDate() + (Number(pub.ahead) || 30)); return toInput(x); })();
+    const months = [...new Set([today.slice(0, 7), end.slice(0, 7), (() => { const x = new Date(today + 'T12:00:00'); x.setMonth(x.getMonth() + 1); return toInput(x).slice(0, 7); })()])].filter(m => m <= end.slice(0, 7));
+    const lists = await Promise.all(months.map(m => getDocs(query(ccol('bookings'), where('branchId', '==', branchId), where('month', '==', m))).then(s => s.docs.map(d => d.data())).catch(() => [])));
+    const dates = [...new Set(lists.flat().map(b => b.date).filter(d => d >= today && d <= end))];
+    for (const d of dates) await syncBusy(branchId, d);
+    try { localStorage.setItem(key, today); } catch (e) {}
+  } catch (e) { console.error(e); }
+}
+// الريسبشن بيحسب المواعيد المشغولة من الحجوزات الفعلية (بعد أي حجز أو إلغاء أو تعديل)
+async function syncBusy(branchId, date) {
+  if (!feat('onlineBooking') || !branchId || !/^\d{4}-\d{2}-\d{2}$/.test(date || '')) return;
+  if (!can('bookings_edit') && !can('sessions_edit')) return;
+  try {
+    const pub = await loadPubCfg(), st = Number(pub.step) || 30, o = toMin(pub.open) ?? 0;
+    await loadServices();
+    const [bs, os] = await Promise.all([
+      getDocs(query(ccol('bookings'), where('branchId', '==', branchId), where('date', '==', date))),
+      can('bookings_view') ? getDocs(query(ccol('online'), where('status', '==', 'new'))).catch(() => null) : null,
+    ]);
+    const t = {};
+    const occ = (time, dur) => {
+      let m = toMin(time); if (m == null) return;
+      m = m - (((m - o) % st) + st) % st;
+      const n = Math.max(1, Math.ceil((Number(dur) || st) / st));
+      for (let i = 0; i < n; i++) { const k = fromMin(m + i * st); t[k] = (t[k] || 0) + 1; }
+    };
+    const sDur = name => (S.services || []).find(x => x.name === name)?.dur;
+    bs.docs.forEach(d => { const b = d.data(); if (['booked', 'arrived', 'done'].includes(b.status || 'booked')) occ(b.time, b.dur || sDur(b.service)); });
+    os?.docs.forEach(d => { const r = d.data(); if (r.branchId === branchId && r.date === date && r.time) occ(r.time, r.dur); });
+    await setDoc(cdoc('busy', branchId + '_' + date), { t, last: '' });
+  } catch (e) { console.error(e); }
+}
 const fillTpl = (t, o) => String(t || '').replace(/\{([^}]+)\}/g, (m, k) => o[k] ?? m);
 const dayName = s => { const d = new Date(s + 'T12:00:00'); return isNaN(d) ? s : d.toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long' }); };
 const time12 = t => { if (!t) return ''; const [h, m] = t.split(':').map(Number); const d = new Date(2000, 0, 1, h, m || 0); return d.toLocaleTimeString('ar-EG', { hour: 'numeric', minute: '2-digit' }); };
@@ -4166,35 +4254,50 @@ const bookLink = () => location.origin + location.pathname.replace(/[^/]*$/, '')
 
 /* ----- إعدادات العيادة (صاحب العيادة بس) ----- */
 async function renderCSettings() {
-  if (!isOwner()) return renderHome();
+  if (!isOwner() || !anyFeat()) return renderHome();
   clinicShell('csettings', LOADING);
-  await Promise.all([loadCfg(true), loadServices()]);
-  let pub = {}; try { const d = await getDoc(cdoc('cfg', 'public')); pub = d.exists() ? d.data() : {}; } catch (e) {}
+  await Promise.all([loadCfg(true), loadServices(true)]);
+  const pub = await loadPubCfg(true);
+  const onl = (S.services || []).filter(x => x.online);
+  const DAYS = ['الأحد', 'الاتنين', 'التلات', 'الأربع', 'الخميس', 'الجمعة', 'السبت'];
   const c = S.cfg, L = loy();
   const brs = (S.branches || []).filter(b => b.active !== false);
   clinicShell('csettings', `
     <div class="head"><h2>إعدادات العيادة</h2></div>
     <form onsubmit="A.saveCSettings(event)" class="fcol">
-      <div class="card fcol">
+      ${feat('onlineBooking') ? `<div class="card fcol">
         <h3>📅 الحجز أونلاين</h3>
-        <p class="meta">صفحة بلينك و QR بتاعة عيادتك: العميل يختار الفرع والخدمة واليوم ويبعت طلب حجز، والطلب يظهر عند الريسبشن في "الحجوزات" يأكّدوه.</p>
+        <p class="meta">صفحة بلينك و QR بتاعة عيادتك: العميل يختار الخدمة واليوم، ويشوف <b>المواعيد الفاضية بس</b>، ويبعت طلب حجز يظهر عند الريسبشن في "الحجوزات" يأكّدوه.</p>
         <label class="chk"><input type="checkbox" name="bon" ${pub.on ? 'checked' : ''}> تشغيل الحجز أونلاين</label>
         <label class="f">رقم واتساب العيادة (بيظهر للعميل في صفحة الحجز)<input name="bwa" dir="ltr" inputmode="tel" value="${esc(pub.wa || '')}" placeholder="01xxxxxxxxx"></label>
         ${brs.length > 1 ? `<div class="meta">الفروع اللي بتظهر في صفحة الحجز:</div><div class="grid2">${brs.map(b => `<label class="chk"><input type="checkbox" name="bbr_${b.id}" ${!pub.branches || pub.branches.some(x => x.id === b.id) ? 'checked' : ''}> ${esc(b.name)}</label>`).join('')}</div>` : ''}
-        <p class="meta">الخدمات اللي بتظهر للعميل هي "قائمة الأسعار" بتاعتك (${(S.services || []).length.toLocaleString('ar-EG')} خدمة).</p>
+        <div class="section-t">مواعيد الشغل</div>
+        <div class="grid3">
+          <label class="f">بنفتح الساعة<input name="bopen" type="time" required value="${esc(pub.open)}"></label>
+          <label class="f">بنقفل الساعة<input name="bclose" type="time" required value="${esc(pub.close)}"></label>
+          <label class="f">المواعيد كل<select name="bstep">${[15, 20, 30, 45, 60].map(m => `<option value="${m}" ${Number(pub.step) === m ? 'selected' : ''}>${m.toLocaleString('ar-EG')} دقيقة</option>`).join('')}</select></label>
+          <label class="f">كام حجز في نفس الوقت (عدد الأجهزة أو الدكاترة)<input name="bcap" type="number" min="1" max="20" value="${Number(pub.cap) || 1}"></label>
+          <label class="f">العميل يحجز لحد كام يوم قدام<input name="bahead" type="number" min="1" max="120" value="${Number(pub.ahead) || 30}"></label>
+        </div>
+        <div class="meta">أيام الإجازة:</div>
+        <div style="display:flex;gap:6px 16px;flex-wrap:wrap">${DAYS.map((d, i) => `<label class="chk"><input type="checkbox" name="boff_${i}" ${(pub.off || []).includes(i) ? 'checked' : ''}> ${d}</label>`).join('')}</div>
+        <div class="section-t">الخدمات اللي بتظهر للعميل</div>
+        ${onl.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap">${onl.map(x => `<span class="chip ok">${esc(x.name)} · ${(Number(x.dur) || pub.step).toLocaleString('ar-EG')} د</span>`).join('')}</div>` : '<div class="notice warn">مفيش خدمات ظاهرة أونلاين لسه.</div>'}
+        <p class="meta">تضيف أو تشيل خدمة، أو تغيّر مدتها، من <b>باكدجات العملاء ← قائمة الأسعار</b> (علّم على "تظهر في الحجز أونلاين" وحدد المدة).</p>
+        <div><button type="button" class="btn ghost sm" onclick="S.pTab='prices';A.go('packages')">فتح قائمة الأسعار</button></div>
         ${pub.on ? `<div class="linkbox"><input readonly value="${esc(bookLink())}" aria-label="رابط الحجز"><button type="button" class="btn sm" onclick="navigator.clipboard.writeText('${esc(bookLink())}');A.toast('اتنسخ')">نسخ</button><button type="button" class="btn gold sm" onclick="A.bookQr()">QR</button></div>` : '<p class="meta">شغّل الحجز أونلاين واحفظ، وهيظهرلك الرابط والـ QR.</p>'}
-      </div>
-      <div class="card fcol">
+      </div>` : ''}
+      ${feat('reminders') ? `<div class="card fcol">
         <h3>📲 رسالة تذكير الحجز</h3>
         <p class="meta">بتتبعت على الواتساب من صفحة الحجوزات. الكلمات اللي بين { } بتتغير لوحدها: {الاسم} {العيادة} {اليوم} {الساعة} {الدكتور}</p>
         <textarea name="remind" rows="4" style="width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;font:inherit">${esc(c.remindTpl || REMIND_DEF)}</textarea>
-      </div>
-      <div class="card fcol">
+      </div>` : ''}
+      ${feat('consents') ? `<div class="card fcol">
         <h3>✍️ نص إقرار الموافقة</h3>
         <p class="meta">العميل بيمضي عليه من الموبايل أو التابلت قبل الجلسة. {الاسم} و {الخدمة} بيتغيروا لوحدهم.</p>
         <textarea name="consent" rows="8" style="width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;font:inherit;line-height:1.7">${esc(c.consentText || CONSENT_DEF)}</textarea>
-      </div>
-      <div class="card fcol">
+      </div>` : ''}
+      ${feat('loyalty') ? `<div class="card fcol">
         <h3>🎁 نقاط الولاء والترشيح</h3>
         <label class="chk"><input type="checkbox" name="lon" ${L.on ? 'checked' : ''}> تشغيل نقاط الولاء</label>
         <div class="grid3">
@@ -4203,11 +4306,11 @@ async function renderCSettings() {
           <label class="f">قيمة النقطة الواحدة (ج.م)<input name="lval" type="number" min="0" step="any" value="${L.value}"></label>
         </div>
         <p class="meta">مثال: لو العميل دفع ١٠٠٠ ج.م ← ياخد ${Number((10 * L.per100).toFixed(2)).toLocaleString('ar-EG')} نقطة = ${money(10 * L.per100 * L.value)} خصم يستبدلها في أي وقت.</p>
-      </div>
-      <div class="card fcol">
+      </div>` : ''}
+      ${feat('dayReport') ? `<div class="card fcol">
         <h3>📊 تقرير آخر اليوم</h3>
         <label class="f">رقم الواتساب اللي التقرير يتبعتله (صاحب العيادة)<input name="rwa" dir="ltr" inputmode="tel" value="${esc(c.reportWa || S.clinic.contactPhone || '')}" placeholder="01xxxxxxxxx"></label>
-      </div>
+      </div>` : ''}
       <div class="acts"><button class="btn" type="submit">حفظ الإعدادات</button></div>
     </form>`);
 }
@@ -4216,14 +4319,21 @@ A.saveCSettings = async e => {
   const f = e.target, btn = f.querySelector('[type=submit]');
   const brs = (S.branches || []).filter(b => b.active !== false);
   const pickBr = brs.length > 1 ? brs.filter(b => f['bbr_' + b.id]?.checked) : brs;
-  const main = {
-    remindTpl: f.remind.value.trim() || REMIND_DEF, consentText: f.consent.value.trim() || CONSENT_DEF, reportWa: f.rwa.value.trim(),
-    loyalty: { on: f.lon.checked, per100: Math.max(0, Number(f.lper.value) || 0), referral: Math.max(0, Math.round(Number(f.lref.value) || 0)), value: Math.max(0, Number(f.lval.value) || 0) },
-  };
-  const pub = { on: f.bon.checked, wa: f.bwa.value.trim(), branches: pickBr.map(b => ({ id: b.id, name: b.name })), services: (S.services || []).map(s => s.name).filter(Boolean).slice(0, 80) };
+  const main = {};
+  if (f.remind) main.remindTpl = f.remind.value.trim() || REMIND_DEF;
+  if (f.consent) main.consentText = f.consent.value.trim() || CONSENT_DEF;
+  if (f.rwa) main.reportWa = f.rwa.value.trim();
+  if (f.lon) main.loyalty = { on: f.lon.checked, per100: Math.max(0, Number(f.lper.value) || 0), referral: Math.max(0, Math.round(Number(f.lref.value) || 0)), value: Math.max(0, Number(f.lval.value) || 0) };
+  let pub = null;
+  if (f.bon) {
+    if ((toMin(f.bclose.value) ?? 0) <= (toMin(f.bopen.value) ?? 0)) return toast('ساعة القفل لازم تكون بعد ساعة الفتح');
+    pub = { on: f.bon.checked, wa: f.bwa.value.trim(), branches: pickBr.map(b => ({ id: b.id, name: b.name })), open: f.bopen.value, close: f.bclose.value, step: Number(f.bstep.value) || 30,
+      cap: Math.max(1, Math.min(20, Math.round(Number(f.bcap.value) || 1))), ahead: Math.max(1, Math.min(120, Math.round(Number(f.bahead.value) || 30))), off: [0, 1, 2, 3, 4, 5, 6].filter(i => f['boff_' + i]?.checked) };
+  }
   busy(btn, true, 'جاري الحفظ...');
   try {
-    await Promise.all([setDoc(cdoc('cfg', 'main'), main, { merge: true }), setDoc(cdoc('cfg', 'public'), pub)]);
+    await Promise.all([setDoc(cdoc('cfg', 'main'), main, { merge: true }), pub ? setDoc(cdoc('cfg', 'public'), pub) : null]);
+    if (pub) { S.pubCfg = { ...PUB_DEF, ...pub }; if (pub.on) (S.branches || []).forEach(b => syncBusyRange(b.id, true)); }
     S.cfg = { ...(S.cfg || {}), ...main }; toast('اتحفظت الإعدادات ✓'); renderCSettings();
   } catch (err) { console.error(err); busy(btn, false, 'حفظ الإعدادات'); toast('مقدرتش أحفظ: ' + (err.code || err.message)); }
 };
@@ -4275,7 +4385,8 @@ A.remindModal = async (day) => {
 
 /* ----- طلبات الحجز أونلاين (عند الريسبشن) ----- */
 async function loadOnline() {
-  if (!can('bookings_view')) return [];
+  S.online = [];
+  if (!can('bookings_view') || !feat('onlineBooking')) return [];
   try {
     const s = await getDocs(query(ccol('online'), where('status', '==', 'new')));
     const mine = new Set(myBranches().map(b => b.id));
@@ -4290,7 +4401,7 @@ function onlineCard() {
     <div class="head"><h3 style="flex:1">📥 طلبات حجز أونلاين (${L.length.toLocaleString('ar-EG')})</h3></div>
     ${L.map(r => `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding-top:10px;border-top:1px solid var(--line)">
       <div style="flex:1;min-width:220px"><b>${esc(r.name)}</b> <a dir="ltr" href="https://wa.me/${waNum(r.phone)}" target="_blank" rel="noopener">${esc(r.phone)}</a>
-        <div class="meta"><span>${esc(dayName(r.date))}${r.slot ? ' · ' + esc(r.slot) : ''}</span>${r.service ? `<span>${esc(r.service)}</span>` : ''}${r.branchName ? `<span>${esc(r.branchName)}</span>` : ''}</div>
+        <div class="meta"><span>${esc(dayName(r.date))}${r.time ? ' · الساعة ' + esc(time12(r.time)) : r.slot ? ' · ' + esc(r.slot) : ''}</span>${r.service ? `<span>${esc(r.service)}</span>` : ''}${r.branchName ? `<span>${esc(r.branchName)}</span>` : ''}</div>
         ${r.notes ? `<div class="meta">${esc(r.notes)}</div>` : ''}</div>
       ${can('bookings_edit') ? `<button class="btn gold sm" onclick="A.onlineOk('${r.id}')">✓ أكّد واحجز</button><button class="btn ghost sm" onclick="A.onlineNo('${r.id}')">مش هينفع</button>` : ''}</div>`).join('')}
   </div>`;
@@ -4300,7 +4411,7 @@ A.onlineOk = async id => {
   await ensureData();
   const ph = latinDigits(r.phone).replace(/\D/g, '').slice(-10);
   const cl = (S.clients || []).find(c => latinDigits(c.phone).replace(/\D/g, '').slice(-10) === ph);
-  S.onlineFill = { id, date: r.date, service: r.service || '', notes: [r.slot, r.notes].filter(Boolean).join(' · '), name: r.name, phone: r.phone };
+  S.onlineFill = { id, date: r.date, time: r.time || '', dur: r.dur || 0, branchId: r.branchId || '', service: r.service || '', notes: [r.time ? '' : r.slot, r.notes].filter(Boolean).join(' · '), name: r.name, phone: r.phone };
   if (cl) return A.bookingModal({ clientId: cl.id, online: true });
   if (!can('clients_edit')) return toast('العميل مش متسجل، ومعندكش صلاحية تسجيل عملاء');
   toast('العميل جديد — سجّله الأول وبعدين الحجز هيفتح لوحده');
@@ -4314,7 +4425,8 @@ A.onlineNo = async id => {
     <button class="btn danger" onclick="A.onlineNoGo('${id}')">شيل الطلب</button><button class="btn ghost" onclick="A.closeModal()">إلغاء</button></div>`);
 };
 A.onlineNoGo = async id => {
-  try { await updateDoc(cdoc('online', id), { status: 'rejected', handledBy: S.profile.id, handledAt: serverTimestamp() }); A.closeModal(); toast('اتشال'); A.go('bookings'); }
+  const r = (S.online || []).find(x => x.id === id);
+  try { await updateDoc(cdoc('online', id), { status: 'rejected', handledBy: S.profile.id, handledAt: serverTimestamp() }); if (r?.time) await syncBusy(r.branchId, r.date); A.closeModal(); toast('اتشال — المعاد رجع متاح'); A.go('bookings'); }
   catch (err) { toast('مقدرتش: ' + (err.code || err.message)); }
 };
 
@@ -4422,52 +4534,96 @@ A.dayReport = async () => {
 async function renderBookPage() {
   const cid = BOOK_C;
   $app.innerHTML = `<div class="loading">جاري التحميل...</div>`;
-  let br = null, pub = null;
-  try { const [a, b] = await Promise.all([getDoc(doc(db, 'brands', cid)), getDoc(doc(db, 'clinics', cid, 'cfg', 'public'))]); br = a.exists() ? a.data() : null; pub = b.exists() ? b.data() : null; } catch (e) { console.error(e); }
+  let br = null, pub = null, svs = [];
+  try {
+    const [a, b] = await Promise.all([getDoc(doc(db, 'brands', cid)), getDoc(doc(db, 'clinics', cid, 'cfg', 'public'))]);
+    br = a.exists() ? a.data() : null; pub = b.exists() ? { ...PUB_DEF, ...b.data() } : null;
+    if (pub?.on) svs = (await getDocs(query(collection(db, 'clinics', cid, 'services'), where('online', '==', true)))).docs.map(d => ({ id: d.id, ...d.data() })).sort((x, y) => (x.name || '').localeCompare(y.name || '', 'ar'));
+  } catch (e) { console.error(e); }
   const B = brandOf(br ? { ...br, whiteLabel: true } : null);
   document.title = 'احجز معادك — ' + B.name;
-  if (!br || !pub?.on) { $app.innerHTML = `<div class="locked"><div class="card">${logoHTML(B, 64)}<h2>${esc(B.name)}</h2><p>الحجز أونلاين مش متاح دلوقتي.${pub?.wa ? ` <a href="https://wa.me/${waNum(pub.wa)}" target="_blank" rel="noopener">كلّمنا على الواتساب</a>.` : ''}</p></div></div>`; return; }
-  const today = todayStr(), brs = pub.branches || [], sv = pub.services || [];
-  const SLOTS = ['الصبح (قبل ١٢)', 'الضهر (١٢ - ٤)', 'بالليل (بعد ٤)'];
-  $app.innerHTML = `<div class="login"><div class="login-card" style="max-width:520px">
-    <div class="login-brand">${logoHTML(B, 64)}<h1>${esc(B.name)}</h1><p>احجز معادك أونلاين — هنكلمك نأكّد المعاد</p></div>
+  const wa = pub?.wa ? `https://wa.me/${waNum(pub.wa)}` : '';
+  if (!br || !pub?.on || br.book === false) { $app.innerHTML = `<div class="locked"><div class="card">${logoHTML(B, 64)}<h2>${esc(B.name)}</h2><p>الحجز أونلاين مش متاح دلوقتي.${wa ? ` <a href="${wa}" target="_blank" rel="noopener">كلّمنا على الواتساب</a>.` : ''}</p></div></div>`; return; }
+  const today = todayStr(), brs = pub.branches || [];
+  const maxD = (() => { const x = new Date(); x.setDate(x.getDate() + (Number(pub.ahead) || 30)); return toInput(x); })();
+  const P = { svc: svs.length === 1 ? svs[0] : null, br: brs.length === 1 ? brs[0] : null, date: today, time: '' };
+  $app.innerHTML = `<div class="login"><div class="login-card" style="max-width:560px">
+    <div class="login-brand">${logoHTML(B, 64)}<h1>${esc(B.name)}</h1><p>احجز معادك أونلاين في دقيقة</p></div>
     <form id="bkF" class="fcol" novalidate>
+      ${brs.length > 1 ? `<label class="f">الفرع *<select name="branch" required><option value="">اختار الفرع</option>${brs.map(b => `<option value="${esc(b.id)}">${esc(b.name)}</option>`).join('')}</select></label>` : ''}
+      ${svs.length ? `<div class="f" style="display:flex;flex-direction:column;gap:6px;font-weight:600;font-size:14px;color:var(--muted)">الخدمة *
+        <div class="themes" role="radiogroup" aria-label="الخدمة">${svs.map(x => `<label class="theme-o"><input type="radio" name="svc" value="${esc(x.id)}" ${P.svc?.id === x.id ? 'checked' : ''}><span><b style="color:var(--ink)">${esc(x.name)}</b><br><span style="font-size:12px">${(Number(x.dur) || pub.step).toLocaleString('ar-EG')} دقيقة</span></span></label>`).join('')}</div></div>`
+        : `<label class="f">الخدمة<input name="service" maxlength="80" placeholder="اكتب الخدمة اللي محتاجها"></label>`}
+      <label class="f">اليوم *<input name="date" type="date" required min="${today}" max="${maxD}" value="${today}"></label>
+      <div id="bkSlots"></div>
       <label class="f">اسمك *<input name="name" required maxlength="80" autocomplete="name"></label>
       <label class="f">رقم الموبايل (واتساب) *<input name="phone" required dir="ltr" inputmode="tel" maxlength="16" autocomplete="tel" placeholder="01xxxxxxxxx"></label>
-      ${brs.length > 1 ? `<label class="f">الفرع *<select name="branch" required><option value="">اختار الفرع</option>${brs.map(b => `<option value="${esc(b.id)}">${esc(b.name)}</option>`).join('')}</select></label>` : ''}
-      ${sv.length ? `<label class="f">الخدمة<select name="service"><option value="">مش متأكد / استشارة</option>${sv.map(x => `<option>${esc(x)}</option>`).join('')}</select></label>` : `<label class="f">الخدمة<input name="service" maxlength="80"></label>`}
-      <div class="grid2"><label class="f">اليوم *<input name="date" type="date" required min="${today}" value="${today}"></label>
-      <label class="f">الوقت المناسب<select name="slot">${SLOTS.map(x => `<option>${x}</option>`).join('')}</select></label></div>
       <label class="f">ملاحظات<input name="notes" maxlength="500"></label>
       <input name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;width:1px;height:1px;padding:0;border:0;overflow:hidden;clip:rect(0 0 0 0);opacity:0;pointer-events:none">
       <div id="bkErr"></div>
-      <button class="btn" type="submit">ابعت طلب الحجز</button>
-      ${pub.wa ? `<p class="meta" style="justify-content:center">أو <a href="https://wa.me/${waNum(pub.wa)}" target="_blank" rel="noopener">كلّمنا على الواتساب</a></p>` : ''}
+      <button class="btn" type="submit">احجز المعاد</button>
+      ${wa ? `<p class="meta" style="justify-content:center">أو <a href="${wa}" target="_blank" rel="noopener">كلّمنا على الواتساب</a></p>` : ''}
     </form></div></div>`;
-  const t0 = Date.now(), f = document.getElementById('bkF');
+  const t0 = Date.now(), f = document.getElementById('bkF'), box = document.getElementById('bkSlots');
+  const err = m => { document.getElementById('bkErr').innerHTML = m ? `<div class="err" role="alert">${m}</div>` : ''; };
+  const busyRef = () => doc(db, 'clinics', cid, 'busy', (P.br?.id || 'main') + '_' + P.date);
+  let busyNow = {};
+  async function showSlots() {
+    P.time = '';
+    if (brs.length > 1 && !P.br) { box.innerHTML = '<p class="meta">اختار الفرع علشان تظهرلك المواعيد.</p>'; return; }
+    if (svs.length && !P.svc) { box.innerHTML = '<p class="meta">اختار الخدمة علشان تظهرلك المواعيد.</p>'; return; }
+    if (!P.date || P.date < today || P.date > maxD) { box.innerHTML = '<p class="meta">اختار يوم من النهارده لحد ' + esc(dayName(maxD)) + '.</p>'; return; }
+    box.innerHTML = '<p class="meta">بيدوّر على المواعيد الفاضية…</p>';
+    try { const d = await getDoc(busyRef()); busyNow = d.exists() ? (d.data().t || {}) : {}; } catch (e) { busyNow = {}; }
+    const L = freeSlots(pub, busyNow, P.svc?.dur || pub.step, P.date);
+    if (L === null) { box.innerHTML = `<div class="notice warn">${esc(dayName(P.date))} إجازة. اختار يوم تاني.</div>`; return; }
+    if (!L.length) { box.innerHTML = `<div class="notice warn">مفيش مواعيد فاضية يوم ${esc(dayName(P.date))}. جرّب يوم تاني.</div>`; return; }
+    box.innerHTML = `<div class="f" style="display:flex;flex-direction:column;gap:6px;font-weight:600;font-size:14px;color:var(--muted)">المواعيد الفاضية يوم ${esc(dayName(P.date))} *
+      <div role="radiogroup" aria-label="المعاد" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px">${L.map(m => `<label class="theme-o" style="justify-content:center"><input type="radio" name="slot" value="${fromMin(m)}"><b style="color:var(--ink)">${esc(time12(fromMin(m)))}</b></label>`).join('')}</div></div>`;
+  }
+  f.addEventListener('change', e => {
+    const n = e.target.name;
+    if (n === 'branch') { P.br = brs.find(x => x.id === e.target.value) || null; showSlots(); }
+    else if (n === 'svc') { P.svc = svs.find(x => x.id === e.target.value) || null; showSlots(); }
+    else if (n === 'date') { P.date = e.target.value; showSlots(); }
+    else if (n === 'slot') { P.time = e.target.value; err(''); }
+  });
+  showSlots();
   f.addEventListener('submit', async e => {
-    e.preventDefault();
-    const err = m => { document.getElementById('bkErr').innerHTML = `<div class="err" role="alert">${m}</div>`; };
+    e.preventDefault(); err('');
     const name = f.name.value.trim(), phone = latinDigits(f.phone.value).replace(/[^\d+]/g, '');
+    if (brs.length > 1 && !P.br) return err('اختار الفرع');
+    if (svs.length && !P.svc) return err('اختار الخدمة');
+    if (!P.time) return err('اختار معاد من المواعيد الفاضية');
     if (name.length < 2) return err('اكتب اسمك');
     if (!/^[+]?[0-9]{8,15}$/.test(phone)) return err('اكتب رقم موبايل صحيح');
-    if (f.branch && !f.branch.value) return err('اختار الفرع');
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(f.date.value) || f.date.value < today) return err('اختار يوم من النهارده أو بعده');
     if (f.website.value) { f.outerHTML = '<div class="notice info">✓ طلبك اتبعت!</div>'; return; }
     if (Date.now() - t0 < 4000) return err('ثانية واحدة… راجع بياناتك ودوس تاني.');
     let sent = []; try { sent = JSON.parse(localStorage.getItem('bc-bk-' + cid) || '[]').filter(t => Date.now() - t < 864e5); } catch (x) {}
     if (sent.length >= 3) return err('بعت طلبات كتير النهارده. لو محتاج حاجة كلّمنا على الواتساب.');
-    const b = brs.find(x => x.id === f.branch?.value) || (brs.length === 1 ? brs[0] : null);
-    const data = { name, phone, date: f.date.value, slot: f.slot.value, status: 'new', createdAt: serverTimestamp() };
-    if (b) { data.branchId = b.id; data.branchName = b.name; }
-    if (f.service.value.trim()) data.service = f.service.value.trim().slice(0, 80);
+    const data = { name, phone, date: P.date, time: P.time, status: 'new', createdAt: serverTimestamp() };
+    if (P.br) { data.branchId = P.br.id; data.branchName = P.br.name; }
+    if (P.svc) { data.service = String(P.svc.name || '').slice(0, 80); data.dur = Math.round(Number(P.svc.dur) || Number(pub.step) || 30); }
+    else if (f.service?.value.trim()) data.service = f.service.value.trim().slice(0, 80);
     if (f.notes.value.trim()) data.notes = f.notes.value.trim().slice(0, 500);
-    const btn = f.querySelector('[type=submit]'); busy(btn, true, 'بيتبعت...');
+    const btn = f.querySelector('[type=submit]'); busy(btn, true, 'بيتحجز...');
     try {
-      await addDoc(collection(db, 'clinics', cid, 'online'), data);
+      // نحجز المعاد في نفس اللحظة: لو حد سبقك عليه، الحجز بيترفض وبنوريك المواعيد من جديد
+      const cur = (await getDoc(busyRef()).catch(() => null))?.data()?.t || {};
+      const bt = writeBatch(db);
+      bt.set(doc(collection(db, 'clinics', cid, 'online')), data);
+      bt.set(busyRef(), { t: { [P.time]: (cur[P.time] || 0) + 1 }, last: P.time }, { merge: true });
+      await bt.commit();
       try { localStorage.setItem('bc-bk-' + cid, JSON.stringify([...sent, Date.now()])); } catch (x) {}
-      f.outerHTML = `<div class="fcol" style="text-align:center"><div style="font-size:44px">✅</div><h2>طلبك اتبعت!</h2><p class="meta" style="justify-content:center">هنكلمك على <b dir="ltr">${esc(phone)}</b> نأكّد معادك يوم ${esc(dayName(data.date))}.</p>${pub.wa ? `<a class="btn gold" style="text-decoration:none;display:inline-flex;justify-content:center;align-items:center" target="_blank" rel="noopener" href="https://wa.me/${waNum(pub.wa)}?text=${encodeURIComponent(`أهلاً 👋 بعتلكم طلب حجز باسم ${name} يوم ${dayName(data.date)}`)}">💬 ابعتلنا على الواتساب</a>` : ''}</div>`;
-    } catch (x) { console.error(x); busy(btn, false, 'ابعت طلب الحجز'); err('مقدرناش نبعت الطلب — جرّب تاني بعد شوية.'); }
+      f.outerHTML = `<div class="fcol" style="text-align:center"><div style="font-size:44px">✅</div><h2>طلب الحجز اتبعت!</h2>
+        <p class="meta" style="justify-content:center">${esc(data.service || '')} — ${esc(dayName(data.date))} الساعة ${esc(time12(data.time))}${P.br && brs.length > 1 ? ' · ' + esc(P.br.name) : ''}</p>
+        <p class="meta" style="justify-content:center">هنكلمك على <b dir="ltr">${esc(phone)}</b> نأكّد المعاد.</p>
+        ${wa ? `<a class="btn gold" style="text-decoration:none;display:inline-flex;justify-content:center;align-items:center" target="_blank" rel="noopener" href="${wa}?text=${encodeURIComponent(`أهلاً 👋 حجزت أونلاين باسم ${name}: ${data.service || ''} يوم ${dayName(data.date)} الساعة ${time12(data.time)}`)}">💬 ابعتلنا على الواتساب</a>` : ''}</div>`;
+    } catch (x) {
+      console.error(x); busy(btn, false, 'احجز المعاد');
+      if (x.code === 'permission-denied') { await showSlots(); err('المعاد ده لسه اتحجز حالاً 🙏 اختار معاد تاني من المواعيد الفاضية.'); }
+      else err('مقدرناش نبعت الطلب — جرّب تاني بعد شوية.');
+    }
   });
 }
 
