@@ -326,7 +326,7 @@ A.login = async e => {
 };
 
 onAuthStateChanged(auth, async u => {
-  if (!u) { S = {}; return renderLogin(); }
+  if (!u) { S = {}; stopReqs(); return renderLogin(); }
   S = { user: u };
   $app.innerHTML = `<div class="loading">جاري التحميل...</div>`;
   try {
@@ -525,6 +525,8 @@ function remoteFieldsRead(f, data) {
   PIONEER_PARTS.forEach(([k]) => { if (!f['part_' + k].checked) data.mods[k] = false; });
 }
 const REM = {};
+// أي حاجة بتستنى سيرفر تاني: لو اتأخرت نطلع برسالة بدل ما الصفحة تعلّق
+const withTimeout = (p, ms, msg) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error(msg)), ms))]);
 async function remoteConn(t, fresh) {
   if (REM[t.id] && !fresh) return REM[t.id];
   if (REM[t.id]) { try { await deleteApp(REM[t.id].app); } catch (e) {} delete REM[t.id]; }
@@ -537,8 +539,12 @@ async function remoteConn(t, fresh) {
   const app = initializeApp(t.fb, 'co_' + t.id);
   const rauth = getAuth(app), rdb = getFirestore(app);
   const email = conn.user.includes('@') ? conn.user : conn.user.trim().toLowerCase() + '@' + (t.emailDomain || PIONEER_DOMAIN);
-  try { await signInWithEmailAndPassword(rauth, email, conn.pass); }
-  catch (e) { try { await deleteApp(app); } catch (x) {} throw new Error('مقدرتش أدخل على سيستم الشركة بحساب المطوّر — راجع اسم المستخدم وكلمة السر (' + (e.code || e.message) + ')'); }
+  try { await withTimeout(signInWithEmailAndPassword(rauth, email, conn.pass), 15000, 'timeout'); }
+  catch (e) {
+    try { await deleteApp(app); } catch (x) {}
+    if (e.message === 'timeout') throw new Error('سيستم الشركة مش بيرد (اتأخر أكتر من اللازم). لو الشركة لسه جديدة: افتح رابط السيستم واعمل أول حساب بنفس يوزر وكلمة سر المطوّر.');
+    throw new Error('مقدرتش أدخل على سيستم الشركة بحساب المطوّر — راجع اسم المستخدم وكلمة السر. ولو الشركة لسه جديدة: افتح رابط السيستم واعمل أول حساب بنفس اليوزر وكلمة السر (' + (e.code || e.message) + ')');
+  }
   REM[t.id] = { app, auth: rauth, db: rdb };
   return REM[t.id];
 }
@@ -584,12 +590,12 @@ async function loadRemoteInto(t) {
   S.dRemoteErr = ''; S.dUsers = []; S.dBranches = []; S.dClients = null; S.dRemoteSub = null;
   try {
     const r = await remoteConn(t);
-    const [us, sec, cl, sub] = await Promise.all([
+    const [us, sec, cl, sub] = await withTimeout(Promise.all([
       getDocs(collection(r.db, 'users')),
       getDocs(collection(r.db, 'secrets')).catch(() => null),
       getDocs(collection(r.db, 'clients')),
       getDoc(doc(r.db, 'meta', 'sub')).catch(() => null),
-    ]);
+    ]), 20000, 'سيستم الشركة مش بيرد دلوقتي — جرّب تاني بعد شوية');
     const pw = {}; sec?.docs.forEach(d => { pw[d.id] = d.data(); });
     S.dUsers = us.docs.map(d => ({ id: d.id, ...d.data(), pw: pw[d.id]?.pw || '', pwAt: pw[d.id]?.at || '' })).filter(u => !u.owner);
     S.dClients = cl.size;
@@ -602,7 +608,7 @@ function remoteSubCard(c) {
   return `<div class="card" style="display:flex;flex-direction:column;gap:10px">
     <div class="head"><h3 style="flex:1">الربط بسيستم الشركة</h3>${ok ? '<span class="chip ok">متوصل</span>' : '<span class="chip bad">مش متوصل</span>'}</div>
     ${c.upd ? `<div class="notice warn">🛠️ السيستم متوقف دلوقتي للتحديث عند كل يوزرات الشركة${c.updUntil ? ` — متوقع يرجع ${esc(c.updUntil)}` : ''}.</div>` : ''}
-    ${ok ? `<p class="meta">${synced ? '✓ الاشتراك اللي جوه سيستم الشركة مطابق للوحة.' : '⚠️ الاشتراك اللي جوه سيستم الشركة مش مطابق للوحة — دوس "مزامنة دلوقتي".'}</p>` : `<div class="notice warn">${esc(S.dRemoteErr)}</div>`}
+    ${ok ? `<p class="meta">${synced ? '✓ الاشتراك اللي جوه سيستم الشركة مطابق للوحة.' : '⚠️ الاشتراك اللي جوه سيستم الشركة مش مطابق للوحة — دوس "مزامنة دلوقتي".'}</p>` : `<div class="notice warn">${esc(S.dRemoteErr)}${c.url && c.fb?.apiKey ? `<div style="margin-top:8px"><a href="${esc(c.url)}" target="_blank" rel="noopener">افتح رابط سيستم الشركة ↗</a></div>` : ''}</div>`}
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn sm" onclick="A.remoteSync()">مزامنة دلوقتي</button>
       <button class="btn ghost sm" onclick="A.fullRefreshAll()">تحديث كامل لكل الأجهزة</button>
@@ -1279,13 +1285,13 @@ A.setMyCo = async id => {
   try {
     await setDoc(doc(db, 'devcfg', 'myco'), { tenantId: id || '' });
     MYCO = { tenantId: id || '' }; S.myCoStats = null;
-    toast(id ? '⭐ دي بقت شركتك' : 'اتشالت'); if (S.dc) renderTenant(); else A.dev('home');
+    toast(id ? '⭐ دي بقت شركتك' : 'اتشالت'); if (S.dc && S.devView === 'tenant') renderTenant(); else A.dev('myco');
   } catch (e) { toast(e.message || e.code); }
 };
 // ادخل سيستم شركتي من أي مكان (من غير ما تفتح صفحة الشركة)
 A.myCoEnter = () => {
   const t = (S.tenants || []).find(x => x.id === MYCO?.tenantId);
-  if (!t) return A.dev('home');
+  if (!t) return A.dev('myco');
   const keep = S.dc; S.dc = t;
   A.enterSys().finally(() => { S.dc = keep; });
 };
@@ -1305,6 +1311,18 @@ async function myCoStats(t) {
     cnt(collection(r.db, 'clients')).catch(() => null),
   ]);
   return { rep, pay, reqs, cl, at: Date.now() };
+}
+// صفحة "شركتي": من القايمة الجانبية بس (مش في الرئيسية)
+async function devMyCo() {
+  const [tenants] = await Promise.all([loadAllTenants(), loadMyCo()]);
+  const my = tenants.find(x => x.id === MYCO?.tenantId);
+  const show = () => { if (S.devView === 'myco') devShell('myco', `<div class="head"><h2>⭐ شركتي</h2></div>${myCoCard(tenants)}`); };
+  show();
+  if (my && (!S.myCoStats || Date.now() - S.myCoStats.at > 5 * 60e3)) {
+    S.myCoStats = null; show();
+    S.myCoStats = await withTimeout(myCoStats(my), 20000, 'سيستم الشركة مش بيرد دلوقتي').catch(e => ({ err: e.message || e.code, at: Date.now() }));
+    show();
+  }
 }
 function myCoCard(tenants) {
   const t = tenants.find(x => x.id === MYCO?.tenantId);
@@ -1413,6 +1431,264 @@ A.receipt = id => {
   w.document.close();
 };
 
+/* =========================================================
+   طلبات الاشتراك: صفحة الطلب العامة (لينك + QR) ← موافقة ← استلام الفلوس ← تشغيل السيستم
+   ========================================================= */
+const JOIN_URL = 'https://beamcare.github.io/join/';
+const REQ_ST = { new: ['جديد', 'warn'], approved: ['مستني الدفع', 'mute'], paid: ['اتدفع · بيتجهز', 'ok'], active: ['اتفعّل', 'ok'], rejected: ['مرفوض', 'bad'] };
+const REQ_TABS = [['new', 'جديدة'], ['approved', 'مستنية الدفع'], ['paid', 'اتدفعت · محتاجة تجهيز'], ['active', 'اتفعّلت'], ['rejected', 'مرفوضة']];
+const reqMonths = m => { m = Number(m) || 1; return m === 1 ? 'شهر' : m === 2 ? 'شهرين' : m === 12 ? 'سنة' : m === 24 ? 'سنتين' : `${m.toLocaleString('ar-EG')} ${m <= 10 ? 'شهور' : 'شهر'}`; };
+const dayTxt = s => { const d = s ? new Date(s + 'T00:00:00') : null; return d && !isNaN(d) ? d.toLocaleDateString('ar-EG', { day: 'numeric', month: 'long', year: 'numeric' }) : (s || ''); };
+const tsMs = v => v?.toMillis ? v.toMillis() : (v ? new Date(v).getTime() || 0 : 0);
+const reqLink = id => JOIN_URL + '?r=' + id;
+const appHome = () => location.origin + location.pathname.replace(/[^/]*$/, '');
+let REQ_UNSUB = null, REQ_NEW = null, PUBINFO = null;
+function watchReqs() {
+  if (REQ_UNSUB || !S.isDev) return;
+  try {
+    REQ_UNSUB = onSnapshot(query(collection(db, 'requests'), where('status', '==', 'new')), s => {
+      const n = s.size, before = REQ_NEW; REQ_NEW = n;
+      const b = document.getElementById('reqBadge'); if (b) { b.textContent = n || ''; b.style.display = n ? '' : 'none'; }
+      if (before !== null && n > before) {
+        toast('📩 وصلك طلب اشتراك جديد');
+        if (S.devView === 'reqs' && !$modal.innerHTML) A.dev('reqs');
+      }
+      if (before !== n && S.devView === 'home' && S.homeData) renderOverview();
+    }, e => console.error(e));
+  } catch (e) { console.error(e); }
+}
+function stopReqs() { try { if (REQ_UNSUB) REQ_UNSUB(); } catch (e) {} REQ_UNSUB = null; REQ_NEW = null; }
+async function loadPub() {
+  if (PUBINFO) return PUBINFO;
+  try { const d = await getDoc(doc(db, 'pub', 'info')); PUBINFO = d.exists() ? d.data() : {}; } catch (e) { PUBINFO = {}; }
+  return PUBINFO;
+}
+async function savePub(x) { await setDoc(doc(db, 'pub', 'info'), x, { merge: true }); PUBINFO = { ...(PUBINFO || {}), ...x }; }
+
+async function devReqs() {
+  const [s] = await Promise.all([getDocs(collection(db, 'requests')), loadPub(), loadDevMain()]);
+  S.reqs = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt));
+  renderReqs();
+}
+function renderReqs() {
+  const tab = S.reqTab || 'new';
+  const st = r => r.status || 'new';
+  const cnt = k => S.reqs.filter(r => st(r) === k).length;
+  const list = S.reqs.filter(r => st(r) === tab);
+  devShell('reqs', `
+    <div class="head"><h2>طلبات الاشتراك</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn gold" onclick="A.joinModal()">🔗 رابط الطلب و QR</button><button class="btn ghost" onclick="A.payInfoModal()">💳 طرق الدفع ورقمك</button></div></div>
+    ${!PUBINFO?.payText || !PUBINFO?.wa ? `<div class="notice warn">قبل ما تبعت رابط الطلب لحد: دوس <b>"💳 طرق الدفع ورقمك"</b> واكتب رقم الواتساب بتاعك وطرق الدفع (إنستاباي، فودافون كاش…). دول اللي بيظهروا للعميل.</div>` : ''}
+    <div class="tabs" role="tablist">${REQ_TABS.map(([k, l]) => `<button role="tab" aria-selected="${k === tab}" class="${k === tab ? 'on' : ''}" onclick="A.reqTab('${k}')">${l}${cnt(k) ? ` (${cnt(k).toLocaleString('ar-EG')})` : ''}</button>`).join('')}</div>
+    ${list.length ? `<div class="cards">${list.map(reqCard).join('')}</div>`
+      : `<div class="empty">${tab === 'new' ? 'مفيش طلبات جديدة دلوقتي.<br>ابعت <b>رابط الطلب</b> أو اطبع الـ <b>QR</b> للعيادات وشركات الصيانة — أول ما حد يبعت طلب هيظهر هنا.' : 'مفيش طلبات هنا.'}</div>`}`);
+}
+A.reqTab = t => { S.reqTab = t; renderReqs(); };
+function reqCard(r) {
+  const P = PRODUCTS[r.type] || PRODUCTS.clinic, k = r.status || 'new', st = REQ_ST[k] || REQ_ST.new;
+  const amt = r.amount ?? r.total;
+  const open = r.tenantId ? `<button class="btn ghost sm" onclick="A.openTenant('${r.type}','${esc(r.tenantId)}')">فتح ${esc(P.one)}</button>` : '';
+  const acts = {
+    new: `<button class="btn sm" onclick="A.reqApprove('${r.id}')">✓ موافقة</button><button class="btn ghost sm" onclick="A.reqReject('${r.id}')">رفض</button>`,
+    approved: `<button class="btn gold sm" onclick="A.reqPaid('${r.id}')">💰 استلمت الفلوس · شغّل السيستم</button><button class="btn ghost sm" onclick="A.reqSent('${r.id}')">💬 ابعتله تاني</button><button class="btn ghost sm" onclick="A.reqApprove('${r.id}')">تعديل المبلغ</button>`,
+    paid: `<button class="btn gold sm" onclick="A.reqReady('${r.id}')">✓ السيستم جاهز · بلّغه</button>${open}`,
+    active: `${open}<button class="btn ghost sm" onclick="A.reqSent('${r.id}')">💬 واتساب</button>`,
+    rejected: `<button class="btn ghost sm" onclick="A.reqUndo('${r.id}')">رجّعه جديد</button><button class="btn ghost sm" onclick="A.reqDel('${r.id}')">مسح</button>`,
+  }[k] || '';
+  return `<div class="card clinic-card">
+    <div class="row"><span style="font-size:26px" aria-hidden="true">${r.type === 'maint' ? '🔧' : '🏥'}</span><h3>${esc(r.name)}</h3><span class="chip ${st[1]}">${st[0]}</span></div>
+    <div class="meta"><span>${esc(P.name)}</span><span>اتبعت ${fmt(r.createdAt)}</span></div>
+    <div class="meta">${r.contact ? `<span>${esc(r.contact)}</span>` : ''}<a href="https://wa.me/${waNum(r.phone)}" target="_blank" rel="noopener" dir="ltr">${esc(r.phone)}</a>${r.city ? `<span>${esc(r.city)}</span>` : ''}</div>
+    <div class="meta"><span>الباكدج: <b>${esc(r.planName || '—')}</b></span><span>${reqMonths(r.months)} من ${esc(dayTxt(r.start))}</span></div>
+    <div class="meta"><span>${k === 'new' ? 'الإجمالي حسب الباكدج' : 'المطلوب'}: <b>${money(amt)}</b></span>${r.paidAmount != null ? `<span>اتدفع: <b>${money(r.paidAmount)}</b></span>` : ''}</div>
+    ${r.notes ? `<div class="notice info" style="font-weight:600;white-space:pre-line">${esc(r.notes)}</div>` : ''}
+    ${r.reason ? `<div class="meta">سبب الرفض: ${esc(r.reason)}</div>` : ''}
+    <div style="display:flex;gap:8px;flex-wrap:wrap">${acts}<button class="btn ghost sm" title="انسخ رابط متابعة الطلب" aria-label="انسخ رابط متابعة الطلب" onclick="navigator.clipboard.writeText('${reqLink(r.id)}');A.toast('اتنسخ رابط المتابعة')">🔗</button></div>
+  </div>`;
+}
+const reqOf = id => (S.reqs || []).find(x => x.id === id);
+async function reqUpd(id, data) {
+  await updateDoc(doc(db, 'requests', id), data);
+  const r = reqOf(id); if (r) Object.assign(r, data);
+}
+// الرسالة اللي بتتبعت للعميل على الواتساب حسب حالة الطلب
+function reqMsg(r) {
+  const P = PRODUCTS[r.type] || PRODUCTS.clinic, hi = `أهلاً${r.contact ? ' ' + r.contact : ''} 👋 معاك Beam Care.`;
+  const k = r.status || 'new';
+  if (k === 'approved') return [hi,
+    `طلب اشتراك *${r.name}* في ${P.name} اتوافق عليه 🎉`,
+    `الباكدج: ${r.planName || ''} · ${reqMonths(r.months)} من ${dayTxt(r.start)}`,
+    `المطلوب: *${money(r.amount ?? r.total)}*`, '',
+    'طرق الدفع:', r.payText || PUBINFO?.payText || '', r.msg ? '\n' + r.msg : '', '',
+    'بعد التحويل ابعتلنا صورة الإيصال هنا، وأول ما نستلم هنشغّلك السيستم.',
+    `تقدر تتابع طلبك من هنا: ${reqLink(r.id)}`].join('\n');
+  if (k === 'paid') return [hi, `استلمنا الدفع ✓ شكراً لثقتك.`, `بنجهّز سيستم *${r.name}* دلوقتي، وأول ما يخلص هنبعتلك بيانات الدخول.`, `متابعة الطلب: ${reqLink(r.id)}`].join('\n');
+  if (k === 'active') return [hi, `سيستم *${r.name}* اتفعّل وجاهز 🎉`, '', `رابط الدخول: ${r.sysUrl || ''}`, 'اسم المستخدم: ', 'كلمة السر: ', '', 'ولو احتجت أي حاجة إحنا معاك على طول 🙏'].join('\n');
+  if (k === 'rejected') return [hi, `بخصوص طلب اشتراك *${r.name}*: للأسف مقدرناش نكمّله دلوقتي.`, r.reason || '', 'لو حابب نتكلم في أي تفاصيل إحنا موجودين 🙏'].filter(Boolean).join('\n');
+  return [hi, `وصلنا طلب اشتراك *${r.name}* في ${P.name}، وهنراجعه ونرد عليك قريب.`, `متابعة الطلب: ${reqLink(r.id)}`].join('\n');
+}
+// بعد أي خطوة: الرسالة جاهزة وزرار يفتح واتساب العميل
+A.reqSent = (id, title) => {
+  const r = reqOf(id); if (!r) return;
+  const msg = reqMsg(r);
+  openModal(`<h3>${esc(title || 'رسالة للعميل')}</h3>
+    <p class="meta">دي الرسالة اللي هتتبعت لـ <b>${esc(r.name)}</b> على الواتساب. تقدر تعدّلها قبل ما تبعت.</p>
+    <textarea id="reqMsgT" rows="10" style="width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;font:inherit;line-height:1.6">${esc(msg)}</textarea>
+    <div class="acts"><a class="btn gold" style="text-decoration:none;display:inline-flex;align-items:center" target="_blank" rel="noopener" href="https://wa.me/${waNum(r.phone)}" onclick="this.href='https://wa.me/${waNum(r.phone)}?text='+encodeURIComponent(document.getElementById('reqMsgT').value)">💬 ابعتها على الواتساب</a>
+    <button class="btn ghost" type="button" onclick="A.closeModal();A.dev('reqs')">تمام</button></div>`);
+};
+A.reqApprove = id => {
+  const r = reqOf(id); if (!r) return;
+  openModal(`<h3>موافقة على طلب ${esc(r.name)}</h3><form onsubmit="A.reqApproveSave(event,'${id}')" class="fcol">
+    <p class="meta">${esc(r.planName || '')} · ${reqMonths(r.months)} من ${esc(dayTxt(r.start))} — الإجمالي حسب الباكدج ${money(r.total)}</p>
+    <label class="f">المبلغ المطلوب (تقدر تعمل خصم)<input name="amount" type="number" min="0" step="any" required value="${r.amount ?? r.total ?? 0}"></label>
+    <label class="f">طرق الدفع اللي هتظهرله<textarea name="pay" rows="4" required style="width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;font:inherit" placeholder="إنستاباي: name@instapay&#10;فودافون كاش: 010xxxxxxxx">${esc(r.payText || PUBINFO?.payText || '')}</textarea></label>
+    <label class="f">رسالة ليه (اختياري)<input name="msg" value="${esc(r.msg || '')}" placeholder="مثلاً: عملنالك خصم علشان أول اشتراك"></label>
+    ${formActs('موافقة')}</form>`);
+};
+A.reqApproveSave = async (e, id) => {
+  e.preventDefault(); const f = e.target, btn = f.querySelector('[type=submit]');
+  const data = { status: 'approved', amount: Number(f.amount.value) || 0, payText: f.pay.value.trim(), msg: f.msg.value.trim(), approvedAt: serverTimestamp() };
+  busy(btn, true, 'جاري الحفظ...');
+  try {
+    await reqUpd(id, data);
+    if (!PUBINFO?.payText && data.payText) savePub({ payText: data.payText }).catch(() => {});
+    A.reqSent(id, 'اتوافق ✓ — ابعتله المبلغ وطرق الدفع');
+  } catch (err) { console.error(err); busy(btn, false, 'موافقة'); toast('مقدرتش أحفظ: ' + (err.code || err.message)); }
+};
+A.reqReject = id => {
+  const r = reqOf(id); if (!r) return;
+  openModal(`<h3>رفض طلب ${esc(r.name)}</h3><form onsubmit="A.reqRejectSave(event,'${id}')" class="fcol">
+    <label class="f">السبب (بيظهر للعميل — اختياري)<input name="reason" maxlength="300" placeholder="مثلاً: الباكدج ده مش متاح في منطقتك دلوقتي"></label>
+    ${formActs('رفض الطلب')}</form>`);
+};
+A.reqRejectSave = async (e, id) => {
+  e.preventDefault(); const f = e.target;
+  try { await reqUpd(id, { status: 'rejected', reason: f.reason.value.trim(), rejectedAt: serverTimestamp() }); A.closeModal(); toast('اترفض'); renderReqs(); }
+  catch (err) { toast('مقدرتش أحفظ: ' + (err.code || err.message)); }
+};
+A.reqUndo = async id => { try { await reqUpd(id, { status: 'new', reason: '' }); toast('رجع جديد'); S.reqTab = 'new'; renderReqs(); } catch (err) { toast(err.code || err.message); } };
+A.reqDel = id => {
+  const r = reqOf(id); if (!r) return;
+  openModal(`<h3>مسح طلب ${esc(r.name)}؟</h3><p class="meta">الطلب هيتمسح نهائي، ورابط المتابعة بتاعه هيوقف.</p>
+    <div class="acts"><button class="btn danger" onclick="A.reqDelGo('${id}')">مسح</button><button class="btn ghost" onclick="A.closeModal()">إلغاء</button></div>`);
+};
+A.reqDelGo = async id => { try { await deleteDoc(doc(db, 'requests', id)); S.reqs = S.reqs.filter(x => x.id !== id); A.closeModal(); toast('اتمسح'); renderReqs(); } catch (err) { toast(err.code || err.message); } };
+// استلمت الفلوس: بيفتح فورم "عيادة جديدة / شركة جديدة" متعبّي من الطلب
+A.reqPaid = async id => {
+  const r = reqOf(id); if (!r) return;
+  if (!PRODUCTS[r.type]) return toast('نوع الطلب مش معروف');
+  S.reqFillArm = true;
+  S.reqFill = { pk: r.type, reqId: id, name: r.name, contact: r.contact || '', phone: r.phone || '', planId: r.planId, start: r.start, months: Number(r.months) || 1, amount: r.amount ?? r.total ?? 0, city: r.city || '', notes: r.notes || '' };
+  await A.tenantModal(r.type);
+};
+function reqFillForm() {
+  const R = S.reqFill, f = $modal.querySelector('form'); if (!R || !f) return;
+  f.name.value = R.name || '';
+  if (f.cname) f.cname.value = R.contact; if (f.cphone) f.cphone.value = R.phone;
+  if (R.planId && [...f.planId.options].some(o => o.value === R.planId)) { f.planId.value = R.planId; A.planPick(f, R.pk); }
+  if (f.sd) f.sd.value = R.start || todayStr();
+  if (f.months) {
+    if (![...f.months.options].some(o => o.value === String(R.months))) f.months.insertAdjacentHTML('beforeend', `<option value="${R.months}">${reqMonths(R.months)}</option>`);
+    f.months.value = String(R.months);
+  }
+  if (f.amount) f.amount.value = R.amount;
+  if (f.note) f.note.value = 'من طلب اشتراك';
+  if (f.notes) f.notes.value = [R.city, R.notes].filter(Boolean).join(' · ').slice(0, 300);
+  f.insertAdjacentHTML('afterbegin', `<div class="notice info">البيانات اتملت من طلب الاشتراك ✓ اختار <b>طريقة الدفع</b>، وراجع الباقي، ودوس <b>حفظ</b>.${R.pk === 'maint' ? '<br>⚠️ شركة الصيانة محتاجة مشروع Firebase لوحدها. لو لسه ما عملتهوش: احفظ دلوقتي من غير بيانات Firebase، وكمّلها بعدين من "تعديل البيانات والباكدج".' : ''}</div>`);
+}
+async function reqMarkPaid(tid, data, f) {
+  const R = S.reqFill; S.reqFill = null;
+  if (!R?.reqId) return;
+  const P = PRODUCTS[R.pk];
+  await reqUpd(R.reqId, { status: 'paid', tenantId: tid, paidAt: serverTimestamp(), paidAmount: Number(f.amount?.value) || 0, method: f.method?.value || '', sysUrl: P.remote ? (data.url || '') : appHome() + '?c=' + tid });
+}
+A.reqReady = async id => {
+  const r = reqOf(id); if (!r) return;
+  try {
+    let url = r.sysUrl || '';
+    if (r.tenantId && r.type === 'maint') { const t = await getDoc(doc(db, PRODUCTS.maint.col, r.tenantId)).catch(() => null); url = t?.data()?.url || url; }
+    await reqUpd(id, { status: 'active', readyAt: serverTimestamp(), sysUrl: url });
+    A.reqSent(id, 'اتفعّل ✓ — ابعتله بيانات الدخول');
+  } catch (err) { toast(err.code || err.message); }
+};
+
+/* ----- طرق الدفع ورقمك (بيظهروا في صفحة الطلب) ----- */
+A.payInfoModal = async () => {
+  await Promise.all([loadPub(), loadDevMain()]);
+  openModal(`<h3>💳 طرق الدفع ورقمك</h3><form onsubmit="A.payInfoSave(event)" class="fcol">
+    <p class="meta">دول بيظهروا للعميل في صفحة طلب الاشتراك، وفي رسالة الموافقة.</p>
+    <label class="f">رقم الواتساب بتاعك (العميل بيكلمك عليه)<input name="wa" dir="ltr" inputmode="tel" required value="${esc(PUBINFO?.wa || DEVCFG_MAIN?.phone || '')}" placeholder="01xxxxxxxxx"></label>
+    <label class="f">طرق الدفع (كل طريقة في سطر)<textarea name="pay" rows="5" style="width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;font:inherit" placeholder="إنستاباي: name@instapay&#10;فودافون كاش: 010xxxxxxxx&#10;كاش في المكتب">${esc(PUBINFO?.payText || '')}</textarea></label>
+    ${formActs()}</form>`);
+};
+A.payInfoSave = async e => {
+  e.preventDefault(); const f = e.target;
+  try { await savePub({ wa: f.wa.value.trim(), payText: f.pay.value.trim() }); A.closeModal(); toast('اتحفظ ✓'); if (S.devView === 'reqs') renderReqs(); }
+  catch (err) { toast('مقدرتش أحفظ: ' + (err.code || err.message)); }
+};
+
+/* ----- رابط الطلب و QR ----- */
+const JOIN_KINDS = [['', 'للكل (يختار هو)', 'اطلب اشتراكك في Beam Care', 'سيستمات العيادات وشركات الصيانة'], ['clinic', 'للعيادات بس', 'اشترك في Beam Care Clinic', 'سيستم إدارة عيادات الجلدية والليزر'], ['maint', 'لشركات الصيانة بس', 'اشترك في Beam Care Maintenance', 'سيستم إدارة شركات صيانة الأجهزة الطبية']];
+const joinLink = k => JOIN_URL + (k ? '?t=' + k : '');
+A.joinKind = v => { S.joinKind = v; A.joinModal(); };
+let QR_LIB = null;
+function loadQrLib() {
+  if (window.QRCode) return Promise.resolve();
+  if (QR_LIB) return QR_LIB;
+  QR_LIB = new Promise((res, rej) => {
+    const sc = document.createElement('script');
+    sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+    sc.onload = () => res(); sc.onerror = () => { QR_LIB = null; rej(new Error('qr')); };
+    document.head.appendChild(sc);
+  });
+  return QR_LIB;
+}
+A.joinModal = () => {
+  const k = S.joinKind || '';
+  const link = joinLink(k);
+  const msg = `أهلاً 👋 تقدر تشوف باكدجات Beam Care وأسعارها وتبعت طلب اشتراكك من هنا:\n${link}`;
+  openModal(`<h3>🔗 رابط طلب الاشتراك و QR</h3>
+    <p class="meta">ابعت الرابط ده أو اطبع الـ QR. اللي يفتحه يختار عيادة ولا شركة صيانة، ويشوف الباكدجات والأسعار، ويبعت طلبه — وهيظهرلك هنا في "طلبات الاشتراك".</p>
+    <div class="themes" role="radiogroup" aria-label="الرابط لمين">${JOIN_KINDS.map(([v, l]) => `<label class="theme-o"><input type="radio" name="jk" value="${v}" ${v === k ? 'checked' : ''} onchange="A.joinKind(this.value)">${esc(l)}</label>`).join('')}</div>
+    <div class="linkbox"><input readonly value="${esc(link)}" aria-label="رابط الطلب"><button class="btn sm" onclick="navigator.clipboard.writeText('${esc(link)}');A.toast('اتنسخ')">نسخ</button></div>
+    <div style="display:flex;justify-content:center"><canvas id="qrCard" width="720" height="960" style="width:100%;max-width:300px;border:1px solid var(--line);border-radius:14px;background:#fff" aria-label="QR لصفحة الطلب"></canvas></div>
+    <p id="qrErr" class="meta" style="justify-content:center"></p>
+    <div class="acts">
+      <button class="btn gold" onclick="A.qrDownload()">⬇️ تحميل صورة الـ QR</button>
+      <a class="btn ghost" style="text-decoration:none;display:inline-flex;align-items:center" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(msg)}">💬 ابعت الرابط على الواتساب</a>
+      <a class="btn ghost" style="text-decoration:none;display:inline-flex;align-items:center" target="_blank" rel="noopener" href="${esc(link)}">افتح الصفحة</a>
+      <button class="btn ghost" onclick="A.closeModal()">قفل</button></div>`);
+  drawQrCard(k).catch(e => { console.error(e); const x = document.getElementById('qrErr'); if (x) x.textContent = 'مقدرتش أعمل الـ QR دلوقتي (اتأكد من النت) — الرابط شغال عادي.'; });
+};
+async function drawQrCard(k) {
+  await loadQrLib();
+  const cv = document.getElementById('qrCard'); if (!cv) return;
+  const [, , title, sub] = JOIN_KINDS.find(x => x[0] === k) || JOIN_KINDS[0];
+  const link = joinLink(k);
+  const tmp = document.createElement('div');
+  new window.QRCode(tmp, { text: link, width: 460, height: 460, colorDark: '#1E3B38', colorLight: '#ffffff', correctLevel: window.QRCode.CorrectLevel.H });
+  const qc = tmp.querySelector('canvas');
+  try { await document.fonts?.load('800 40px Cairo'); await document.fonts?.load('600 24px Cairo'); } catch (e) {}
+  const x = cv.getContext('2d'), W = cv.width, H = cv.height;
+  x.fillStyle = '#ffffff'; x.fillRect(0, 0, W, H);
+  x.fillStyle = '#2F6F68'; x.fillRect(0, 0, W, 200);
+  const star = (cx, cy, r, col) => { x.fillStyle = col; x.beginPath(); const pts = [[0, -1], [.11, -.11], [1, 0], [.11, .11], [0, 1], [-.11, .11], [-1, 0], [-.11, -.11]]; pts.forEach(([a, b], i) => i ? x.lineTo(cx + a * r, cy + b * r) : x.moveTo(cx + a * r, cy + b * r)); x.closePath(); x.fill(); };
+  star(W / 2, 62, 34, '#DDA86E');
+  x.direction = 'rtl'; x.textAlign = 'center'; x.fillStyle = '#ffffff';
+  x.font = '800 40px Cairo, sans-serif'; x.fillText('Beam Care', W / 2, 150);
+  x.fillStyle = '#1E3B38'; x.font = '800 38px Cairo, sans-serif'; x.fillText(title, W / 2, 268);
+  x.fillStyle = '#5E7E79'; x.font = '600 24px Cairo, sans-serif'; x.fillText(sub, W / 2, 310);
+  if (qc) { x.fillStyle = '#F4F6F5'; x.fillRect(W / 2 - 250, 340, 500, 500); x.drawImage(qc, W / 2 - 230, 360, 460, 460); }
+  star(W / 2, 590, 30, '#ffffff'); star(W / 2, 590, 22, '#C98F4E');
+  x.fillStyle = '#2F6F68'; x.font = '700 26px Cairo, sans-serif'; x.fillText('امسح الكود واختار الباكدج المناسب', W / 2, 888);
+  x.fillStyle = '#5E7E79'; x.font = '600 18px Cairo, sans-serif'; x.direction = 'ltr'; x.fillText(link.replace(/^https:\/\//, ''), W / 2, 926);
+}
+A.qrDownload = () => {
+  const cv = document.getElementById('qrCard'); if (!cv) return;
+  const a = document.createElement('a'); a.download = `beamcare-qr${S.joinKind ? '-' + S.joinKind : ''}.png`; a.href = cv.toDataURL('image/png'); a.click();
+};
+
 /* ----- رابط التجربة (Demo) ----- */
 function demoLink() { const ph = waNum(DEVCFG_MAIN?.phone || ''); return MAINT_APP + '?demo=1' + (ph ? '&wa=' + ph : ''); }
 function demoCard() {
@@ -1472,6 +1748,7 @@ const NAV_ICO = {
   wrench: '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/>',
   palette: '<path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.5-.9 1-1.8-.6-1-.1-2.2 1.1-2.2H17a4 4 0 0 0 4-4c0-5.5-4-10-9-10z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10" cy="7" r="1.2"/><circle cx="15" cy="7.5" r="1.2"/>',
   team: '<path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="m9 12 2 2 4-4"/>',
+  inbox: '<path d="M3 13l3-8h12l3 8v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M3 13h5l1 2h6l1-2h5"/>',
 };
 const navIco = k => `<svg class="nico" viewBox="0 0 24 24" aria-hidden="true">${NAV_ICO[k] || NAV_ICO.home}</svg>`;
 // الشكل بيتطبّق على سيستم العيادة (مش على لوحتك)
@@ -1595,16 +1872,17 @@ A.devThemeSet = k => {
   A.closeModal(); A.dev(S.devView && S.devView !== 'tenant' ? S.devView : 'home');
   setTimeout(A.devThemeModal, 50);
 };
-const DEV_NAV_ICO = { home: 'home', 't:clinic': 'clinic', 't:maint': 'wrench', looks: 'palette', plans: 'packages', billing: 'payments' };
+const DEV_NAV_ICO = { home: 'home', reqs: 'inbox', 't:clinic': 'clinic', 't:maint': 'wrench', looks: 'palette', plans: 'packages', billing: 'payments' };
 function devShell(view, content) {
   applyDevTheme();
   S.devView = view;
-  const nav = [['home', 'الرئيسية'], ...PRODUCT_LIST.map(p => ['t:' + p.key, p.short + (p.ready ? '' : ' · قريباً')]), ['looks', '🎨 أشكال السيستم'], ['plans', 'باكدجات الاشتراك'], ['billing', 'إيرادات الاشتراكات']];
+  watchReqs();
+  const nav = [['home', 'الرئيسية'], ['reqs', 'طلبات الاشتراك'], ...PRODUCT_LIST.map(p => ['t:' + p.key, p.short + (p.ready ? '' : ' · قريباً')]), ['looks', '🎨 أشكال السيستم'], ['plans', 'باكدجات الاشتراك'], ['billing', 'إيرادات الاشتراكات']];
   const on = k => view === k || (view === 'tenant' && k === 't:' + S.dp?.key);
   $app.innerHTML = `
   <div class="top">${ICON(36)}<div><div class="name">Beam Care</div><div class="sub">لوحة المطور</div></div><div class="sp"></div>
 </div>
-  <div class="layout"><nav class="side">${MYCO?.tenantId ? `<button onclick="A.myCoEnter()" title="شركتي" style="background:var(--warn-bg);color:var(--warn);border:1.5px solid var(--gold-l);font-weight:700">⭐ <span>شركتي</span></button><div class="meta" style="padding:6px 14px 0;font-size:12px">السيستمات اللي ببيعها</div>` : ''}${nav.map(([k, l]) => `<button class="${on(k) ? 'on' : ''}" onclick="A.dev('${k}')" title="${esc(l.replace(/^🎨 /, ''))}">${navIco(DEV_NAV_ICO[k] || 'home')}<span>${l.replace(/^🎨 /, '')}</span></button>`).join('')}
+  <div class="layout"><nav class="side"><button class="${view === 'myco' ? 'on' : ''}" onclick="A.dev('myco')" title="شركتي" style="${view === 'myco' ? '' : 'background:var(--warn-bg);color:var(--warn);'}border:1.5px solid var(--gold-l);font-weight:700">⭐ <span>شركتي</span></button><div class="meta" style="padding:6px 14px 0;font-size:12px">السيستمات اللي ببيعها</div>${nav.map(([k, l]) => `<button class="${on(k) ? 'on' : ''}" onclick="A.dev('${k}')" title="${esc(l.replace(/^🎨 /, ''))}">${navIco(DEV_NAV_ICO[k] || 'home')}<span>${l.replace(/^🎨 /, '')}</span>${k === 'reqs' ? `<span id="reqBadge" class="chip warn" style="margin-inline-start:auto;padding:0 8px;${REQ_NEW ? '' : 'display:none'}">${REQ_NEW || ''}</span>` : ''}</button>`).join('')}
     <div class="side-end"><button onclick="A.devThemeModal()" title="شكل اللوحة">🎨 <span>شكل اللوحة</span></button><button class="out" onclick="A.logout()" title="تسجيل الخروج">↩ <span>تسجيل الخروج</span></button></div></nav>
   <div class="main">${content}</div></div>`;
 }
@@ -1616,6 +1894,8 @@ A.dev = async view => {
     if (view === 'plans') return await devPlans();
     if (view === 'billing') return await devBilling();
     if (view === 'looks') return await devLooks();
+    if (view === 'reqs') return await devReqs();
+    if (view === 'myco') return await devMyCo();
     if (view.startsWith('t:')) return await devTenants(PRODUCTS[view.slice(2)]);
   } catch (e) {
     console.error(e);
@@ -1643,7 +1923,6 @@ async function devOverview() {
   renderOverview();
   const my = tenants.find(x => x.id === MYCO?.tenantId);
   const jobs = [loadAlerts(tenants).then(L => { S.homeAlerts = L; })];
-  if (my && (!S.myCoStats || Date.now() - S.myCoStats.at > 5 * 60e3)) jobs.push(myCoStats(my).then(x => { S.myCoStats = x; }).catch(e => { S.myCoStats = { err: e.message || e.code, at: Date.now() }; }));
   await Promise.all(jobs);
   if (S.devView === 'home') renderOverview();
 }
@@ -1655,7 +1934,7 @@ function renderOverview() {
   const income = bill.reduce((a, x) => a + (x.amount || 0), 0);
   devShell('home', `
     <div class="head"><h2>الرئيسية</h2></div>
-    ${myCoCard(tenants)}
+    ${REQ_NEW ? `<div class="notice warn" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="flex:1">📩 عندك ${REQ_NEW} طلب اشتراك جديد مستني ردّك</span><button class="btn sm" onclick="A.dev('reqs')">شوف الطلبات</button></div>` : ''}
     ${alertsCard(S.homeAlerts)}
     <div class="head" style="margin-top:6px"><h3 style="flex:1">السيستمات اللي ببيعها</h3></div>
     <div class="cards">
@@ -1737,7 +2016,8 @@ A.planModal = (pk, id) => {
     <div class="grid3">${P.limits.map(l => `<label class="f">${esc(l.label)}<input name="lim_${l.key}" type="number" min="${l.min}" required value="${p?.limits?.[l.key] ?? l.def}"></label>`).join('')}</div>
     <div class="section-t">المميزات</div>
     ${P.features.map(f => `<label class="chk"><input type="checkbox" name="ft_${f.key}" ${p?.features?.[f.key] ? 'checked' : ''}> ${esc(f.label)}</label>`).join('')}
-    <label class="chk"><input type="checkbox" name="act" ${p?.active === false ? '' : 'checked'}> متاح للبيع</label>
+    <label class="f">مميزات تظهر للعميل في صفحة طلب الاشتراك (كل سطر ميزة — اختياري)<textarea name="desc" rows="4" placeholder="مثلاً:&#10;المبيعات والفواتير&#10;دعم فني على الواتساب">${esc(p?.desc || '')}</textarea></label>
+    <label class="chk"><input type="checkbox" name="act" ${p?.active === false ? '' : 'checked'}> متاح للبيع (بيظهر في صفحة طلب الاشتراك)</label>
     ${formActs()}
   </form>`);
 };
@@ -1748,6 +2028,7 @@ A.savePlan = async (e, pk, id) => {
     product: pk, name: f.name.value.trim(), price: Number(f.price.value) || 0, months: Number(f.months.value) || 1,
     limits: Object.fromEntries(P.limits.map(l => [l.key, Number(f['lim_' + l.key].value) || 0])),
     features: Object.fromEntries(P.features.map(x => [x.key, f['ft_' + x.key].checked])),
+    desc: f.desc.value.trim().slice(0, 1500),
     active: f.act.checked,
   };
   try {
@@ -1824,6 +2105,7 @@ A.tenantModal = async (pk, id) => {
     <label class="chk"><input type="checkbox" name="act" ${t?.active === false ? '' : 'checked'}> مفعّل</label>
     ${formActs()}
   </form>`);
+  if (!id && S.reqFill?.pk === pk && S.reqFillArm) { S.reqFillArm = false; reqFillForm(); } else if (!id) S.reqFill = null;
 };
 // لما تختار باكدج: الحدود والمميزات والمبلغ يتملوا لوحدهم
 A.planPick = (f, pk, amountOnly) => {
@@ -1852,6 +2134,7 @@ const brandDoc = (P, d) => ({ product: P.key, name: d.name, logoUrl: d.logoUrl |
 const MAINT_APP = 'https://beamcare.github.io/m/';
 A.saveTenant = async (e, pk, id) => {
   e.preventDefault();
+  const isNew = !id;
   const f = e.target, P = PRODUCTS[pk], btn = f.querySelector('[type=submit]');
   let data;
   try { data = tenantFields(f, P); } catch (er) { return toast(er.message); }
@@ -1879,7 +2162,8 @@ A.saveTenant = async (e, pk, id) => {
     }
     batch.set(doc(db, 'brands', id), brandDoc(P, data));
     await batch.commit();
-    if (P.remote) { await saveConn(P, id, f); await remoteConn({ ...data, id }, true).catch(() => {}); await syncRemote(P, id); }
+    if (isNew && S.reqFill?.pk === pk) await reqMarkPaid(id, data, f).catch(er => { console.error(er); toast('اتحفظ، بس مقدرتش أحدّث الطلب: ' + (er.code || er.message)); });
+    if (P.remote) { await saveConn(P, id, f); await withTimeout(remoteConn({ ...data, id }, true), 20000, 'timeout').catch(() => {}); await withTimeout(syncRemote(P, id), 25000, 'timeout').catch(() => {}); }
     A.closeModal(); toast('اتحفظ'); A.openTenant(pk, id);
   } catch (err) { console.error(err); busy(btn, false, 'حفظ'); toast('مقدرتش أحفظ: ' + (err.code || err.message)); }
 };
