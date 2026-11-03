@@ -3292,6 +3292,17 @@ A.saveSession = async (e, bookingId) => {
 /* ----- باكدجات العملاء وقائمة الأسعار ----- */
 A.pShowDone = v => { S.pShowDone = v; A.go('packages'); };
 A.pTabSet = k => { S.pTab = k; A.go('packages'); };
+// كل الخدمات العادية (مش الباكدجات والعروض ومش المخفية) تظهر في الحجز أونلاين
+A.allOnline = async () => {
+  await loadServices(true);
+  const L = (S.services || []).filter(x => !x.hidden && !['package', 'combo'].includes(x.kind) && !x.online);
+  if (!L.length) return toast('كل الخدمات ظاهرة أونلاين بالفعل');
+  if (!confirm(`هتظهر ${L.length} خدمة للعملاء في صفحة الحجز أونلاين. تكمّل؟`)) return;
+  try {
+    for (let i = 0; i < L.length; i += 400) { const b = writeBatch(db); L.slice(i, i + 400).forEach(x => b.update(cdoc('services', x.id), { online: true })); await b.commit(); }
+    toast('اتعرضوا أونلاين ✓'); await loadServices(true); A.go(S.view || 'packages');
+  } catch (e) { console.error(e); toast(e?.code === 'permission-denied' ? 'مفيش صلاحية' : 'حصلت مشكلة — جرب تاني'); }
+};
 async function renderPackages() {
   const tab = S.pTab || 'list';
   clinicShell('packages', LOADING);
@@ -3352,7 +3363,9 @@ async function renderPriceList() {
   const noneN = sv.filter(x => !cats.some(c => c.id === x.catId)).length;
   const cur = cats.find(c => c.id === sel);
   const resName = id => (S.pubCfg?.res || []).find(r => r.id === id)?.name || '';
+  const offN = sv.filter(x => !x.hidden && !['package', 'combo'].includes(x.kind) && !x.online).length;
   return `
+    ${feat('onlineBooking') && editCat && offN ? `<div class="notice warn" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="flex:1">فيه ${offN.toLocaleString('ar-EG')} خدمة مش ظاهرة للعملاء في الحجز أونلاين.</span><button class="btn sm" onclick="A.allOnline()">اعرضهم كلهم أونلاين</button></div>` : ''}
     ${!cats.length && editCat ? `<div class="notice info" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="flex:1">ابدأ بالأقسام: ليزر، بشرة، ديرما… وبعدين ضيف الخدمات جوه كل قسم.</span><button class="btn sm" onclick="A.catsStarter()">ضيف الأقسام الجاهزة</button></div>` : ''}
     <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">
       <div class="card" style="flex:0 1 250px;min-width:220px;display:flex;flex-direction:column;gap:4px;padding:12px">
@@ -4618,7 +4631,7 @@ async function renderCSettings() {
           ${d.off.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap">${d.off.map(o => `<span class="chip warn">${esc(dayName(o))} <button type="button" aria-label="شيل الإجازة" style="border:0;background:none;cursor:pointer;color:inherit" onclick="A.stOffDel('${x.id}','${o}')">✕</button></span>`).join('')}</div>` : ''}
         </div>`; }).join('')}` : ''}
         <div class="section-t">الخدمات اللي بتظهر للعميل</div>
-        ${onl.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap">${onl.map(x => `<span class="chip ok">${esc(x.name)} · ${(Number(x.dur) || pub.step).toLocaleString('ar-EG')} د</span>`).join('')}</div>` : '<div class="notice warn">مفيش خدمات ظاهرة أونلاين لسه.</div>'}
+        ${onl.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap">${onl.map(x => `<span class="chip ok">${esc(x.name)} · ${(Number(x.dur) || pub.step).toLocaleString('ar-EG')} د</span>`).join('')}</div>` : `<div class="notice warn" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="flex:1">مفيش خدمات ظاهرة أونلاين لسه — علشان كده العميل بيلاقي «الحجز أونلاين لسه بيتجهز».</span>${can('packages_edit') && rpv('svc') ? `<button type="button" class="btn sm" onclick="A.allOnline()">اعرض كل الخدمات أونلاين</button>` : ''}</div>`}
         <p class="meta">تضيف أو تشيل خدمة، أو تغيّر مدتها، من <b>باكدجات العملاء ← قائمة الأسعار</b> (علّم على "تظهر في الحجز أونلاين" وحدد المدة).</p>
         <div><button type="button" class="btn ghost sm" onclick="S.pTab='prices';A.go('packages')">فتح قائمة الأسعار</button></div>
         ${pub.on ? `<div class="linkbox"><input readonly value="${esc(bookLink())}" aria-label="رابط الحجز"><button type="button" class="btn sm" onclick="navigator.clipboard.writeText('${esc(bookLink())}');A.toast('اتنسخ')">نسخ</button><button type="button" class="btn gold sm" onclick="A.bookQr()">QR</button></div>` : '<p class="meta">شغّل الحجز أونلاين واحفظ، وهيظهرلك الرابط والـ QR.</p>'}
