@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>اشترك في Beam Care</title>
+<meta name="description" content="اختار الباكدج المناسب لعيادتك أو شركة الصيانة بتاعتك وابعت طلب الاشتراك">
+<meta name="theme-color" content="#2F6F68">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 220'%3E%3Crect width='220' height='220' rx='52' fill='%232F6F68'/%3E%3Cpath d='M110 40 L122 98 L180 110 L122 122 L110 180 L98 122 L40 110 L98 98 Z' fill='%23DDA86E'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --brand:#2F6F68; --brand-d:#1F4E49; --gold:#C98F4E; --gold-l:#DDA86E; --mint:#A9CEC4; --soft:#EAF3F1;
+  --bg:#F4F6F5; --card:#fff; --ink:#1E3B38; --muted:#5E7E79; --line:#DCE5E2;
+  --red:#B3412F; --red-bg:#FBEDEA; --ok:#2E7D4F; --ok-bg:#E6F4EC; --warn:#8A5A12; --warn-bg:#FCF3E3;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Cairo,system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:16px;line-height:1.6}
+button,input,select,textarea{font-family:inherit;font-size:16px}
+h1,h2,h3,p{margin:0}
+a{color:var(--brand)}
+.wrap{max-width:860px;margin:0 auto;padding:0 16px 48px}
+.hero{background:linear-gradient(160deg,var(--brand) 0%,var(--brand-d) 100%);color:#fff;padding:28px 16px 64px;text-align:center}
+.hero .logo{display:inline-flex;align-items:center;gap:10px;font-weight:800;font-size:20px}
+.hero h1{font-size:28px;margin-top:18px;line-height:1.35}
+.hero p{opacity:.88;margin-top:8px;font-size:15px}
+.panel{background:var(--card);border-radius:20px;padding:22px;border:1px solid var(--line);box-shadow:0 8px 30px rgba(30,59,56,.06)}
+.lift{margin-top:-40px;position:relative}
+.step{display:flex;flex-direction:column;gap:14px;margin-top:18px}
+.step-t{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px}
+.step-t .n{width:30px;height:30px;border-radius:50%;background:var(--brand);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:15px;flex:none}
+.types{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.opt{position:relative;display:flex;flex-direction:column;gap:6px;border:2px solid var(--line);border-radius:16px;padding:16px;cursor:pointer;background:#fff;transition:border-color .15s,background .15s}
+.opt input{position:absolute;opacity:0;pointer-events:none}
+.opt:has(input:checked){border-color:var(--brand);background:var(--soft)}
+.opt:has(input:focus-visible){outline:3px solid var(--gold);outline-offset:2px}
+.opt .ic{font-size:30px;line-height:1}
+.opt b{font-size:17px}
+.opt span{color:var(--muted);font-size:14px}
+.plans{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.plan{gap:10px}
+.plan .pn{font-weight:800;font-size:18px}
+.plan .pp{font-size:26px;font-weight:800;color:var(--brand);line-height:1.2}
+.plan .pp small{font-size:14px;color:var(--muted);font-weight:600}
+.plan ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px;font-size:14px}
+.plan li::before{content:'✓ ';color:var(--ok);font-weight:800}
+.plan .pick{margin-top:auto;text-align:center;font-weight:700;font-size:14px;color:var(--brand);border-top:1px dashed var(--line);padding-top:8px}
+.plan:has(input:checked) .pick{color:var(--ok)}
+.plan:has(input:checked) .pick::before{content:'✓ '}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+label.f{display:flex;flex-direction:column;gap:6px;font-weight:700;font-size:14px;color:var(--muted)}
+input,select,textarea{width:100%;padding:11px 12px;border:1.5px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);min-height:46px}
+textarea{resize:vertical}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--mint);border-color:var(--brand)}
+.sum{background:var(--soft);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:6px}
+.sum .row{display:flex;justify-content:space-between;gap:10px;font-size:15px}
+.sum .tot{font-size:22px;font-weight:800;color:var(--brand)}
+.btn{border:0;border-radius:12px;padding:12px 22px;cursor:pointer;font-weight:800;min-height:48px;background:var(--brand);color:#fff;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn:hover{filter:brightness(.93)}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.btn.gold{background:var(--gold)}
+.btn.ghost{background:transparent;color:var(--brand);border:1.5px solid var(--line)}
+.btn.wa{background:#1F8F55}
+.btn.big{width:100%;font-size:17px}
+.muted{color:var(--muted);font-size:14px}
+.err{background:var(--red-bg);color:var(--red);padding:12px 14px;border-radius:12px;font-weight:700}
+.note{background:var(--warn-bg);color:var(--warn);padding:12px 14px;border-radius:12px;font-weight:600;font-size:15px}
+.ok{background:var(--ok-bg);color:var(--ok);padding:12px 14px;border-radius:12px;font-weight:700}
+.empty{text-align:center;color:var(--muted);padding:24px 8px}
+.loading{text-align:center;color:var(--muted);padding:40px 8px}
+.track{display:flex;flex-direction:column;gap:0;margin:6px 0}
+.ts{display:flex;gap:12px;align-items:flex-start;position:relative;padding-bottom:18px}
+.ts:last-child{padding-bottom:0}
+.ts::before{content:'';position:absolute;right:15px;top:32px;bottom:0;width:2px;background:var(--line)}
+.ts:last-child::before{display:none}
+.ts .dot{width:32px;height:32px;border-radius:50%;border:2px solid var(--line);background:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;flex:none;color:var(--muted);font-size:14px;z-index:1}
+.ts.done .dot{background:var(--brand);border-color:var(--brand);color:#fff}
+.ts.now .dot{border-color:var(--gold);color:var(--gold);background:var(--warn-bg)}
+.ts.done::before{background:var(--brand)}
+.ts b{display:block}
+.pay{white-space:pre-line;background:#fff;border:1.5px dashed var(--gold-l);border-radius:14px;padding:14px;font-weight:700}
+.row-btns{display:flex;gap:10px;flex-wrap:wrap}
+.foot{text-align:center;color:var(--muted);font-size:13px;margin-top:26px}
+@media(max-width:560px){.types,.grid2{grid-template-columns:1fr}.hero h1{font-size:24px}.panel{padding:18px}}
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="logo"><svg width="40" height="40" viewBox="0 0 220 220" aria-hidden="true"><rect width="220" height="220" rx="52" fill="#fff" fill-opacity=".14"/><path d="M110 40 L122 98 L180 110 L122 122 L110 180 L98 122 L40 110 L98 98 Z" fill="#DDA86E"/></svg>Beam Care</div>
+  <h1 id="heroT">اختار الباكدج المناسب وابعت طلبك</h1>
+  <p id="heroP">سيستمات لإدارة العيادات وشركات الصيانة — من الموبايل أو الكمبيوتر</p>
+</header>
+<main class="wrap"><div class="panel lift" id="app"><div class="loading">جاري التحميل...</div></div>
+<p class="foot">Beam Care · بياناتك محفوظة ومتاخد منها نسخة احتياطية كل يوم</p></main>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, doc, getDoc, getDocs, addDoc, collection, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBF42mXPiwrPm4QKd55YtZVUtmZcbr3s_0",
+  authDomain: "beamcare-clinic.firebaseapp.com",
+  projectId: "beamcare-clinic",
+  storageBucket: "beamcare-clinic.firebasestorage.app",
+  messagingSenderId: "614318040492",
+  appId: "1:614318040492:web:70fcf7b8de6be822684609"
+};
+const db = getFirestore(initializeApp(firebaseConfig));
+const MAINT_DEMO = 'https://beamcare.github.io/m/?demo=1';
+const $ = id => document.getElementById(id);
+const $app = $('app');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const num = n => (Number(n) || 0).toLocaleString('ar-EG');
+const money = n => num(n) + ' ج.م';
+const latin = s => String(s || '').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
+const waNum = p => { let s = latin(p).replace(/\D/g, ''); if (s.startsWith('0')) s = '20' + s.slice(1); return s; };
+const pad = n => String(n).padStart(2, '0');
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const fmtDate = s => { if (!s) return ''; const d = new Date(s + 'T00:00:00'); return isNaN(d) ? s : d.toLocaleDateString('ar-EG', { day: 'numeric', month: 'long', year: 'numeric' }); };
+const monthsTxt = m => m === 1 ? 'شهر' : m === 2 ? 'شهرين' : m === 12 ? 'سنة' : m === 24 ? 'سنتين' : m % 12 === 0 ? `${num(m / 12)} سنين` : `${num(m)} ${m <= 10 ? 'شهور' : 'شهر'}`;
+const LS = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
+
+const TYPES = {
+  clinic: { ic: '🏥', name: 'Beam Care Clinic', short: 'عيادة', one: 'العيادة', desc: 'سيستم إدارة عيادات الجلدية والليزر: العملاء والجلسات والحجوزات والفروع والحسابات',
+    limits: [['maxBranches', 'فرع', 'فروع', 'فرع واحد'], ['maxUsers', 'يوزر (موظف)', 'يوزرات (موظفين)', 'يوزر واحد'], ['maxClients', 'عميل', 'عملاء', 'عميل واحد']], zeroOpen: false },
+  maint: { ic: '🔧', name: 'Beam Care Maintenance', short: 'شركة صيانة', one: 'الشركة', desc: 'سيستم إدارة شركات صيانة الأجهزة الطبية: التقارير والطلبات والمخزن والفواتير والموظفين',
+    limits: [['maxUsers', 'يوزر (موظف)', 'يوزرات (موظفين)', 'يوزر واحد'], ['maxCustomers', 'عيادة (عميل)', 'عيادات (عملاء)', 'عيادة واحدة']], zeroOpen: true },
+};
+const FEATS = { whiteLabel: 'السيستم يظهر باسمك ولوجوك', ownerManagesPerms: 'تتحكم في صلاحيات موظفينك بنفسك' };
+
+const P = new URLSearchParams(location.search);
+const S = { type: TYPES[P.get('t')] ? P.get('t') : '', plans: {}, planId: '', info: null };
+
+/* ----- رقم الواتساب وطرق الدفع (من اللوحة) ----- */
+async function loadInfo() {
+  if (S.info) return S.info;
+  try { const d = await getDoc(doc(db, 'pub', 'info')); S.info = d.exists() ? d.data() : {}; } catch (e) { S.info = {}; }
+  return S.info;
+}
+const waLink = (msg, to) => { const n = waNum(to || S.info?.wa || ''); return n ? `https://wa.me/${n}?text=${encodeURIComponent(msg)}` : ''; };
+
+/* =========================================================
+   1) صفحة الطلب: النوع ← الباكدج ← البيانات
+   ========================================================= */
+async function loadPlans(t) {
+  if (S.plans[t]) return S.plans[t];
+  const s = await getDocs(query(collection(db, 'plans'), where('product', '==', t), where('active', '==', true)));
+  S.plans[t] = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.order ?? a.price ?? 0) - (b.order ?? b.price ?? 0));
+  return S.plans[t];
+}
+// عدد + اسم بالعربي الصح: ١ ← "فرع واحد"، ٣-١٠ ← جمع، أكتر ← مفرد
+const limTxt = (T, v, one, many, single) => {
+  v = Number(v) || 0;
+  if (v >= 9999 || (v === 0 && T.zeroOpen)) return `${many} من غير حد`;
+  if (v === 1) return single;
+  if (v === 2) return `لحد ${num(2)} ${many}`;
+  return `لحد ${num(v)} ${v <= 10 ? many : one}`;
+};
+const per = p => (p.months || 1) === 1 ? 'شهرياً' : `كل ${monthsTxt(p.months || 1)}`;
+function planCard(T, p) {
+  const items = [
+    ...T.limits.map(([k, one, many, single]) => limTxt(T, p.limits?.[k], one, many, single)),
+    ...Object.entries(FEATS).filter(([k]) => p.features?.[k]).map(([, l]) => l),
+    ...String(p.desc || '').split('\n').map(x => x.trim()).filter(Boolean),
+  ];
+  return `<label class="opt plan"><input type="radio" name="plan" value="${esc(p.id)}" ${S.planId === p.id ? 'checked' : ''} onchange="J.pickPlan(this.value)">
+    <span class="pn" style="color:var(--ink);font-size:18px;font-weight:800">${esc(p.name)}</span>
+    <span class="pp">${money(p.price)} <small>${per(p)}</small></span>
+    <ul>${items.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
+    <span class="pick">اختار الباكدج ده</span></label>`;
+}
+function durOpts(p) {
+  const pm = Math.max(1, p?.months || 1);
+  return [1, 3, 6, 12, 24].filter(m => m >= pm && m % pm === 0).slice(0, 4);
+}
+function render() {
+  const T = TYPES[S.type];
+  const prev = LS.get('bc-req');
+  $app.innerHTML = `
+    ${prev ? `<div class="ok" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px"><span style="flex:1">عندك طلب اتبعت قبل كده</span><a class="btn ghost" style="min-height:40px;padding:6px 14px" href="?r=${esc(prev)}">تابع طلبك</a></div>` : ''}
+    <section class="step" aria-labelledby="s1"><h2 class="step-t" id="s1"><span class="n">١</span>إنت إيه؟</h2>
+      <div class="types">${Object.entries(TYPES).map(([k, t]) => `<label class="opt"><input type="radio" name="type" value="${k}" ${S.type === k ? 'checked' : ''} onchange="J.pickType(this.value)">
+        <span class="ic" aria-hidden="true">${t.ic}</span><b>${esc(t.short)}</b><span>${esc(t.desc)}</span></label>`).join('')}</div>
+    </section>
+    <div id="rest">${T ? '<div class="loading">جاري تحميل الباكدجات...</div>' : ''}</div>`;
+  if (T) renderPlans();
+}
+async function renderPlans() {
+  const T = TYPES[S.type], box = $('rest');
+  let ps;
+  try { ps = await loadPlans(S.type); } catch (e) { console.error(e); box.innerHTML = `<div class="err" style="margin-top:16px">مقدرناش نحمّل الباكدجات دلوقتي — جرّب تاني بعد شوية.</div>`; return; }
+  await loadInfo();
+  if (!ps.find(p => p.id === S.planId)) S.planId = ps.length === 1 ? ps[0].id : '';
+  const wa = waLink(`السلام عليكم 👋 عايز أعرف تفاصيل الاشتراك في ${T.name}`);
+  box.innerHTML = `
+    <section class="step" aria-labelledby="s2"><h2 class="step-t" id="s2"><span class="n">٢</span>اختار الباكدج</h2>
+      ${S.type === 'maint' ? `<p class="muted">عايز تشوف السيستم الأول؟ <a href="${esc(MAINT_DEMO + (S.info?.wa ? '&wa=' + waNum(S.info.wa) : ''))}" target="_blank" rel="noopener"><b>جرّب نسخة تجربة ببيانات وهمية</b></a></p>` : ''}
+      ${ps.length ? `<div class="plans">${ps.map(p => planCard(T, p)).join('')}</div>` : `<div class="empty">الباكدجات لسه بتتجهز.${wa ? ` <a href="${esc(wa)}" target="_blank" rel="noopener">كلّمنا على الواتساب</a> وهنبعتلك التفاصيل.` : ''}</div>`}
+    </section>
+    <div id="form"></div>`;
+  renderForm();
+}
+function renderForm() {
+  const T = TYPES[S.type], box = $('form'), p = (S.plans[S.type] || []).find(x => x.id === S.planId);
+  if (!box) return;
+  if (!p) { box.innerHTML = ''; return; }
+  const ds = durOpts(p);
+  if (!ds.includes(S.months)) S.months = ds[0];
+  const today = ymd(new Date());
+  const v = S.draft || {};
+  box.innerHTML = `
+    <section class="step" aria-labelledby="s3"><h2 class="step-t" id="s3"><span class="n">٣</span>بياناتك</h2>
+      <form id="reqF" class="step" style="margin-top:0" novalidate>
+        <div class="grid2">
+          <label class="f">اسم ${esc(T.one)} *<input name="name" required maxlength="120" autocomplete="organization" value="${esc(v.name)}"></label>
+          <label class="f">اسم المسؤول<input name="contact" maxlength="120" autocomplete="name" value="${esc(v.contact)}"></label>
+          <label class="f">رقم الموبايل (واتساب) *<input name="phone" required dir="ltr" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="01xxxxxxxxx" value="${esc(v.phone)}"></label>
+          <label class="f">المحافظة / المدينة<input name="city" maxlength="80" value="${esc(v.city)}"></label>
+          <label class="f">عايز تبدأ من يوم *<input name="start" type="date" required min="${today}" value="${esc(v.start || today)}"></label>
+          <label class="f">لمدة *<select name="months" onchange="J.setMonths(this.value)">${ds.map(m => `<option value="${m}" ${m === S.months ? 'selected' : ''}>${monthsTxt(m)}</option>`).join('')}</select></label>
+        </div>
+        <label class="f">ملاحظات (اختياري)<textarea name="notes" rows="3" maxlength="1000" placeholder="مثلاً: عدد الفروع، أو أي حاجة محتاجها">${esc(v.notes)}</textarea></label>
+        <div class="sum" id="sum"></div>
+        <div id="ferr"></div>
+        <button class="btn big" type="submit">ابعت الطلب</button>
+        <p class="muted" style="text-align:center">مش هتدفع حاجة دلوقتي — هنراجع طلبك ونكلمك على الواتساب.</p>
+      </form>
+    </section>`;
+  $('reqF').addEventListener('submit', submit);
+  $('reqF').addEventListener('input', e => { $('ferr').innerHTML = ''; S.draft = Object.fromEntries(new FormData($('reqF'))); if (e.target.name === 'start') renderSum(); });
+  renderSum();
+}
+const totalOf = (p, m) => Math.round((Number(p.price) || 0) * m / Math.max(1, p.months || 1));
+function renderSum() {
+  const p = (S.plans[S.type] || []).find(x => x.id === S.planId), box = $('sum');
+  if (!p || !box) return;
+  const f = $('reqF'), start = f?.start.value || ymd(new Date());
+  const end = new Date(start + 'T00:00:00'); end.setMonth(end.getMonth() + S.months); end.setDate(end.getDate() - 1);
+  box.innerHTML = `
+    <div class="row"><span>الباكدج</span><b>${esc(p.name)}</b></div>
+    <div class="row"><span>المدة</span><b>${monthsTxt(S.months)}${start ? ` · من ${fmtDate(start)} لحد ${fmtDate(ymd(end))}` : ''}</b></div>
+    <div class="row" style="align-items:center"><span>الإجمالي</span><span class="tot">${money(totalOf(p, S.months))}</span></div>`;
+}
+async function submit(e) {
+  e.preventDefault();
+  const f = e.target, T = TYPES[S.type], p = (S.plans[S.type] || []).find(x => x.id === S.planId), err = $('ferr');
+  err.innerHTML = '';
+  const name = f.name.value.trim(), phone = latin(f.phone.value).replace(/[^\d+]/g, '');
+  const bad = m => { err.innerHTML = `<div class="err" role="alert">${m}</div>`; };
+  if (!p) return bad('اختار الباكدج الأول');
+  if (name.length < 2) { f.name.focus(); return bad(`اكتب اسم ${T.one}`); }
+  if (phone.replace(/\D/g, '').length < 8) { f.phone.focus(); return bad('اكتب رقم موبايل صحيح علشان نقدر نكلمك'); }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(f.start.value)) { f.start.focus(); return bad('اختار تاريخ البداية'); }
+  const data = {
+    type: S.type, name, phone, planId: p.id, months: S.months, start: f.start.value, status: 'new', createdAt: serverTimestamp(),
+    planName: String(p.name || '').slice(0, 120), price: Number(p.price) || 0, total: totalOf(p, S.months),
+  };
+  const opt = { contact: f.contact.value.trim(), city: f.city.value.trim(), notes: f.notes.value.trim() };
+  Object.entries(opt).forEach(([k, v]) => { if (v) data[k] = v; });
+  const btn = f.querySelector('[type=submit]'); btn.disabled = true; btn.textContent = 'بيتبعت...';
+  try {
+    const r = await addDoc(collection(db, 'requests'), data);
+    LS.set('bc-req', r.id);
+    history.replaceState(null, '', '?r=' + r.id);
+    S.justSent = true;
+    showStatus(r.id);
+  } catch (e2) {
+    console.error(e2); btn.disabled = false; btn.textContent = 'ابعت الطلب';
+    bad('مقدرناش نبعت الطلب — اتأكد من النت وجرّب تاني.');
+  }
+}
+
+/* =========================================================
+   2) متابعة الطلب
+   ========================================================= */
+const STEPS = [['new', 'الطلب اتبعت', ''], ['approved', 'الموافقة على الطلب', 'بنراجع طلبك دلوقتي'], ['paid', 'الدفع', 'مستنيين التحويل منك'], ['active', 'تشغيل السيستم', 'بنجهّز سيستمك دلوقتي']];
+async function showStatus(id) {
+  $('heroT').textContent = 'متابعة طلب الاشتراك';
+  $('heroP').textContent = 'افتح الصفحة دي في أي وقت تشوف طلبك وصل لفين';
+  $app.innerHTML = '<div class="loading">جاري التحميل...</div>';
+  let d;
+  try { const s = await getDoc(doc(db, 'requests', id)); d = s.exists() ? s.data() : null; } catch (e) { console.error(e); }
+  await loadInfo();
+  if (!d) { $app.innerHTML = `<div class="err">مش لاقيين الطلب ده. اتأكد من الرابط، أو <a href="./">ابعت طلب جديد</a>.</div>`; return; }
+  const T = TYPES[d.type] || TYPES.clinic;
+  const link = location.origin + location.pathname + '?r=' + id;
+  const idx = d.status === 'rejected' ? -1 : STEPS.findIndex(s => s[0] === d.status);
+  const amount = d.amount ?? d.total;
+  const sum = `<div class="sum">
+      <div class="row"><span>${esc(T.one)}</span><b>${esc(d.name)}</b></div>
+      <div class="row"><span>المنتج</span><b>${esc(T.name)}</b></div>
+      <div class="row"><span>الباكدج</span><b>${esc(d.planName || '')}</b></div>
+      <div class="row"><span>المدة</span><b>${monthsTxt(d.months || 1)} · من ${fmtDate(d.start)}</b></div>
+      ${amount != null ? `<div class="row" style="align-items:center"><span>${d.status === 'new' ? 'الإجمالي المتوقع' : 'المطلوب'}</span><span class="tot">${money(amount)}</span></div>` : ''}
+    </div>`;
+  const msgUs = (txt) => waLink(`${txt}\nالطلب: ${d.name} — ${d.planName || ''}\n${link}`);
+  let body = '';
+  if (d.status === 'new') {
+    const w = msgUs('السلام عليكم 👋 بعتلكم طلب اشتراك في ' + T.name);
+    body = `${S.justSent ? '<div class="ok" role="status">✓ طلبك اتبعت بنجاح!</div>' : ''}
+      <p>طلبك وصلنا وهنراجعه ونكلمك على الواتساب على رقم <b dir="ltr">${esc(d.phone)}</b> قريب.</p>
+      ${w ? `<a class="btn wa big" href="${esc(w)}" target="_blank" rel="noopener">💬 ابعتلنا على الواتساب علشان نرد أسرع</a>` : ''}`;
+  } else if (d.status === 'approved') {
+    const w = msgUs('السلام عليكم 👋 حوّلت قيمة الاشتراك، ودي صورة التحويل:');
+    body = `<div class="ok">🎉 طلبك اتوافق عليه!</div>
+      <p>علشان نشغّل السيستم، حوّل <b>${money(amount)}</b> بأي طريقة من دول:</p>
+      <div class="pay">${esc(d.payText || S.info?.payText || 'هنبعتلك طرق الدفع على الواتساب')}</div>
+      ${d.msg ? `<div class="note">${esc(d.msg)}</div>` : ''}
+      <p class="muted">بعد التحويل ابعتلنا صورة الإيصال على الواتساب، وأول ما نستلم هنشغّلك السيستم.</p>
+      ${w ? `<a class="btn wa big" href="${esc(w)}" target="_blank" rel="noopener">💬 ابعت صورة التحويل على الواتساب</a>` : ''}`;
+  } else if (d.status === 'paid') {
+    body = `<div class="ok">✓ استلمنا الدفع، شكراً لثقتك!</div>
+      <p>بنجهّز سيستمك دلوقتي، وأول ما يخلص هنبعتلك الرابط واسم المستخدم وكلمة السر على الواتساب.</p>`;
+  } else if (d.status === 'active') {
+    body = `<div class="ok">🎉 سيستمك اتفعّل وجاهز!</div>
+      <p>اسم المستخدم وكلمة السر اتبعتولك على الواتساب.</p>
+      ${d.sysUrl ? `<a class="btn gold big" href="${esc(d.sysUrl)}" target="_blank" rel="noopener">ادخل السيستم</a>` : ''}`;
+  } else if (d.status === 'rejected') {
+    const w = msgUs('السلام عليكم 👋 عندي سؤال بخصوص طلب الاشتراك');
+    body = `<div class="note">للأسف مقدرناش نكمّل الطلب ده.</div>
+      ${d.reason ? `<p>${esc(d.reason)}</p>` : ''}
+      <div class="row-btns">${w ? `<a class="btn wa" href="${esc(w)}" target="_blank" rel="noopener">💬 كلّمنا</a>` : ''}<a class="btn ghost" href="./">ابعت طلب جديد</a></div>`;
+  }
+  $app.innerHTML = `
+    ${idx >= 0 ? `<ol class="track" aria-label="مراحل الطلب" style="list-style:none;padding:0;margin:0 0 6px">${STEPS.map(([, l, wait], i) => `<li class="ts ${i <= idx ? 'done' : i === idx + 1 ? 'now' : ''}"><span class="dot" aria-hidden="true">${i <= idx ? '✓' : num(i + 1)}</span><div><b>${l}</b>${i === idx + 1 ? `<span class="muted">${wait}</span>` : ''}</div></li>`).join('')}</ol>` : ''}
+    <div class="step" style="margin-top:8px">${body}</div>
+    <div class="step">${sum}</div>
+    <div class="step" style="gap:8px"><p class="muted">احتفظ برابط الصفحة دي علشان تتابع طلبك:</p>
+      <div style="display:flex;gap:8px"><input readonly dir="ltr" value="${esc(link)}" aria-label="رابط المتابعة" style="font-size:13px"><button class="btn ghost" type="button" onclick="J.copy('${esc(link)}',this)">نسخ</button></div>
+      <a href="./" class="muted" style="text-align:center;margin-top:6px">ابعت طلب جديد</a></div>`;
+}
+
+/* ----- الأزرار ----- */
+window.J = {
+  pickType: t => { S.type = t; S.planId = ''; S.draft = S.draft || null; history.replaceState(null, '', '?t=' + t); render(); setTimeout(() => $('s2')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300); },
+  pickPlan: id => { const had = !!$('reqF'); S.planId = id; renderForm(); if (!had) setTimeout(() => $('s3')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100); },
+  setMonths: m => { S.months = Number(m) || 1; renderSum(); },
+  copy: (t, b) => { navigator.clipboard?.writeText(t).then(() => { b.textContent = 'اتنسخ ✓'; setTimeout(() => { b.textContent = 'نسخ'; }, 1500); }).catch(() => {}); },
+};
+
+const rid = P.get('r');
+if (rid) showStatus(rid); else render();
+</script>
+</body>
+</html>
