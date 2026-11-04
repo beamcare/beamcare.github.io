@@ -112,7 +112,24 @@ body.lk-dark th{color:var(--muted)}
   body.nav-rail .side:hover .navsec{display:block}
 }
 body.nav-top .side .navsec,body.nav-top .side .mini-tg{display:none}
+.lg-card{display:inline-flex;align-items:center;justify-content:center;background:#fff;border-radius:14px;box-shadow:0 4px 16px rgba(20,40,40,.10);border:1px solid rgba(0,0,0,.05);flex:none;box-sizing:border-box}
+.lg-ico{display:inline-flex;flex:none;box-shadow:0 5px 16px rgba(47,111,104,.28);overflow:hidden}
 .mbar{display:none}
+.hamb,.dr-head,.drawer-bg{display:none}
+.hamb{background:none;border:0;cursor:pointer;color:var(--ink);width:42px;height:42px;border-radius:12px;align-items:center;justify-content:center;flex:none}
+.hamb:hover{background:var(--bg)}
+@media (max-width:900px){
+  .hamb{display:inline-flex}
+  body.drawer-open .drawer-bg{display:block;position:fixed;inset:0;background:rgba(15,25,25,.45);z-index:59}
+  body.drawer-open .layout .side{display:flex!important;position:fixed;top:0;right:0;bottom:0;width:min(300px,84vw);z-index:60;flex-direction:column;overflow-y:auto;overflow-x:hidden;border-left:1px solid var(--line);border-bottom:0;padding:12px 10px calc(12px + env(safe-area-inset-bottom,0px));box-shadow:-18px 0 40px rgba(0,0,0,.18);background:#fff;animation:drIn .18s ease}
+  body.drawer-open .side button{white-space:normal}
+  body.drawer-open .side .navsec{display:block}
+  body.drawer-open .side .dr-head{display:flex;align-items:center;gap:10px;padding:4px 4px 10px;border-bottom:1px solid var(--line);margin-bottom:6px}
+  body.drawer-open .side .side-end{margin-top:auto;flex-direction:column;border-top:1px solid var(--line);padding-top:8px}
+  body.drawer-open .side .mini-tg{display:none}
+}
+@keyframes drIn{from{transform:translateX(30px);opacity:.4}to{transform:none;opacity:1}}
+body.lk-dark.drawer-open .layout .side{background:#1B1B1F}
 @media (max-width:900px){
   .mbar{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:40;background:#fff;border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px));justify-content:space-around;box-shadow:0 -4px 18px rgba(0,0,0,.06)}
   .mbar button{flex:1;background:none;border:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font:inherit;font-size:11.5px;color:var(--muted);cursor:pointer;min-height:54px;padding:2px}
@@ -183,12 +200,12 @@ th{color:var(--muted);font-size:13px;font-weight:700;background:#FAFCFB}
 .linkbox input{direction:ltr;text-align:left;font-size:13px}
 
 /* modal */
-.ov{position:fixed;inset:0;background:rgba(20,40,38,.45);display:flex;align-items:flex-start;justify-content:center;padding:32px 16px;overflow-y:auto;z-index:20}
+.ov{position:fixed;inset:0;background:rgba(20,40,38,.45);display:flex;align-items:flex-start;justify-content:center;padding:32px 16px;overflow-y:auto;z-index:70}
 .modal{background:#fff;border-radius:18px;width:100%;max-width:640px;padding:24px;display:flex;flex-direction:column;gap:16px}
 .modal h3{font-size:20px}
 .modal .acts{display:flex;gap:10px;justify-content:flex-start;flex-wrap:wrap}
 .section-t{font-weight:800;color:var(--brand);font-size:15px;margin-top:4px}
-.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 20px;border-radius:12px;font-weight:600;z-index:30}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 20px;border-radius:12px;font-weight:600;z-index:80}
 .loading{display:flex;align-items:center;justify-content:center;min-height:60vh;color:var(--muted)}
 .locked{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;text-align:center}
 @media print{.top,.side,.btn,#installBtn,.tabs{display:none!important}.main{padding:0}}
@@ -319,7 +336,8 @@ try { Object.defineProperty(window, 'S', { get: () => S, set: v => { S = v; }, c
 const A = window.A = {};
 
 function ICON(size = 36) {
-  return `<svg width="${size}" height="${size}" viewBox="0 0 220 220" aria-hidden="true"><rect width="220" height="220" rx="52" fill="#2F6F68"/><path d="M110 40 L122 98 L180 110 L122 122 L110 180 L98 122 L40 110 L98 98 Z" fill="#DDA86E"/></svg>`;
+  const u = 'bc' + Math.random().toString(36).slice(2, 7);
+  return `<svg width="${size}" height="${size}" viewBox="0 0 220 220" aria-hidden="true"><defs><linearGradient id="${u}a" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3B8D82"/><stop offset="1" stop-color="#22564F"/></linearGradient><linearGradient id="${u}b" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F3CF97"/><stop offset="1" stop-color="#C98F4E"/></linearGradient></defs><rect width="220" height="220" rx="56" fill="url(#${u}a)"/><path d="M0 70 Q110 20 220 60 V0 H0Z" fill="#fff" opacity=".07"/><path d="M110 38 Q115 96 124 98 Q178 105 182 110 Q178 115 124 122 Q115 124 110 182 Q105 124 96 122 Q42 115 38 110 Q42 105 96 98 Q105 96 110 38Z" fill="url(#${u}b)"/><circle cx="110" cy="110" r="7" fill="#fff" opacity=".55"/></svg>`;
 }
 function brandOf(c) {
   return c && c.whiteLabel
@@ -327,7 +345,9 @@ function brandOf(c) {
     : { name: 'Beam Care Clinic', logo: '', color: '#2F6F68', white: false };
 }
 function logoHTML(b, size = 36) {
-  return b.logo ? `<img src="${esc(b.logo)}" alt="" style="width:${size}px;height:${size}px;border-radius:10px;object-fit:cover">` : ICON(size);
+  // اللوجو في كارت أبيض بحواف مدورة وظل خفيف (بيستحمل اللوجوهات العريضة من غير ما تتقص)
+  if (b.logo) return `<span class="lg-card" style="height:${size + 12}px;padding:6px ${Math.round(size / 4)}px"><img src="${esc(b.logo)}" alt="" style="height:${size}px;width:auto;max-width:${Math.round(size * 3.2)}px;object-fit:contain;display:block"></span>`;
+  return `<span class="lg-ico" style="border-radius:${Math.round(size * 0.255)}px">${ICON(size)}</span>`;
 }
 function applyBrand(c) {
   const b = brandOf(c);
@@ -2001,8 +2021,8 @@ function devShell(view, content) {
   $app.innerHTML = `
   <div class="top">${ICON(36)}<div><div class="name">Beam Care</div><div class="sub">لوحة المطور</div></div><div class="sp"></div>
 </div>
-  <div class="layout"><nav class="side"><button class="${view === 'myco' ? 'on' : ''}" onclick="A.dev('myco')" title="شركتي" style="${view === 'myco' ? '' : 'background:var(--warn-bg);color:var(--warn);'}border:1.5px solid var(--gold-l);font-weight:700">⭐ <span>شركتي</span></button><div class="meta" style="padding:6px 14px 0;font-size:12px">السيستمات اللي ببيعها</div>${nav.map(([k, l]) => `<button class="${on(k) ? 'on' : ''}" onclick="A.dev('${k}')" title="${esc(l.replace(/^🎨 /, ''))}">${navIco(DEV_NAV_ICO[k] || 'home')}<span>${l.replace(/^🎨 /, '')}</span>${k === 'reqs' ? `<span id="reqBadge" class="chip warn" style="margin-inline-start:auto;padding:0 8px;${REQ_NEW ? '' : 'display:none'}">${REQ_NEW || ''}</span>` : ''}</button>`).join('')}
-    <div class="side-end"><button onclick="A.devThemeModal()" title="شكل اللوحة">🎨 <span>شكل اللوحة</span></button><button class="out" onclick="A.logout()" title="تسجيل الخروج">↩ <span>تسجيل الخروج</span></button></div></nav>
+  <div class="layout"><nav class="side"><button class="${view === 'myco' ? 'on' : ''}" onclick="A.dev('myco')" title="شركتي"><svg class="nico" viewBox="0 0 24 24" aria-hidden="true" style="${view === 'myco' ? '' : 'stroke:var(--gold);fill:var(--gold-l)'}"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg><span>شركتي</span></button><div class="navsec" style="height:1px;padding:0;margin:6px 10px;background:var(--line);font-size:0" aria-hidden="true"></div>${nav.map(([k, l]) => `<button class="${on(k) ? 'on' : ''}" onclick="A.dev('${k}')" title="${esc(l.replace(/^🎨 /, ''))}">${navIco(DEV_NAV_ICO[k] || 'home')}<span>${l.replace(/^🎨 /, '')}</span>${k === 'reqs' ? `<span id="reqBadge" class="chip warn" style="margin-inline-start:auto;padding:0 8px;${REQ_NEW ? '' : 'display:none'}">${REQ_NEW || ''}</span>` : ''}</button>`).join('')}
+    <div class="side-end"><button onclick="A.devThemeModal()" title="شكل اللوحة"><svg class="nico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.2 0 1.8-.9 1.4-1.9-.5-1.2.3-2.6 1.7-2.6H17a4 4 0 0 0 4-4c0-5-4-9.5-9-9.5z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10" cy="7" r="1.2"/><circle cx="15" cy="7.5" r="1.2"/></svg><span>شكل اللوحة</span></button><button class="out" onclick="A.logout()" title="تسجيل الخروج"><svg class="nico" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10 17l-5-5 5-5M5 12h11"/></svg><span>تسجيل الخروج</span></button></div></nav>
   <div class="main">${content}</div></div>`;
 }
 A.devHome = () => A.dev('home');
@@ -2848,10 +2868,18 @@ async function loadServices(force) {
   return S.services;
 }
 async function ensureData(forceServices) {
-  await Promise.all([can('clients_view') ? loadClients() : null, loadStaff(), loadServices(forceServices)]);
+  await Promise.all([can('clients_view') ? loadClients() : null, loadStaff(), loadServices(forceServices), loadExtDocs()]);
 }
-const doctors = () => (S.staff || []).filter(s => s.active !== false && (s.branchIds || []).includes(S.branch)
-  && (s.role === 'doctor' || (S.pubCfg?.staff || []).some(x => x.id === s.id)));
+// الدكاترة اللي متسجلين كموظفين (من غير يوزر): بيظهروا في اختيار الدكتور في الجلسات والحجز
+async function loadExtDocs(force) {
+  if (S.extDocs && !force) return S.extDocs;
+  try { S.extDocs = (await getDocs(ccol('extdocs'))).docs.map(d => ({ id: 'e_' + d.id, ...d.data(), ext: true })); } catch (e) { S.extDocs = []; }
+  return S.extDocs;
+}
+const allDocs = () => [...(S.staff || []), ...(S.extDocs || [])];
+const doctors = () => [...(S.staff || []).filter(s => s.active !== false && (s.branchIds || []).includes(S.branch)
+  && (s.role === 'doctor' || (S.pubCfg?.staff || []).some(x => x.id === s.id))),
+  ...(S.extDocs || []).filter(d => d.active !== false && (!d.branchId || d.branchId === S.branch))];
 const clientLabel = c => `${c.name} - ${c.phone || ''}`;
 const findClient = v => (S.clients || []).find(c => clientLabel(c) === String(v || '').trim());
 function clientPicker(selId, onchange = '') {
@@ -2910,10 +2938,11 @@ function clinicShell(view, content) {
     : (brs[0] ? `<span class="chip mute">${esc(brs[0].name)}</span>` : '');
   $app.innerHTML = `
   ${S.viewAs ? `<div style="background:var(--gold);color:#fff;padding:8px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-weight:700"><span style="flex:1">إنت شايف السيستم كأنك ${esc(S.profile.name)} (${esc(ROLES[S.profile.role]?.label)}). أي حاجة تعملها هتتسجل فعلاً.</span><button class="btn sm" style="background:#fff;color:var(--ink)" onclick="A.exitViewAs()">رجوع للوحة المطور</button></div>` : ''}
-  <div class="top">${logoHTML(b, 36)}<div><div class="name">${esc(b.name)}</div><div class="sub">${esc(S.profile.name)} · ${esc(ROLES[S.profile.role]?.label)}</div></div><div class="sp"></div>
+  <div class="top">${S.profile.role === 'client' ? '' : `<button class="hamb" onclick="A.drawer(true)" aria-label="القائمة"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>`}${logoHTML(b, 36)}<div><div class="name">${esc(b.name)}</div><div class="sub">${esc(S.profile.name)} · ${esc(ROLES[S.profile.role]?.label)}</div></div><div class="sp"></div>
     ${brSel}
     ${S.viewAs ? `<button class="btn ghost sm" onclick="A.logout()">رجوع</button>` : ''}</div>
-  <div class="layout"><nav class="side">${nav.map(([k, l]) => k === '§' ? `<div class="navsec">${esc(l)}</div>` : `<button class="${view === k ? 'on' : ''}" onclick="A.go('${k}')" title="${esc(l)}" aria-label="${esc(l)}">${navIco(k)}<span>${l}</span></button>`).join('')}
+  <div class="drawer-bg" onclick="A.drawer(false)"></div>
+  <div class="layout"><nav class="side"><div class="dr-head">${logoHTML(b, 32)}<b style="flex:1">${esc(b.name)}</b><button onclick="A.drawer(false)" aria-label="قفل القائمة" style="width:40px;height:40px;justify-content:center;padding:0">✕</button></div>${nav.map(([k, l]) => k === '§' ? `<div class="navsec">${esc(l)}</div>` : `<button class="${view === k ? 'on' : ''}" onclick="A.go('${k}')" title="${esc(l)}" aria-label="${esc(l)}">${navIco(k)}<span>${l}</span></button>`).join('')}
     <div class="side-end"><button class="mini-tg" onclick="A.navMini()" title="${navMiniOn() ? 'كبّر القائمة' : 'صغّر القائمة لأيقونات'}"><svg class="nico" viewBox="0 0 24 24" aria-hidden="true">${navMiniOn() ? '<path d="M14 6l-6 6 6 6"/>' : '<path d="M10 6l6 6-6 6"/>'}</svg><span>${navMiniOn() ? 'كبّر القائمة' : 'صغّر القائمة'}</span></button>${S.viewAs ? '' : `<button onclick="A.pwModal()" title="تغيير كلمة السر"><svg class="nico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M15 8l2 2"/></svg><span>تغيير كلمة السر</span></button><button class="out" onclick="A.logout()" title="تسجيل الخروج"><svg class="nico" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10 17l-5-5 5-5M5 12h11"/></svg><span>تسجيل الخروج</span></button>`}</div></nav>
   <div class="main">${content}</div></div>
   ${S.profile.role === 'client' ? '' : mobileBar(view, ok)}`;
@@ -2923,7 +2952,7 @@ function clinicShell(view, content) {
 function mobileBar(view, ok) {
   const it = (k, l, on) => `<button class="${view === k ? 'on' : ''}" onclick="${on || `A.go('${k}')`}" aria-label="${l}">${navIco(k)}<span>${l}</span></button>`;
   const more = !['home', 'bookings', 'clients'].includes(view);
-  return `<nav class="mbar" aria-label="القائمة السريعة">${it('home', 'الرئيسية')}${ok.bookings ? it('bookings', 'الحجوزات') : ''}<button class="plus" onclick="A.quickSheet()" aria-label="إجراء سريع"><span class="pl">+</span><span>جديد</span></button>${ok.clients ? it('clients', 'العملاء') : ''}<button class="${more ? 'on' : ''}" onclick="A.moreSheet()" aria-label="المزيد"><svg class="nico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg><span>المزيد</span></button></nav>`;
+  return `<nav class="mbar" aria-label="القائمة السريعة">${it('home', 'الرئيسية')}${ok.bookings ? it('bookings', 'الحجوزات') : ''}<button class="plus" onclick="A.quickSheet()" aria-label="إجراء سريع"><span class="pl">+</span><span>جديد</span></button>${ok.clients ? it('clients', 'العملاء') : ''}<button class="${more ? 'on' : ''}" onclick="A.drawer(true)" aria-label="المزيد"><svg class="nico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg><span>المزيد</span></button></nav>`;
 }
 A.quickSheet = () => {
   const L = [];
@@ -2935,6 +2964,7 @@ A.quickSheet = () => {
   if (feat('attendance')) L.push(['⏱️', 'حضور / انصراف', 'A.closeModal();A.punchNow()']);
   openModal(`<h3>إجراء سريع</h3><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">${L.map(([ic, l, on]) => `<button class="btn ghost" style="min-height:64px;flex-direction:column;gap:4px;display:flex;align-items:center;justify-content:center" onclick="${on}"><span style="font-size:22px">${ic}</span>${l}</button>`).join('')}</div><div class="acts"><button class="btn ghost" onclick="A.closeModal()">قفل</button></div>`);
 };
+A.drawer = on => { document.body.classList.toggle('drawer-open', !!on); };
 A.moreSheet = () => {
   const ok = S.navOk || {};
   openModal(`<h3>كل الأقسام</h3>${NAV_GROUPS.map(([sec, keys]) => { const L = keys.filter(k => ok[k]); return L.length ? `<div class="section-t">${esc(sec)}</div><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:6px">${L.map(k => `<button class="btn ghost" style="justify-content:flex-start;gap:8px;display:flex;align-items:center" onclick="A.closeModal();A.go('${k}')">${navIco(k)}${esc(ok[k])}</button>`).join('')}</div>` : ''; }).join('')}
@@ -2943,6 +2973,7 @@ A.moreSheet = () => {
 };
 
 A.go = async view => {
+  document.body.classList.remove('drawer-open');
   if (S.clinic?.upd && !S.viewAs && !S.isDev) return renderUpdate();
   S.openClientId = null;
   try {
@@ -2997,7 +3028,7 @@ async function renderHome() {
       const st = [[svOk, 'ضيف خدماتك', 'ابدأ من قالب جاهز أو ضيف خدمة بإيدك — حدد الأسعار وشيل "مخفية" علشان تظهر في البيع والحجز.', 'افتح الخدمات', "S.pTab='prices';A.go('packages')"],
         [clOk, 'سجّل أول عميل', 'اسم ورقم موبايل بس يكفي.', 'افتح العملاء', "A.clientModal()"],
         [payOk, 'اعمل أول فاتورة', 'بيع باكدج أو سجّل تحصيل.', 'بيع باكدج', "A.sellModal()"],
-        [bkOk, 'احجز أول معاد', 'من هنا أو من صفحة الحجوزات.', 'احجز معاد', "A.bookingModal()"]];
+        [bkOk, 'احجز أول ميعاد', 'من هنا أو من صفحة الحجوزات.', 'احجز ميعاد', "A.bookingModal()"]];
       const done = st.filter(x => x[0]).length, next = st.findIndex(x => !x[0]);
       if (done < 4) onb = `<div class="card" style="display:flex;flex-direction:column;gap:12px;border:1.5px solid var(--gold-l)">
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><h3 style="flex:1;margin:0">👋 أهلاً بيك — ابدأ شغلك في ٤ خطوات</h3><span class="chip mute">${done.toLocaleString('ar-EG')} من ٤</span><button class="btn ghost sm" onclick="A.onbHide()">إخفاء</button></div>
@@ -3061,7 +3092,7 @@ A.fuSend = i => {
   const x = S.fuList?.[i]; if (!x) return;
   const c = (S.clients || []).find(y => y.id === x.clientId); if (!c?.phone) return;
   const B = brandOf(S.clinic);
-  const msg = `أهلاً ${(c.name || '').split(' ')[0]} 🌸\nمعاك ${B.name} — ميعاد جلسة ${x.svc} الجاية جه ✨\nتحبي نحجزلك معاد؟ ردّي علينا بالمعاد اللي يناسبك.`;
+  const msg = `أهلاً ${(c.name || '').split(' ')[0]} 🌸\nمعاك ${B.name} — ميعاد جلسة ${x.svc} الجاية جه ✨\nتحبي نحجزلك ميعاد؟ ردّي علينا بالميعاد اللي يناسبك.`;
   window.open(`https://wa.me/${waNum(c.phone)}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
   try { const k = 'bc-fu-' + S.clinic.id, o = JSON.parse(localStorage.getItem(k) || '{}'); o[x.clientId + '|' + x.svc] = x.date; localStorage.setItem(k, JSON.stringify(o)); } catch (e) {}
 };
@@ -3429,7 +3460,7 @@ A.saveBooking = async (e, id) => {
   const f = e.target, btn = f.querySelector('[type=submit]');
   const cl = findClient(f.client.value);
   if (!cl) return toast('اختار العميل من القايمة، أو سجّله الأول');
-  const dr = (S.staff || []).find(x => x.id === f.doctor.value);
+  const dr = allDocs().find(x => x.id === f.doctor.value);
   const data = { clientId: cl.id, clientName: cl.name, clientPhone: cl.phone || '', date: f.date.value, time: f.time.value, doctorId: dr?.id || '', doctorName: dr?.name || '', service: f.service.value.trim(), notes: f.notes.value.trim(), branchId: S.branch, month: f.date.value.slice(0, 7) };
   const sv = svcFlat().find(x => x.name === data.service);
   data.dur = (S.onlineArm && S.onlineFill?.dur) || Number(sv?.dur) || 0;
@@ -3577,7 +3608,7 @@ A.saveSession = async (e, bookingId) => {
       deduct = pLeft(pkg);
     }
   }
-  const dr = (S.staff || []).find(x => x.id === f.doctor.value) || (f.doctor.value === S.profile.id ? { id: S.profile.id, name: S.profile.name } : null);
+  const dr = allDocs().find(x => x.id === f.doctor.value) || (f.doctor.value === S.profile.id ? { id: S.profile.id, name: S.profile.name } : null);
   const num = v => v === '' ? null : Number(v);
   const data = {
     clientId: cl.id, clientName: cl.name, date: f.date.value, branchId: S.branch,
@@ -4357,39 +4388,46 @@ async function renderStaff() {
   const ed = can('staff_edit');
   let body = '';
   if (tab === 'list') {
-    body = emps.length ? `<div class="card tbl-wrap" style="padding:0"><table><thead><tr><th>الاسم</th><th>الوظيفة</th><th>الموبايل</th><th>المرتب</th><th>عمولة الجلسة</th><th>مربوط بيوزر</th><th>الحالة</th><th></th></tr></thead>
-      <tbody>${emps.map(x => `<tr><td><b>${esc(x.name)}</b></td><td>${esc(x.job)}</td><td dir="ltr" style="text-align:right">${esc(x.phone)}</td><td>${money(x.salary)}</td><td>${x.perSession ? money(x.perSession) : '—'}</td>
+    body = emps.length ? `<div class="card tbl-wrap" style="padding:0"><table><thead><tr><th>الاسم</th><th>الوظيفة</th><th>الموبايل</th><th>طريقة الحساب</th><th>عمولة الجلسة</th><th>مربوط بيوزر</th><th>الحالة</th><th></th></tr></thead>
+      <tbody>${emps.map(x => `<tr><td><b>${esc(x.name)}</b>${x.isDoctor ? ' <span class="chip ok" style="font-size:11px">دكتور</span>' : ''}</td><td>${esc(x.job)}</td><td dir="ltr" style="text-align:right">${esc(x.phone)}</td><td>${payTxt(x)}</td><td>${[x.perSession ? money(x.perSession) : '', x.pct ? x.pct + '٪' : ''].filter(Boolean).join(' + ') || '—'}</td>
         <td>${esc((S.staff || []).find(s => s.id === x.userId)?.name) || '—'}</td><td>${x.active === false ? '<span class="chip mute">مش شغال</span>' : '<span class="chip ok">شغال</span>'}</td>
         <td>${ed ? `<button class="btn ghost sm" onclick="A.empModal('${x.id}')">تعديل</button>` : ''}</td></tr>`).join('')}</tbody></table></div>`
       : `<div class="card empty">مفيش موظفين مسجلين في الفرع ده.</div>`;
   } else {
     const M = S.prMonth || monthStr();
-    const [sess, pr] = await Promise.all([qBranch('sessions', 'month', M).catch(() => []), qBranch('payroll', 'month', M)]);
-    const cnt = {};
-    sess.forEach(s => { if (s.doctorId) cnt[s.doctorId] = (cnt[s.doctorId] || 0) + 1; });
+    const [sess, pr, pun] = await Promise.all([qBranch('sessions', 'month', M).catch(() => []), qBranch('payroll', 'month', M), qBranch('punches', 'month', M).catch(() => [])]);
     S.prCalc = {};
     const rows = emps.filter(x => x.active !== false).map(x => {
       const st = (S.staff || []).find(s => s.id === x.userId);
-      const n = x.userId ? [x.userId, ...(st?.prevIds || [])].reduce((a, id) => a + (cnt[id] || 0), 0) : 0;
-      const comm = n * (x.perSession || 0);
+      const ids = new Set([x.userId, ...(st?.prevIds || []), 'e_' + x.id].filter(Boolean));
+      const mine = sess.filter(s => ids.has(s.doctorId));
+      const n = mine.length, pulses = mine.reduce((a, s) => a + (Number(s.shots) || 0), 0), rev = mine.reduce((a, s) => a + (Number(s.price) || 0), 0);
+      const pp = pun.filter(p => p.uid && p.uid === x.userId);
+      const hours = pp.reduce((a, p) => a + (p.in && p.out ? Math.max(0, (tsMs(p.out) - tsMs(p.in)) / 36e5) : 0), 0);
+      const days = pp.length || new Set(mine.map(s => s.date)).size;
+      const t = x.payType || 'monthly', r = Number(x.rate) || 0;
+      const base = t === 'pulse' ? r * pulses : t === 'hour' ? Math.round(r * hours) : t === 'day' ? r * days : t === 'session' ? 0 : (x.salary || 0);
+      const comm = Math.round(n * (x.perSession || 0) + rev * (Number(x.pct) || 0) / 100);
       const paid = pr.find(p => p.employeeId === x.id);
-      S.prCalc[x.id] = { base: x.salary || 0, n, comm };
-      return `<tr><td><b>${esc(x.name)}</b></td><td>${money(x.salary)}</td><td>${x.userId ? n : '—'}</td><td>${comm ? money(comm) : '—'}</td>
-        <td>${paid ? `<b>${money(paid.net)}</b>` : money((x.salary || 0) + comm)}</td>
+      const detail = t === 'pulse' ? `${pulses.toLocaleString('ar-EG')} بلصة` : t === 'hour' ? `${hours.toFixed(1)} ساعة` : t === 'day' ? `${days.toLocaleString('ar-EG')} يوم` : '';
+      S.prCalc[x.id] = { base, n, comm };
+      return `<tr><td><b>${esc(x.name)}</b><div class="meta" style="font-size:12px">${payTxt(x)}${detail ? ' · ' + detail : ''}</div></td><td>${money(base)}</td><td>${n}</td><td>${comm ? money(comm) : '—'}</td>
+        <td>${paid ? `<b>${money(paid.net)}</b>` : money(base + comm)}</td>
         <td>${paid ? `<span class="chip ok">اتصرف ${esc(paid.paidDate)}</span>` : ed ? `<button class="btn gold sm" onclick="A.payrollModal('${x.id}')">صرف</button>` : '<span class="chip mute">لسه</span>'}</td></tr>`;
     });
     const totalPaid = pr.reduce((a, p) => a + (p.net || 0), 0);
     body = `${monthBar('prMonth', M)}
-      <div class="meta"><span>اتصرف في الشهر ده: ${money(totalPaid)}</span><span>العمولة بتتحسب من الجلسات اللي الموظف سجّلها كدكتور</span></div>
+      <div class="meta"><span>اتصرف في الشهر ده: ${money(totalPaid)}</span><span>الجلسات والبلصات بتتحسب من الجلسات اللي اتسجلت باسم الدكتور، والساعات والأيام من الحضور والانصراف</span></div>
       ${rows.length ? `<div class="card tbl-wrap" style="padding:0"><table><thead><tr><th>الموظف</th><th>الأساسي</th><th>جلسات</th><th>العمولة</th><th>الصافي</th><th></th></tr></thead><tbody>${rows.join('')}</tbody></table></div>`
         : `<div class="card empty">ضيف الموظفين الأول من تبويب "الموظفين".</div>`}`;
   }
   clinicShell('staff', `
-    <div class="head"><h2>الموظفين والمرتبات</h2>${ed && tab === 'list' ? `<button class="btn gold" onclick="A.empModal()">+ موظف</button>` : ''}</div>
+    <div class="head"><h2>الموظفين والمرتبات</h2>${ed && tab === 'list' ? `<button class="btn" onclick="A.addDoctor()">+ دكتور</button><button class="btn gold" onclick="A.empModal()">+ موظف</button>` : ''}</div>
     <div class="tabs">${[['list', 'الموظفين'], ['payroll', 'المرتبات']].map(([k, l]) => `<button class="${tab === k ? 'on' : ''}" onclick="A.stTabSet('${k}')">${l}</button>`).join('')}</div>
     ${body}`);
 }
 A.stTabSet = k => { S.stTab = k; A.go('staff'); };
+const payTxt = x => { const t = x.payType || 'monthly', r = Number(x.rate) || 0; return t === 'pulse' ? `بالبلصة · ${money(r)}` : t === 'hour' ? `بالساعة · ${money(r)}` : t === 'day' ? `يومية · ${money(r)}` : t === 'session' ? 'بالجلسة' : `ثابت · ${money(x.salary)}`; };
 A.empModal = id => {
   const x = id ? S.emps.find(e => e.id === id) : null;
   const users = (S.staff || []).filter(s => s.role !== 'client' && (ROLES[s.role]?.scope === 'all' || (s.branchIds || []).includes(S.branch)));
@@ -4399,24 +4437,45 @@ A.empModal = id => {
       <label class="f">الاسم<input name="name" required value="${esc(x?.name)}"></label>
       <label class="f">الوظيفة<input name="job" list="jobsList" value="${esc(x?.job)}"></label>
     </div>
-    <datalist id="jobsList"><option value="دكتور"></option><option value="أخصائية ليزر"></option><option value="ريسبشن"></option><option value="محاسب"></option><option value="عامل نظافة"></option><option value="أمن"></option></datalist>
+    <datalist id="jobsList"><option value="دكتور"></option><option value="دكتورة"></option><option value="أخصائية ليزر"></option><option value="ريسبشن"></option><option value="محاسب"></option><option value="عامل نظافة"></option><option value="أمن"></option></datalist>
+    <label class="f">الموبايل<input name="phone" dir="ltr" value="${esc(x?.phone)}"></label>
+    <label class="chk sw"><input type="checkbox" name="isDoc" ${x?.isDoctor || (!x && S.empAsDoc) ? 'checked' : ''}> دكتور / أخصائية (يظهر في اختيار الدكتور في الجلسات والحجز)</label>
+    <div class="fcol" style="gap:6px"><span class="section-t" style="margin:0">طريقة الحساب</span><div class="pick" role="radiogroup" aria-label="طريقة الحساب">${PAY_TYPES.map(([k, l]) => `<label><input type="radio" name="pt" value="${k}" ${(x?.payType || 'monthly') === k ? 'checked' : ''} onchange="A.ptChanged(this.form)"><span>${l}</span></label>`).join('')}</div></div>
     <div class="grid3">
-      <label class="f">الموبايل<input name="phone" dir="ltr" value="${esc(x?.phone)}"></label>
-      <label class="f">المرتب الأساسي<input name="salary" type="number" min="0" step="any" value="${x?.salary ?? 0}"></label>
-      <label class="f">عمولة كل جلسة<input name="per" type="number" min="0" step="any" value="${x?.perSession ?? 0}"></label>
+      <label class="f" data-pt="monthly">المرتب الشهري<input name="salary" type="number" min="0" step="any" value="${x?.salary ?? 0}"></label>
+      <label class="f" data-pt="pulse,hour,day"><span id="rateL">السعر</span><input name="rate" type="number" min="0" step="any" value="${x?.rate ?? 0}"></label>
+      <label class="f">عمولة ثابتة لكل جلسة (اختياري)<input name="per" type="number" min="0" step="any" value="${x?.perSession ?? 0}"></label>
+      <label class="f">نسبة من سعر الجلسة ٪ (اختياري)<input name="pct" type="number" min="0" max="100" step="any" value="${x?.pct ?? 0}"></label>
     </div>
+    <p class="meta" id="ptHelp" style="margin:0"></p>
     <label class="f">مربوط بيوزر في السيستم (علشان تتحسب جلساته)<select name="user"><option value="">مش مربوط</option>${users.map(u => `<option value="${u.id}" ${x?.userId === u.id ? 'selected' : ''}>${esc(u.name)} (${esc(ROLES[u.role]?.label)})</option>`).join('')}</select></label>
-    <label class="chk"><input type="checkbox" name="act" ${x?.active === false ? '' : 'checked'}> شغال</label>
+    <label class="chk sw"><input type="checkbox" name="act" ${x?.active === false ? '' : 'checked'}> شغال</label>
     ${formActs()}
   </form>`);
+  S.empAsDoc = false;
+  A.ptChanged($modal.querySelector('form'));
 };
+const PAY_TYPES = [['monthly', 'مرتب ثابت'], ['pulse', 'بالبلصة'], ['hour', 'بالساعة'], ['day', 'باليومية'], ['session', 'بالجلسة / نسبة']];
+A.ptChanged = f => {
+  const t = f.pt.value;
+  f.querySelectorAll('[data-pt]').forEach(el => { el.style.display = el.dataset.pt.split(',').includes(t) ? '' : 'none'; });
+  const L = document.getElementById('rateL'); if (L) L.textContent = { pulse: 'سعر البلصة', hour: 'سعر الساعة', day: 'اليومية' }[t] || 'السعر';
+  const H = document.getElementById('ptHelp'); if (H) H.textContent = { monthly: 'مرتب ثابت كل شهر + أي عمولة تحطها.', pulse: 'بيتحسب من عدد البلصات (الشوتات) في الجلسات اللي اتسجلت باسمه.', hour: 'بيتحسب من ساعات الحضور والانصراف (لازم ميزة الحضور تكون شغالة ويكون مربوط بيوزر).', day: 'بيتحسب من عدد الأيام اللي حضرها، ولو مفيش حضور متسجل: الأيام اللي عمل فيها جلسات.', session: 'بيتحسب من الجلسات: مبلغ ثابت لكل جلسة و/أو نسبة من سعرها.' }[t] || '';
+};
+A.addDoctor = () => { S.empAsDoc = true; A.empModal(); setTimeout(() => { const f = $modal.querySelector('form'); if (f && !f.job.value) f.job.value = 'دكتور'; }, 50); };
 A.saveEmp = async (e, id) => {
   e.preventDefault();
   const f = e.target;
-  const data = { name: f.name.value.trim(), job: f.job.value.trim(), phone: f.phone.value.trim(), salary: Number(f.salary.value) || 0, perSession: Number(f.per.value) || 0, userId: f.user.value, active: f.act.checked, branchId: S.branch };
+  const data = { name: f.name.value.trim(), job: f.job.value.trim(), phone: f.phone.value.trim(), salary: Number(f.salary.value) || 0, perSession: Number(f.per.value) || 0, userId: f.user.value, active: f.act.checked, branchId: S.branch,
+    payType: f.pt?.value || 'monthly', rate: Number(f.rate?.value) || 0, pct: Math.min(100, Number(f.pct?.value) || 0), isDoctor: !!f.isDoc?.checked };
+  if (data.payType !== 'monthly') data.salary = 0;
   try {
     if (id) await updateDoc(cdoc('employees', id), data);
-    else await addDoc(ccol('employees'), { ...data, createdAt: serverTimestamp() });
+    else { const r = await addDoc(ccol('employees'), { ...data, createdAt: serverTimestamp() }); id = r.id; }
+    // الدكتور اللي مش مربوط بيوزر بيظهر في قايمة الدكاترة
+    if (data.isDoctor && !data.userId) await setDoc(cdoc('extdocs', id), { name: data.name, job: data.job, branchId: data.branchId, active: data.active }).catch(e => console.error(e));
+    else await deleteDoc(cdoc('extdocs', id)).catch(() => {});
+    S.extDocs = null;
     A.closeModal(); toast('اتحفظ'); A.go('staff');
   } catch (err) { console.error(err); toast('مقدرتش أحفظ: ' + err.code); }
 };
@@ -4822,7 +4881,7 @@ A.impRun = async () => {
 /* =========================================================
    مميزات العيادة: إعدادات صاحب العيادة · تذكير الحجز · الحجز أونلاين · إقرار الموافقة · تقرير اليوم · نقاط الولاء
    ========================================================= */
-const REMIND_DEF = 'أهلاً {الاسم} 👋\nبنفكّرك بمعادك في {العيادة} يوم {اليوم} الساعة {الساعة}{الدكتور}.\nلو محتاج تغيّر المعاد ابعتلنا هنا. مستنيينك 🌸';
+const REMIND_DEF = 'أهلاً {الاسم} 👋\nبنفكّرك بميعادك في {العيادة} يوم {اليوم} الساعة {الساعة}{الدكتور}.\nلو محتاج تغيّر الميعاد ابعتلنا هنا. مستنيينك 🌸';
 const CONSENT_DEF = 'أقر أنا الموقّع أدناه {الاسم} بأنني:\n١. تم شرح الإجراء ({الخدمة}) ونتائجه المتوقعة وعدد الجلسات المطلوبة لي بوضوح.\n٢. تم إبلاغي بالآثار الجانبية المحتملة مثل الاحمرار أو التورم المؤقت أو تغيّر لون الجلد.\n٣. أفصحت عن تاريخي المرضي والأدوية التي أتناولها وأي حساسية، وأي حمل أو رضاعة.\n٤. ألتزم بتعليمات ما قبل وما بعد الجلسة (مثل تجنب الشمس واستخدام واقي الشمس).\n٥. أوافق على إجراء الجلسة بإرادتي الكاملة.';
 const LOY_DEF = { on: false, per100: 1, referral: 50, value: 1 };
 async function loadCfg(force) {
@@ -4853,7 +4912,7 @@ function rpv(k) {
   return k === 'disc' ? Math.max(0, Math.min(100, Number(v) || 0)) : !!v;
 }
 const comboTxt = x => (x.items || []).map(i => `${Number(i.n) > 1 ? Number(i.n).toLocaleString('ar-EG') + ' ' : ''}${i.name}`).join(' + ');
-// المواعيد: كل معاد = دقايق من نص الليل
+// المواعيد: كل ميعاد = دقايق من نص الليل
 const toMin = t => { const m = /^(\d{1,2}):(\d{2})$/.exec(t || ''); return m ? +m[1] * 60 + +m[2] : null; };
 const fromMin = n => String(Math.floor(n / 60)).padStart(2, '0') + ':' + String(n % 60).padStart(2, '0');
 const PUB_DEF = { open: '12:00', close: '22:00', step: 30, cap: 1, off: [5], ahead: 30 };
@@ -5121,9 +5180,9 @@ A.bookQr = async () => {
     x.fillStyle = '#fff'; x.fillRect(0, 0, W, cv.height);
     x.fillStyle = col; x.fillRect(0, 0, W, 130);
     x.direction = 'rtl'; x.textAlign = 'center'; x.fillStyle = '#fff'; x.font = '800 40px Cairo, sans-serif'; x.fillText(b.name, W / 2, 80);
-    x.fillStyle = '#1E3B38'; x.font = '800 34px Cairo, sans-serif'; x.fillText('احجز معادك أونلاين', W / 2, 200);
+    x.fillStyle = '#1E3B38'; x.font = '800 34px Cairo, sans-serif'; x.fillText('احجز ميعادك أونلاين', W / 2, 200);
     const qc = tmp.querySelector('canvas'); if (qc) x.drawImage(qc, (W - 440) / 2, 240, 440, 440);
-    x.fillStyle = '#5E7E79'; x.font = '700 24px Cairo, sans-serif'; x.fillText('امسح الكود واختار المعاد اللي يناسبك', W / 2, 740);
+    x.fillStyle = '#5E7E79'; x.font = '700 24px Cairo, sans-serif'; x.fillText('امسح الكود واختار الميعاد اللي يناسبك', W / 2, 740);
   } catch (e) { toast('مقدرتش أعمل الـ QR دلوقتي — اتأكد من النت'); }
 };
 
@@ -5188,14 +5247,14 @@ A.onlineOk = async id => {
 };
 A.onlineNo = async id => {
   const r = (S.online || []).find(x => x.id === id); if (!r) return;
-  const msg = `أهلاً ${(r.name || '').split(' ')[0]} 👋 معاك ${brandOf(S.clinic).name}.\nبخصوص طلب الحجز يوم ${dayName(r.date)}: للأسف المعاد ده مش متاح. تحب نشوفلك معاد تاني؟`;
-  openModal(`<h3>طلب ${esc(r.name)}</h3><p class="meta">هيتشال من الطلبات. تقدر تبعتله رسالة تقترح معاد تاني:</p>
+  const msg = `أهلاً ${(r.name || '').split(' ')[0]} 👋 معاك ${brandOf(S.clinic).name}.\nبخصوص طلب الحجز يوم ${dayName(r.date)}: للأسف الميعاد ده مش متاح. تحب نشوفلك ميعاد تاني؟`;
+  openModal(`<h3>طلب ${esc(r.name)}</h3><p class="meta">هيتشال من الطلبات. تقدر تبعتله رسالة تقترح ميعاد تاني:</p>
     <div class="acts"><a class="btn gold" style="text-decoration:none;display:inline-flex;align-items:center" target="_blank" rel="noopener" href="https://wa.me/${waNum(r.phone)}?text=${encodeURIComponent(msg)}">💬 ابعتله</a>
     <button class="btn danger" onclick="A.onlineNoGo('${id}')">شيل الطلب</button><button class="btn ghost" onclick="A.closeModal()">إلغاء</button></div>`);
 };
 A.onlineNoGo = async id => {
   const r = (S.online || []).find(x => x.id === id);
-  try { await updateDoc(cdoc('online', id), { status: 'rejected', handledBy: S.profile.id, handledAt: serverTimestamp() }); if (r?.time) await syncBusy(r.branchId, r.date); A.closeModal(); toast('اتشال — المعاد رجع متاح'); A.go('bookings'); }
+  try { await updateDoc(cdoc('online', id), { status: 'rejected', handledBy: S.profile.id, handledAt: serverTimestamp() }); if (r?.time) await syncBusy(r.branchId, r.date); A.closeModal(); toast('اتشال — الميعاد رجع متاح'); A.go('bookings'); }
   catch (err) { toast('مقدرتش: ' + (err.code || err.message)); }
 };
 
@@ -5318,7 +5377,7 @@ async function renderBookPage() {
     }
   } catch (e) { console.error(e); }
   const B = brandOf(br ? { ...br, whiteLabel: true } : null);
-  document.title = 'احجز معادك — ' + B.name;
+  document.title = 'احجز ميعادك — ' + B.name;
   const wa = pub?.wa ? `https://wa.me/${waNum(pub.wa)}` : '';
   if (!br || !pub?.on || br.book === false) { $app.innerHTML = `<div class="locked"><div class="card">${logoHTML(B, 64)}<h2>${esc(B.name)}</h2><p>الحجز أونلاين مش متاح دلوقتي.${wa ? ` <a href="${wa}" target="_blank" rel="noopener">كلّمنا على الواتساب</a>.` : ''}</p></div></div>`; return; }
   // الأقسام اللي فيها خدمات ظاهرة (+ "خدمات تانية" للي من غير قسم)
@@ -5327,7 +5386,7 @@ async function renderBookPage() {
   if (loose.length) groups.push({ id: '_other', name: groups.length ? 'خدمات تانية' : 'الخدمات', icon: 'other', items: loose });
   const today = todayStr(), brs = pub.branches || [];
   const maxD = (() => { const x = new Date(); x.setDate(x.getDate() + (Number(pub.ahead) || 30)); return toInput(x); })();
-  const P = { offer: null, want: false, step: 2, cat: groups[0] || null, gender: 'f', picked: [], br: brs.length === 1 ? brs[0] : null, staff: '', date: today, time: '', who: '', name: '', phone: '', notes: '' };
+  const P = { offer: null, want: false, step: 2, cat: groups.length > 1 ? null : (groups[0] || null), gender: 'f', picked: [], br: brs.length === 1 ? brs[0] : null, staff: '', date: today, time: '', who: '', name: '', phone: '', notes: '' };
   const t0 = Date.now();
   const n = v => Number(v || 0).toLocaleString('ar-EG');
   const svx = svcFlat(svs);
@@ -5347,13 +5406,13 @@ async function renderBookPage() {
     draw();
   }
   function head() {
-    const S3 = [[2, 'الخدمات'], [3, 'المعاد'], [4, 'بياناتك']];
+    const S3 = [[2, 'الخدمات'], [3, 'الميعاد'], [4, 'بياناتك']];
     const can = k => k === 2 || (k === 3 && (P.picked.length || P.offer)) || (k === 4 && P.time);
     const back = P.step > 2 && P.step < 5 ? `<button type="button" aria-label="رجوع" onclick="BK.back()" style="background:rgba(255,255,255,.16);border:0;border-radius:12px;color:#fff;cursor:pointer;width:40px;height:40px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>` : '';
     const bar = P.step < 5 ? `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">${S3.map(([k, l], i) => { const cur = P.step === k, done = P.step > k, ok = can(k) && !cur;
       return `<button type="button" ${ok ? `onclick="BK.jump(${k})"` : 'disabled'} aria-current="${cur ? 'step' : 'false'}" style="font:inherit;font-size:13px;border:0;border-radius:99px;padding:7px 4px;display:flex;align-items:center;justify-content:center;gap:6px;cursor:${ok ? 'pointer' : 'default'};${cur ? 'background:#fff;color:var(--brand);font-weight:800' : done ? 'background:rgba(255,255,255,.22);color:#fff;font-weight:700' : 'background:rgba(255,255,255,.08);color:rgba(255,255,255,.7)'}"><span style="width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;${cur ? 'background:var(--brand);color:#fff' : 'background:rgba(255,255,255,.25)'}">${done ? '✓' : n(i + 1)}</span>${l}</button>`; }).join('')}</div>` : '';
     return `<div style="background:var(--brand);color:#fff;padding:16px 16px 14px;display:flex;flex-direction:column;gap:12px;position:sticky;top:0;z-index:5">
-      <div style="display:flex;align-items:center;gap:10px">${back}${logoHTML(B, 36)}<div style="flex:1;display:flex;flex-direction:column;min-width:0"><b style="font-size:17px">${esc(B.name)}</b><span style="font-size:13px;opacity:.85">${P.step === 5 ? 'طلبك وصل' : 'احجز معادك أونلاين'}</span></div></div>
+      <div style="display:flex;align-items:center;gap:10px">${back}${logoHTML(B, 36)}<div style="flex:1;display:flex;flex-direction:column;min-width:0"><b style="font-size:17px">${esc(B.name)}</b><span style="font-size:13px;opacity:.85">${P.step === 5 ? 'طلبك وصل' : 'احجز ميعادك أونلاين'}</span></div></div>
       ${bar}</div>`;
   }
   function body() {
@@ -5363,14 +5422,15 @@ async function renderBookPage() {
     if (P.step === 2) {
       const gendered = svs.some(x => x.gender === 'f' || x.gender === 'm');
       const okG = x => !gendered || (x.gender || 'all') === 'all' || x.gender === P.gender;
-      const cur = P.cat && groups.includes(P.cat) ? P.cat : groups[0];
+      const cur = P.cat && groups.includes(P.cat) ? P.cat : (groups.length > 1 ? null : groups[0]);
       const vis = (cur?.items || []).filter(okG);
       const pickedIn = g => P.picked.filter(id => g.items.some(x => id === x.id || id.startsWith(x.id + '~'))).length;
       return `${P.offer ? `<div style="background:var(--warn-bg);border:1.5px solid var(--gold-l);border-radius:14px;padding:10px 14px;display:flex;gap:10px;align-items:center;color:var(--warn);font-size:14px"><span style="flex:1">اخترت عرض <b>${esc(P.offer.name)}</b></span><button type="button" onclick="BK.noOffer()" style="font:inherit;font-size:13px;background:#fff;border:1px solid var(--gold-l);color:var(--warn);border-radius:99px;padding:5px 12px;cursor:pointer">إلغاء العرض</button></div>` : offerCards}
         ${gendered ? `<div role="radiogroup" aria-label="لمين" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));background:#fff;border:1px solid var(--line);border-radius:12px;padding:4px">${[['f', 'ستات'], ['m', 'رجالة']].map(([k, l]) => `<button type="button" role="radio" aria-checked="${P.gender === k}" onclick="BK.gender('${k}')" style="font:inherit;border:0;border-radius:9px;min-height:40px;cursor:pointer;${P.gender === k ? 'background:var(--brand);color:#fff;font-weight:700' : 'background:transparent;color:var(--ink)'}">${l}</button>`).join('')}</div>` : ''}
-        ${groups.length > 1 ? `<div role="tablist" aria-label="الأقسام" style="display:flex;gap:8px;overflow-x:auto;padding:2px 0 6px;margin:0 -2px;scrollbar-width:none">${groups.map(g => { const on = g === cur, k = pickedIn(g); return `<button type="button" role="tab" aria-selected="${on}" onclick="BK.cat('${g.id}')" style="font:inherit;font-size:14px;flex:none;display:flex;align-items:center;gap:7px;cursor:pointer;border-radius:99px;padding:8px 14px 8px 12px;min-height:42px;${on ? 'background:var(--brand);color:#fff;border:1.5px solid var(--brand);font-weight:700' : 'background:#fff;color:var(--ink);border:1.5px solid var(--line)'}">${catIco(g.icon, 20, on ? '#fff' : 'var(--brand)')}${esc(g.name)}${k ? `<span style="min-width:20px;height:20px;border-radius:99px;font-size:11px;display:inline-flex;align-items:center;justify-content:center;${on ? 'background:#fff;color:var(--brand)' : 'background:var(--brand);color:#fff'}">${n(k)}</span>` : ''}</button>`; }).join('')}</div>` : ''}
-        <p class="meta" style="margin:0">اختار خدمة أو أكتر من أي قسم — تقدر تتنقّل بين الأقسام وكل اللي اخترته بيفضل محفوظ.</p>
-        <div class="fcol" style="gap:8px">${vis.map(x => { if ((x.areas || []).length) { const A2 = svx.filter(y => y.parentId === x.id); const k = A2.filter(y => P.picked.includes(y.id)).length; return `<div style="background:${k ? 'var(--ok-bg)' : '#fff'};border:${k ? '2px solid var(--brand)' : '1.5px solid var(--line)'};border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:10px"><div style="display:flex;flex-direction:column"><b style="font-size:15px">${esc(x.name)}</b><span style="font-size:12px;color:var(--muted)">${x.desc ? esc(x.desc) + ' · ' : ''}اختار المنطقة أو أكتر</span></div><div style="display:flex;gap:6px;flex-wrap:wrap">${A2.map(y => { const on = P.picked.includes(y.id); return `<button type="button" aria-pressed="${on}" onclick="BK.pick('${y.id}',${!on})" style="font:inherit;font-size:13.5px;cursor:pointer;border-radius:99px;padding:7px 12px;min-height:38px;${on ? 'background:var(--brand);color:#fff;border:1.5px solid var(--brand);font-weight:700' : 'background:#fff;color:var(--ink);border:1.5px solid var(--line)'}">${on ? '✓ ' : ''}${esc(y.areaName)} · ${n(y.dur)}د${pub.showPrice ? ' · ' + money(y.price) : ''}</button>`; }).join('')}</div></div>`; } const on = P.picked.includes(x.id); return `<label style="display:flex;align-items:center;gap:12px;background:${on ? 'var(--ok-bg)' : '#fff'};border:${on ? '2px solid var(--brand)' : '1.5px solid var(--line)'};border-radius:14px;padding:12px 14px;min-height:52px;cursor:pointer"><input type="checkbox" ${on ? 'checked' : ''} onchange="BK.pick('${x.id}',this.checked)" style="width:20px;height:20px;min-height:0;accent-color:var(--brand)"><span style="flex:1;display:flex;flex-direction:column"><b style="font-size:15px">${esc(x.name)}</b><span style="font-size:12px;color:var(--muted)">${x.desc ? esc(x.desc) + ' · ' : ''}${n(Number(x.dur) || pub.step)} دقيقة${x.kind === 'package' ? ' · باكدج' : ''}</span></span>${pub.showPrice ? `<b style="font-size:14px">${money(x.price)}</b>` : ''}</label>`; }).join('') || '<p class="meta">مفيش خدمات هنا.</p>'}</div>`;
+        ${!cur ? `<h2 style="margin:0;font-size:19px">إيه اللي محتاجه؟</h2><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">${groups.map(g => { const k = pickedIn(g), cnt = g.items.filter(okG).length; return `<button type="button" onclick="BK.cat('${g.id}')" style="font:inherit;text-align:right;cursor:pointer;position:relative;background:${k ? 'var(--ok-bg)' : '#fff'};border:${k ? '2px solid var(--brand)' : '1.5px solid var(--line)'};border-radius:18px;padding:16px 14px;display:flex;flex-direction:column;gap:10px;min-height:118px;color:var(--ink)"><span style="width:46px;height:46px;border-radius:14px;background:var(--ok-bg);display:flex;align-items:center;justify-content:center">${catIco(g.icon, 26)}</span><b style="font-size:15px;line-height:1.35">${esc(g.name)}</b><span style="font-size:12px;color:var(--muted)">${n(cnt)} ${cnt === 1 ? 'خدمة' : 'خدمات'}</span>${k ? `<span style="position:absolute;top:10px;left:10px;min-width:24px;height:24px;border-radius:99px;background:var(--brand);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center">✓ ${n(k)}</span>` : ''}</button>`; }).join('')}</div>` : `${groups.length > 1 ? `<button type="button" onclick="BK.cats()" style="font:inherit;align-self:flex-start;display:inline-flex;align-items:center;gap:6px;background:#fff;border:1.5px solid var(--line);border-radius:99px;padding:8px 14px;cursor:pointer;color:var(--brand);font-weight:700"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>كل الأقسام</button>` : ''}
+        <div style="display:flex;gap:10px;align-items:center"><span style="width:42px;height:42px;border-radius:13px;background:var(--ok-bg);display:flex;align-items:center;justify-content:center">${catIco(cur.icon, 24)}</span><h2 style="margin:0;font-size:19px">${esc(cur.name)}</h2></div>
+        <p class="meta" style="margin:0">اختار خدمة أو أكتر. ولو عايز حاجة من قسم تاني ارجع لـ«كل الأقسام»، واللي اخترته بيفضل محفوظ.</p>
+        <div class="fcol" style="gap:8px">${vis.map(x => { if ((x.areas || []).length) { const A2 = svx.filter(y => y.parentId === x.id); const k = A2.filter(y => P.picked.includes(y.id)).length; return `<div style="background:${k ? 'var(--ok-bg)' : '#fff'};border:${k ? '2px solid var(--brand)' : '1.5px solid var(--line)'};border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:10px"><div style="display:flex;flex-direction:column"><b style="font-size:15px">${esc(x.name)}</b><span style="font-size:12px;color:var(--muted)">${x.desc ? esc(x.desc) + ' · ' : ''}اختار المنطقة أو أكتر</span></div><div style="display:flex;gap:6px;flex-wrap:wrap">${A2.map(y => { const on = P.picked.includes(y.id); return `<button type="button" aria-pressed="${on}" onclick="BK.pick('${y.id}',${!on})" style="font:inherit;font-size:13.5px;cursor:pointer;border-radius:99px;padding:7px 12px;min-height:38px;${on ? 'background:var(--brand);color:#fff;border:1.5px solid var(--brand);font-weight:700' : 'background:#fff;color:var(--ink);border:1.5px solid var(--line)'}">${on ? '✓ ' : ''}${esc(y.areaName)} · ${n(y.dur)}د${pub.showPrice ? ' · ' + money(y.price) : ''}</button>`; }).join('')}</div></div>`; } const on = P.picked.includes(x.id); return `<label style="display:flex;align-items:center;gap:12px;background:${on ? 'var(--ok-bg)' : '#fff'};border:${on ? '2px solid var(--brand)' : '1.5px solid var(--line)'};border-radius:14px;padding:12px 14px;min-height:52px;cursor:pointer"><input type="checkbox" ${on ? 'checked' : ''} onchange="BK.pick('${x.id}',this.checked)" style="width:20px;height:20px;min-height:0;accent-color:var(--brand)"><span style="flex:1;display:flex;flex-direction:column"><b style="font-size:15px">${esc(x.name)}</b><span style="font-size:12px;color:var(--muted)">${x.desc ? esc(x.desc) + ' · ' : ''}${n(Number(x.dur) || pub.step)} دقيقة${x.kind === 'package' ? ' · باكدج' : ''}</span></span>${pub.showPrice ? `<b style="font-size:14px">${money(x.price)}</b>` : ''}</label>`; }).join('') || '<p class="meta">مفيش خدمات هنا.</p>'}</div>`}`;
     }
     if (P.step === 3) {
       const t = team();
@@ -5390,7 +5450,7 @@ async function renderBookPage() {
       const who = (pub.staff || []).find(s => s.id === (P.staff || P.who));
       return `<div class="card fcol" style="gap:6px;font-size:14px;padding:14px 16px">
           <div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><span class="meta">الخدمة</span><span style="text-align:left"><b>${esc(sel().map(x => x.name).join(' + ') || (P.offer ? 'عرض: ' + P.offer.name : ''))}</b><button type="button" onclick="BK.jump(2)" style="font:inherit;font-size:12.5px;background:none;border:0;color:var(--brand);text-decoration:underline;cursor:pointer;padding:0 6px">تعديل</button></span></div>
-          <div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><span class="meta">المعاد</span><span style="text-align:left"><b>${esc(dayName(P.date))} · ${esc(time12(P.time))}</b><button type="button" onclick="BK.jump(3)" style="font:inherit;font-size:12.5px;background:none;border:0;color:var(--brand);text-decoration:underline;cursor:pointer;padding:0 6px">تعديل</button></span></div>
+          <div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><span class="meta">الميعاد</span><span style="text-align:left"><b>${esc(dayName(P.date))} · ${esc(time12(P.time))}</b><button type="button" onclick="BK.jump(3)" style="font:inherit;font-size:12.5px;background:none;border:0;color:var(--brand);text-decoration:underline;cursor:pointer;padding:0 6px">تعديل</button></span></div>
           ${P.staff && who ? `<div style="display:flex;justify-content:space-between;gap:8px"><span class="meta">مع</span><b>${esc(who.name)}</b></div>` : ''}
           ${P.br && brs.length > 1 ? `<div style="display:flex;justify-content:space-between;gap:8px"><span class="meta">الفرع</span><b>${esc(P.br.name)}</b></div>` : ''}
           ${P.offer ? `<div style="display:flex;justify-content:space-between;gap:8px"><span class="meta">العرض</span><b>${esc(P.offer.name)}${pub.showPrice ? ` · ${money(P.offer.price)}` : ''}</b></div>`
@@ -5404,14 +5464,14 @@ async function renderBookPage() {
     }
     return `<div class="fcol" style="text-align:center;align-items:center;padding-top:30px"><div style="font-size:48px">✅</div><h2 style="margin:0">طلب الحجز اتبعت!</h2>
       <p class="meta" style="justify-content:center">${esc(sel().map(x => x.name).join(' + '))} — ${esc(dayName(P.date))} الساعة ${esc(time12(P.time))}</p>
-      <p class="meta" style="justify-content:center">هنكلمك على <b dir="ltr">${esc(P.phone)}</b> نأكّد المعاد.</p>
+      <p class="meta" style="justify-content:center">هنكلمك على <b dir="ltr">${esc(P.phone)}</b> نأكّد الميعاد.</p>
       ${wa ? `<a class="btn gold" style="text-decoration:none;display:inline-flex;justify-content:center;align-items:center" target="_blank" rel="noopener" href="${wa}?text=${encodeURIComponent(`أهلاً 👋 حجزت أونلاين باسم ${P.name}: ${sel().map(x => x.name).join(' + ')} يوم ${dayName(P.date)} الساعة ${time12(P.time)}`)}">💬 ابعتلنا على الواتساب</a>` : ''}</div>`;
   }
   function foot() {
     if (P.step === 5) return wa ? `<p class="meta" style="justify-content:center;margin:0">محتاج مساعدة؟ <a href="${wa}" target="_blank" rel="noopener">كلّمنا على الواتساب</a></p>` : '';
-    if (P.step === 2) return `${P.picked.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;max-height:76px;overflow-y:auto">${sel().map(x => `<span style="display:inline-flex;align-items:center;gap:4px;background:var(--ok-bg);color:var(--brand);border-radius:99px;padding:4px 6px 4px 10px;font-size:13px;font-weight:600">${esc(x.name)}<button type="button" aria-label="شيل ${esc(x.name)}" onclick="BK.pick('${x.id}',false)" style="border:0;background:transparent;color:inherit;cursor:pointer;font-size:15px;line-height:1;padding:0 2px">×</button></span>`).join('')}</div><div style="display:flex;justify-content:space-between;font-size:14px"><span>${n(P.picked.length)} ${P.picked.length === 1 ? 'خدمة' : 'خدمات'} · ${n(totDur())} دقيقة</span>${pub.showPrice ? `<b>${money(totPrice())}</b>` : ''}</div>` : wa ? `<p class="meta" style="justify-content:center;margin:0">محتاج مساعدة؟ <a href="${wa}" target="_blank" rel="noopener">كلّمنا على الواتساب</a></p>` : ''}${btn('كمّل واختار المعاد ←', 'BK.go(3)', !P.picked.length && !P.offer)}`;
-    if (P.step === 3) return btn(P.time ? `${esc(dayName(P.date))} · ${esc(time12(P.time))} ← التالي` : 'اختار معاد', 'BK.go(4)', !P.time);
-    return btn('احجز المعاد', 'BK.submit()', false);
+    if (P.step === 2) return `${P.picked.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;max-height:76px;overflow-y:auto">${sel().map(x => `<span style="display:inline-flex;align-items:center;gap:4px;background:var(--ok-bg);color:var(--brand);border-radius:99px;padding:4px 6px 4px 10px;font-size:13px;font-weight:600">${esc(x.name)}<button type="button" aria-label="شيل ${esc(x.name)}" onclick="BK.pick('${x.id}',false)" style="border:0;background:transparent;color:inherit;cursor:pointer;font-size:15px;line-height:1;padding:0 2px">×</button></span>`).join('')}</div><div style="display:flex;justify-content:space-between;font-size:14px"><span>${n(P.picked.length)} ${P.picked.length === 1 ? 'خدمة' : 'خدمات'} · ${n(totDur())} دقيقة</span>${pub.showPrice ? `<b>${money(totPrice())}</b>` : ''}</div>` : wa ? `<p class="meta" style="justify-content:center;margin:0">محتاج مساعدة؟ <a href="${wa}" target="_blank" rel="noopener">كلّمنا على الواتساب</a></p>` : ''}${btn('كمّل واختار الميعاد ←', 'BK.go(3)', !P.picked.length && !P.offer)}`;
+    if (P.step === 3) return btn(P.time ? `${esc(dayName(P.date))} · ${esc(time12(P.time))} ← التالي` : 'اختار ميعاد', 'BK.go(4)', !P.time);
+    return btn('احجز الميعاد', 'BK.submit()', false);
   }
   function draw() {
     $app.innerHTML = `<div style="max-width:520px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;background:var(--bg)">${head()}
@@ -5419,11 +5479,12 @@ async function renderBookPage() {
       <footer style="position:sticky;bottom:0;padding:12px 18px calc(16px + env(safe-area-inset-bottom,0px));background:#fff;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:10px">${foot()}</footer></div>`;
   }
   try { history.replaceState({ bk: 2 }, ''); } catch (e) {}
-  window.onpopstate = e => { if (P.step === 5) return; const st = e.state?.bk || 2; if (st === 3) return BK.go(3, true); P.step = st; draw(); window.scrollTo(0, 0); };
+  window.onpopstate = e => { if (P.step === 5) return; const st = e.state?.bk || 2; if (st === 3) return BK.go(3, true); P.step = st; if (st === 2 && groups.length > 1) P.cat = e.state?.cat ? groups.find(g => g.id === e.state.cat) || null : null; draw(); window.scrollTo(0, 0); };
   window.BK = {
     back: () => { if (P.step > 2 && P.step < 5) history.back(); },
     jump: k => { if (k === P.step) return; if (k < P.step) { history.go(k - P.step); return; } BK.go(k); },
-    cat: id => { P.cat = groups.find(g => g.id === id) || P.cat; draw(); },
+    cat: id => { P.cat = groups.find(g => g.id === id) || P.cat; try { history.pushState({ bk: 2, cat: id }, ''); } catch (e) {} draw(); window.scrollTo(0, 0); },
+    cats: () => { if (history.state?.cat) history.back(); else { P.cat = null; draw(); } },
     noOffer: () => { P.offer = null; draw(); },
     offer: id => {
       const o = offers.find(x => x.id === id); if (!o) return;
@@ -5470,8 +5531,8 @@ async function renderBookPage() {
         try { localStorage.setItem('bc-bk-' + cid, JSON.stringify([...sent, Date.now()])); } catch (x) {}
         P.phone = phone; P.step = 5; draw(); window.scrollTo(0, 0);
       } catch (x) {
-        console.error(x); busy(b, false, 'احجز المعاد');
-        if (x.code === 'permission-denied') { P.step = 3; P.time = ''; await loadSlots(); const e = document.querySelector('main'); if (e) e.insertAdjacentHTML('afterbegin', '<div class="err" role="alert">المعاد ده لسه اتحجز حالاً 🙏 اختار معاد تاني.</div>'); }
+        console.error(x); busy(b, false, 'احجز الميعاد');
+        if (x.code === 'permission-denied') { P.step = 3; P.time = ''; await loadSlots(); const e = document.querySelector('main'); if (e) e.insertAdjacentHTML('afterbegin', '<div class="err" role="alert">الميعاد ده لسه اتحجز حالاً 🙏 اختار ميعاد تاني.</div>'); }
         else err('مقدرناش نبعت الطلب — جرّب تاني بعد شوية.');
       }
     },
