@@ -2252,7 +2252,15 @@ A.tenantModal = async (pk, id) => {
     <div class="section-t">الشكل</div>
     <div class="grid2">
       <label class="f">اللون<input name="color" type="color" value="${esc(t?.color || '#2F6F68')}" style="padding:4px"></label>
-      <label class="f">رابط اللوجو (اختياري)<input name="logo" dir="ltr" placeholder="https://..." value="${esc(t?.logoUrl)}"></label>
+      <div class="f"><span>اللوجو</span>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <span id="logoPrev" style="display:inline-flex">${t?.logoUrl ? logoHTML({ logo: t.logoUrl }, 44) : ICON(44)}</span>
+          <label class="btn ghost sm" style="cursor:pointer">📷 رفع صورة اللوجو<input type="file" accept="image/*" hidden onchange="A.logoPick(this)"></label>
+          ${t?.logoUrl ? `<button type="button" class="btn ghost sm" onclick="A.logoClear(this.form)">شيل اللوجو</button>` : ''}
+        </div>
+        <input type="hidden" name="logo" value="${esc(t?.logoUrl)}">
+        <span class="meta" style="font-size:12px">علشان اللوجو يظهر جوه السيستم للعيادة نفسها، علّم كمان على «السيستم يظهر باسم العيادة ولوجوها». في صفحة الحجز أونلاين بيظهر على طول.</span>
+      </div>
     </div>
     <label class="f">ملاحظات داخلية (مش بتظهر للعميل)<input name="notes" value="${esc(t?.notes)}"></label>
     <label class="chk"><input type="checkbox" name="act" ${t?.active === false ? '' : 'checked'}> مفعّل</label>
@@ -2282,6 +2290,25 @@ function tenantFields(f, P) {
   if (P.remote) remoteFieldsRead(f, data);
   return data;
 }
+// رفع اللوجو: بنصغّره ونحفظه جوه بيانات العيادة نفسها (من غير ما يحتاج رابط)
+A.logoPick = async inp => {
+  const fl = inp.files?.[0]; if (!fl) return;
+  if (!/^image\//.test(fl.type)) return toast('اختار صورة');
+  try {
+    const url = await new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = no; r.readAsDataURL(fl); });
+    const im = await new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = url; });
+    const max = 360, k = Math.min(1, max / Math.max(im.width, im.height));
+    const cv = document.createElement('canvas'); cv.width = Math.round(im.width * k); cv.height = Math.round(im.height * k);
+    cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height);
+    let data = cv.toDataURL('image/png');
+    if (data.length > 180000) data = cv.toDataURL('image/webp', 0.9);
+    if (data.length > 180000) data = cv.toDataURL('image/jpeg', 0.85);
+    const f = inp.closest('form'); f.logo.value = data;
+    document.getElementById('logoPrev').innerHTML = logoHTML({ logo: data }, 44);
+    toast('تمام — اضغط حفظ علشان اللوجو يتسجل');
+  } catch (e) { console.error(e); toast('مقدرتش أقرا الصورة'); }
+};
+A.logoClear = f => { f.logo.value = ''; document.getElementById('logoPrev').innerHTML = ICON(44); };
 const brandDoc = (P, d) => ({ product: P.key, name: d.name, logoUrl: d.logoUrl || '', color: d.color || '#2F6F68', whiteLabel: !!d.whiteLabel, ...(P.key === 'clinic' ? { book: !!d.features?.onlineBooking } : {}), ...(P.remote && d.fb ? { fb: d.fb } : {}) });
 // رابط واحد لكل شركات الصيانة: كل شركة بالكود بتاعها
 const MAINT_APP = 'https://beamcare.github.io/m/';
