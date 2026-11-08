@@ -1,5 +1,5 @@
 /* Beam Care — ملف تشغيل الأبلكيشن من غير نت */
-const V = 'beamcare-v3';
+const V = 'beamcare-v5';
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(['./', './index.html'])).catch(() => {})); self.skipWaiting(); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== V && k.startsWith('beamcare-')).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 const CDN = /(gstatic\.com\/firebasejs|cdnjs\.cloudflare\.com|fonts\.gstatic\.com|fonts\.googleapis\.com)/;
