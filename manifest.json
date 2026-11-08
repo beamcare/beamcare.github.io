@@ -1,16 +1,15 @@
 {
-  "name": "Beam Care Clinic",
+  "name": "Beam Care",
   "short_name": "Beam Care",
-  "description": "سيستم إدارة العيادات",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "dir": "rtl",
   "lang": "ar",
-  "background_color": "#F4F6F5",
+  "background_color": "#091A33",
   "theme_color": "#2F6F68",
   "icons": [
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
   ]
 }
