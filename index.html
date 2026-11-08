@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Beam Care</title>
-<meta name="theme-color" content="#2F6F68">
+<meta name="theme-color" content="#163A6B">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -13,8 +13,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{
-  --brand:#2F6F68; --brand-d:#1F4E49; --gold:#C98F4E; --gold-l:#DDA86E; --mint:#A9CEC4;
-  --bg:#F4F6F5; --card:#fff; --ink:#1E3B38; --muted:#5E7E79; --line:#DCE5E2;
+  --brand:#163A6B; --brand-d:#0E2747; --gold:#B98A35; --gold-l:#D7AE57; --mint:#BFD0EA;
+  --bg:#F3F5F9; --card:#fff; --ink:#13233D; --muted:#5D6B82; --line:#DCE2EC;
   --red:#B3412F; --red-bg:#FBEDEA; --ok:#2E7D4F; --ok-bg:#E6F4EC; --warn:#8A5A12; --warn-bg:#FCF3E3;
 }
 *{box-sizing:border-box}
@@ -46,7 +46,7 @@ label.chk{display:flex;align-items:center;gap:8px;font-weight:600;cursor:pointer
 .pick.swatch span{width:34px;height:34px;padding:0;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 1px var(--line)}
 .pick.swatch input:checked+span{border-color:#fff;box-shadow:0 0 0 2.5px var(--ink)}
 label.sw{justify-content:space-between;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:#fff}
-label.sw input[type=checkbox]{appearance:none;-webkit-appearance:none;order:2;width:46px;height:27px;min-height:0;border-radius:99px;background:#cfd6d4;position:relative;flex:none;cursor:pointer;transition:.15s;margin:0;padding:0;border:0}
+label.sw input[type=checkbox]{appearance:none;-webkit-appearance:none;order:2;width:46px;height:27px;min-height:0;border-radius:99px;background:#CDD4DF;position:relative;flex:none;cursor:pointer;transition:.15s;margin:0;padding:0;border:0}
 label.sw input[type=checkbox]::after{content:'';position:absolute;top:3px;right:3px;width:21px;height:21px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:.15s}
 label.sw input[type=checkbox]:checked{background:var(--brand)}
 label.sw input[type=checkbox]:checked::after{right:22px}
@@ -59,8 +59,8 @@ label.chk input{width:20px;height:20px;min-height:0;accent-color:var(--brand)}
 @media(max-width:640px){.grid2,.grid3{grid-template-columns:1fr}}
 
 /* login */
-.login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
-.login-card{background:#fff;border-radius:24px;padding:40px 32px;width:100%;max-width:400px;display:flex;flex-direction:column;gap:18px;box-shadow:0 10px 40px rgba(30,59,56,.08)}
+.login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;background:radial-gradient(900px 520px at 50% -12%,color-mix(in srgb,var(--brand) 20%,transparent),transparent 70%),radial-gradient(600px 300px at 50% 110%,color-mix(in srgb,var(--gold) 14%,transparent),transparent 70%)}
+.login-card{background:#fff;border-radius:24px;padding:40px 32px;width:100%;max-width:400px;display:flex;flex-direction:column;gap:18px;box-shadow:0 10px 40px rgba(19,35,61,.08)}
 .login-brand{display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center}
 .login-brand h1{font-size:24px;color:var(--brand)}
 .login-brand p{margin:0;color:var(--muted);font-size:14px}
@@ -182,7 +182,7 @@ body.lk-dark .mbar{background:#1B1B1F}
 .tbl-wrap{overflow-x:auto}
 table{width:100%;border-collapse:collapse;background:#fff}
 th,td{padding:12px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
-th{color:var(--muted);font-size:13px;font-weight:700;background:#FAFCFB}
+th{color:var(--muted);font-size:13px;font-weight:700;background:#F8FAFC}
 .stat{display:flex;flex-direction:column;gap:2px}
 .stat b{font-size:26px;color:var(--brand)}
 .stat span{color:var(--muted);font-size:13px}
@@ -191,7 +191,7 @@ th{color:var(--muted);font-size:13px;font-weight:700;background:#FAFCFB}
 .bar i.full{background:var(--red)}
 .notice{padding:14px 16px;border-radius:12px;font-weight:600}
 .notice.warn{background:var(--warn-bg);color:var(--warn)}
-.notice.info{background:#EAF3F1;color:var(--brand-d)}
+.notice.info{background:#EAF0F8;color:var(--brand-d)}
 .empty{text-align:center;color:var(--muted);padding:40px 16px}
 .perms th,.perms td{text-align:center}
 .perms td:first-child,.perms th:first-child{text-align:right}
@@ -349,8 +349,8 @@ function ICON(size = 36) {
 }
 function brandOf(c) {
   return c && c.whiteLabel
-    ? { name: c.name, logo: c.logoUrl || '', color: c.color || '#2F6F68', white: true }
-    : { name: 'Beam Care Clinic', logo: '', color: '#2F6F68', white: false };
+    ? { name: c.name, logo: c.logoUrl || '', color: c.color || '#163A6B', white: true }
+    : { name: 'Beam Care Clinic', logo: '', color: '#163A6B', white: false };
 }
 function logoHTML(b, size = 36) {
   // اللوجو في كارت أبيض بحواف مدورة وظل خفيف (بيستحمل اللوجوهات العريضة من غير ما تتقص)
@@ -1539,16 +1539,16 @@ A.receipt = id => {
   const P = PRODUCTS[x.product] || prodOf(c);
   w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>إيصال ${no}</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap">
-  <style>body{margin:0;background:#f4f6f5;font-family:Cairo,system-ui,sans-serif;color:#1E3B38}
-  .r{max-width:720px;margin:30px auto;background:#fff;border-radius:18px;padding:36px 40px;border:1px solid #DCE5E2}
-  .h{display:flex;align-items:center;gap:14px;border-bottom:2px solid #2F6F68;padding-bottom:18px}.h b{font-size:24px}
-  .t{margin-inline-start:auto;text-align:left}.t div{font-size:13px;color:#5E7E79}
-  table{width:100%;border-collapse:collapse;margin:22px 0}td{padding:11px 4px;border-bottom:1px solid #DCE5E2;font-size:15px}td:first-child{color:#5E7E79;width:38%}
-  .amt{background:#F4F6F5;border-radius:14px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;font-size:18px}.amt b{font-size:26px;color:#2F6F68}
-  .f{margin-top:26px;font-size:13px;color:#5E7E79;text-align:center}.btn{display:block;margin:0 auto 30px;background:#2F6F68;color:#fff;border:0;border-radius:10px;padding:12px 26px;font:inherit;font-weight:700;cursor:pointer}
+  <style>body{margin:0;background:#F3F5F9;font-family:Cairo,system-ui,sans-serif;color:#13233D}
+  .r{max-width:720px;margin:30px auto;background:#fff;border-radius:18px;padding:36px 40px;border:1px solid #DCE2EC}
+  .h{display:flex;align-items:center;gap:14px;border-bottom:2px solid #163A6B;padding-bottom:18px}.h b{font-size:24px}
+  .t{margin-inline-start:auto;text-align:left}.t div{font-size:13px;color:#5D6B82}
+  table{width:100%;border-collapse:collapse;margin:22px 0}td{padding:11px 4px;border-bottom:1px solid #DCE2EC;font-size:15px}td:first-child{color:#5D6B82;width:38%}
+  .amt{background:#F3F5F9;border-radius:14px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;font-size:18px}.amt b{font-size:26px;color:#163A6B}
+  .f{margin-top:26px;font-size:13px;color:#5D6B82;text-align:center}.btn{display:block;margin:0 auto 30px;background:#163A6B;color:#fff;border:0;border-radius:10px;padding:12px 26px;font:inherit;font-weight:700;cursor:pointer}
   @media print{body{background:#fff}.r{border:0;margin:0}.btn{display:none}}</style></head><body>
   <div class="r"><div class="h">${ICON(56)}
-  <div><b>Beam Care</b><div style="color:#5E7E79">إيصال استلام اشتراك</div></div><div class="t"><b style="font-size:16px">${esc(no)}</b><div>${esc(x.date || '')}</div></div></div>
+  <div><b>Beam Care</b><div style="color:#5D6B82">إيصال استلام اشتراك</div></div><div class="t"><b style="font-size:16px">${esc(no)}</b><div>${esc(x.date || '')}</div></div></div>
   <table><tr><td>العميل</td><td><b>${esc(c.name)}</b></td></tr><tr><td>المنتج</td><td>${esc(P.name)}</td></tr><tr><td>الباكدج</td><td>${esc(x.planName || 'مخصوص')}</td></tr>
   <tr><td>النوع</td><td>${x.kind === 'new' ? 'اشتراك جديد' : 'تجديد'}</td></tr><tr><td>الفترة</td><td>من ${esc(x.from || '')} إلى ${esc(x.to || '')}</td></tr>
   <tr><td>طريقة الدفع</td><td>${esc(METHODS[x.method] || x.method || '—')}</td></tr>${x.note ? `<tr><td>ملاحظة</td><td>${esc(x.note)}</td></tr>` : ''}</table>
@@ -1810,22 +1810,22 @@ async function drawQrCard(k) {
   const [, , title, sub] = JOIN_KINDS.find(x => x[0] === k) || JOIN_KINDS[0];
   const link = joinLink(k);
   const tmp = document.createElement('div');
-  new window.QRCode(tmp, { text: link, width: 460, height: 460, colorDark: '#1E3B38', colorLight: '#ffffff', correctLevel: window.QRCode.CorrectLevel.H });
+  new window.QRCode(tmp, { text: link, width: 460, height: 460, colorDark: '#13233D', colorLight: '#ffffff', correctLevel: window.QRCode.CorrectLevel.H });
   const qc = tmp.querySelector('canvas');
   try { await document.fonts?.load('800 40px Cairo'); await document.fonts?.load('600 24px Cairo'); } catch (e) {}
   const x = cv.getContext('2d'), W = cv.width, H = cv.height;
   x.fillStyle = '#ffffff'; x.fillRect(0, 0, W, H);
-  x.fillStyle = '#2F6F68'; x.fillRect(0, 0, W, 200);
+  x.fillStyle = '#163A6B'; x.fillRect(0, 0, W, 200);
   const star = (cx, cy, r, col) => { x.fillStyle = col; x.beginPath(); const pts = [[0, -1], [.11, -.11], [1, 0], [.11, .11], [0, 1], [-.11, .11], [-1, 0], [-.11, -.11]]; pts.forEach(([a, b], i) => i ? x.lineTo(cx + a * r, cy + b * r) : x.moveTo(cx + a * r, cy + b * r)); x.closePath(); x.fill(); };
-  star(W / 2, 62, 34, '#DDA86E');
+  star(W / 2, 62, 34, '#D7AE57');
   x.direction = 'rtl'; x.textAlign = 'center'; x.fillStyle = '#ffffff';
   x.font = '800 40px Cairo, sans-serif'; x.fillText('Beam Care', W / 2, 150);
-  x.fillStyle = '#1E3B38'; x.font = '800 38px Cairo, sans-serif'; x.fillText(title, W / 2, 268);
-  x.fillStyle = '#5E7E79'; x.font = '600 24px Cairo, sans-serif'; x.fillText(sub, W / 2, 310);
-  if (qc) { x.fillStyle = '#F4F6F5'; x.fillRect(W / 2 - 250, 340, 500, 500); x.drawImage(qc, W / 2 - 230, 360, 460, 460); }
-  star(W / 2, 590, 30, '#ffffff'); star(W / 2, 590, 22, '#C98F4E');
-  x.fillStyle = '#2F6F68'; x.font = '700 26px Cairo, sans-serif'; x.fillText('امسح الكود واختار الباكدج المناسب', W / 2, 888);
-  x.fillStyle = '#5E7E79'; x.font = '600 20px Cairo, sans-serif'; x.direction = 'ltr'; x.fillText('beamcare.eg@gmail.com', W / 2, 926);
+  x.fillStyle = '#13233D'; x.font = '800 38px Cairo, sans-serif'; x.fillText(title, W / 2, 268);
+  x.fillStyle = '#5D6B82'; x.font = '600 24px Cairo, sans-serif'; x.fillText(sub, W / 2, 310);
+  if (qc) { x.fillStyle = '#F3F5F9'; x.fillRect(W / 2 - 250, 340, 500, 500); x.drawImage(qc, W / 2 - 230, 360, 460, 460); }
+  star(W / 2, 590, 30, '#ffffff'); star(W / 2, 590, 22, '#B98A35');
+  x.fillStyle = '#163A6B'; x.font = '700 26px Cairo, sans-serif'; x.fillText('امسح الكود واختار الباكدج المناسب', W / 2, 888);
+  x.fillStyle = '#5D6B82'; x.font = '600 20px Cairo, sans-serif'; x.direction = 'ltr'; x.fillText('beamcare.eg@gmail.com', W / 2, 926);
 }
 A.qrDownload = () => {
   const cv = document.getElementById('qrCard'); if (!cv) return;
@@ -1865,7 +1865,8 @@ A.demoPhoneSave = async e => {
    ========================================================= */
 // c: [brand, brand-d, gold, gold-l, bg, line, muted, ink, mint]
 const LOOKS = {
-  classic:  { name: 'كلاسيك',      desc: 'ألوان Beam Care الأصلية · أيقونات خطوط رفيعة · قايمة جانبية', c: ['#2F6F68', '#1F4E49', '#C98F4E', '#DDA86E', '#F4F6F5', '#DCE5E2', '#5E7E79', '#1E3B38', '#A9CEC4'], icons: 'outline', nav: 'side', pm: ['emerald', 'side'] },
+  classic:  { name: 'كلاسيك',      desc: 'ألوان Beam Care: كحلي ودهبي · أيقونات خطوط رفيعة · قايمة جانبية', c: ['#163A6B', '#0E2747', '#B98A35', '#D7AE57', '#F3F5F9', '#DCE2EC', '#5D6B82', '#13233D', '#BFD0EA'], icons: 'outline', nav: 'side', pm: ['navy', 'side'] },
+  petrol:   { name: 'بترولي',      desc: 'الأخضر البترولي والنحاسي (الألوان القديمة) · أيقونات رفيعة · قايمة جانبية', c: ['#2F6F68', '#1F4E49', '#C98F4E', '#DDA86E', '#F4F6F5', '#DCE5E2', '#5E7E79', '#1E3B38', '#A9CEC4'], icons: 'outline', nav: 'side', pm: ['emerald', 'side'] },
   modern:   { name: 'عصري',        desc: 'أبيض نظيف وبنفسجي · أيقونات جوه مربعات · قايمة فوق', c: ['#4F46E5', '#3730A3', '#0E7490', '#06B6D4', '#F6F7FB', '#E3E5F0', '#5D6280', '#1B1E3A', '#C7C4F7'], icons: 'square', nav: 'top', pm: ['clean', 'top'] },
   soft:     { name: 'ناعم',        desc: 'وردي وخوخي هادي · أيقونات جوه دواير · قايمة جانبية', c: ['#C2557A', '#9A3E5E', '#C0623F', '#F29E7C', '#FBF5F4', '#EFDDE1', '#7A5D63', '#3B2228', '#F3C9D6'], icons: 'circle', nav: 'side', pm: ['rose', 'side'] },
   lux:      { name: 'فخم داكن',    desc: 'أسود ودهبي · أيقونات دهبي رفيعة · قايمة جانبية غامقة', c: ['#D4AF61', '#B8933F', '#D4AF61', '#E6CC8F', '#111113', '#2E2C28', '#B4AC98', '#F3EEE2', '#3A3528'], dark: true, icons: 'outline', nav: 'side', pm: ['gold', 'side'] },
@@ -2008,7 +2009,7 @@ function applyDevTheme() {
 function clearDevTheme() { applyLook(null); }
 A.devThemeModal = () => {
   openModal(`<h3>شكل لوحة Beam Care</h3>
-  <p class="meta">نفس الأشكال العشرة — ده بيغيّر شكل لوحتك إنت بس، ومش بيأثر على أي شركة أو عيادة.</p>
+  <p class="meta">نفس أشكال السيستم — ده بيغيّر شكل لوحتك إنت بس، ومش بيأثر على أي شركة أو عيادة.</p>
   <div class="cards" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))">${Object.entries(LOOKS).map(([k, L]) => `<button type="button" class="card" style="display:flex;flex-direction:column;gap:8px;text-align:right;cursor:pointer;padding:12px;${DEV_THEME === k ? 'outline:3px solid var(--gold);' : ''}" onclick="A.devThemeSet('${k}')">${lookMini(L)}<b>${esc(L.name)}${DEV_THEME === k ? ' ✓' : ''}</b></button>`).join('')}</div>
   <div class="acts"><button class="btn" type="button" onclick="A.closeModal()">تمام</button></div>`);
 };
@@ -2259,7 +2260,7 @@ A.tenantModal = async (pk, id) => {
     ${P.remote ? remoteFieldsHTML(t) : ''}
     <div class="section-t">الشكل</div>
     <div class="grid2">
-      <label class="f">اللون<input name="color" type="color" value="${esc(t?.color || '#2F6F68')}" style="padding:4px"></label>
+      <label class="f">اللون<input name="color" type="color" value="${esc(t?.color || '#163A6B')}" style="padding:4px"></label>
       <div class="f"><span>اللوجو</span>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
           <span id="logoPrev" style="display:inline-flex">${t?.logoUrl ? logoHTML({ logo: t.logoUrl }, 44) : ICON(44)}</span>
@@ -2317,7 +2318,7 @@ A.logoPick = async inp => {
   } catch (e) { console.error(e); toast('مقدرتش أقرا الصورة'); }
 };
 A.logoClear = f => { f.logo.value = ''; document.getElementById('logoPrev').innerHTML = ICON(44); };
-const brandDoc = (P, d) => ({ product: P.key, name: d.name, logoUrl: d.logoUrl || '', color: d.color || '#2F6F68', whiteLabel: !!d.whiteLabel, ...(P.key === 'clinic' ? { book: !!d.features?.onlineBooking } : {}), ...(P.remote && d.fb ? { fb: d.fb } : {}) });
+const brandDoc = (P, d) => ({ product: P.key, name: d.name, logoUrl: d.logoUrl || '', color: d.color || '#163A6B', whiteLabel: !!d.whiteLabel, ...(P.key === 'clinic' ? { book: !!d.features?.onlineBooking } : {}), ...(P.remote && d.fb ? { fb: d.fb } : {}) });
 // رابط واحد لكل شركات الصيانة: كل شركة بالكود بتاعها
 const MAINT_APP = 'https://beamcare.github.io/m/';
 A.saveTenant = async (e, pk, id) => {
@@ -3068,7 +3069,7 @@ async function renderHome() {
       if (done < 4) onb = `<div class="card" style="display:flex;flex-direction:column;gap:12px;border:1.5px solid var(--gold-l)">
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><h3 style="flex:1;margin:0">👋 أهلاً بيك — ابدأ شغلك في ٤ خطوات</h3><span class="chip mute">${done.toLocaleString('ar-EG')} من ٤</span><button class="btn ghost sm" onclick="A.onbHide()">إخفاء</button></div>
         <div style="height:6px;border-radius:99px;background:var(--line);overflow:hidden"><span style="display:block;height:100%;width:${done * 25}%;background:var(--brand)"></span></div>
-        ${st.map(([ok, t, d, bt, on], i) => `<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px;border-radius:14px;${i === next ? 'background:var(--ok-bg);border:1.5px solid var(--brand)' : 'border:1px solid var(--line)'}${ok ? ';opacity:.6' : ''}">
+        ${st.map(([ok, t, d, bt, on], i) => `<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px;border-radius:14px;${i === next ? 'background:color-mix(in srgb,var(--brand) 7%,#fff);border:1.5px solid var(--brand)' : 'border:1px solid var(--line)'}${ok ? ';opacity:.6' : ''}">
           <span style="width:32px;height:32px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:800;flex:none;${ok ? 'background:var(--brand);color:#fff' : 'border:2px solid var(--brand);color:var(--brand)'}">${ok ? '✓' : (i + 1).toLocaleString('ar-EG')}</span>
           <span style="flex:1;min-width:180px;display:flex;flex-direction:column"><b>${t}</b><span class="meta" style="font-size:13px">${d}</span></span>
           ${ok ? '' : `<button class="btn ${i === next ? '' : 'ghost'} sm" onclick="${on}">${bt}</button>`}</div>`).join('')}</div>`;
@@ -3843,7 +3844,7 @@ A.catDel = async id => {
   try { await deleteDoc(cdoc('cats', id)); S.pCat = ''; A.closeModal(); toast('اتمسح'); A.go('packages'); }
   catch (err) { toast('مقدرتش أمسح: ' + (err.code || err.message)); }
 };
-const SVC_COLORS = ['#2F6F68', '#C8A15A', '#5B8DEF', '#3DAA7D', '#E07B53', '#9B59D0', '#D9577F', '#2EC4B6'];
+const SVC_COLORS = ['#163A6B', '#C8A15A', '#5B8DEF', '#3DAA7D', '#E07B53', '#9B59D0', '#D9577F', '#2EC4B6'];
 A.serviceModal = async (id, catId) => {
   await Promise.all([loadCats(), loadStaff(), feat('onlineBooking') ? loadPubCfg() : null]);
   const x = id ? (S.services || []).find(s => s.id === id) : null;
@@ -5208,16 +5209,16 @@ A.bookQr = async () => {
   try {
     await loadQrLib();
     const tmp = document.createElement('div');
-    new window.QRCode(tmp, { text: link, width: 440, height: 440, colorDark: '#1E3B38', colorLight: '#ffffff', correctLevel: window.QRCode.CorrectLevel.H });
+    new window.QRCode(tmp, { text: link, width: 440, height: 440, colorDark: '#13233D', colorLight: '#ffffff', correctLevel: window.QRCode.CorrectLevel.H });
     try { await document.fonts?.load('800 36px Cairo'); } catch (e) {}
     const cv = document.getElementById('bookQr'); if (!cv) return;
-    const x = cv.getContext('2d'), W = cv.width, col = getComputedStyle(document.body).getPropertyValue('--brand').trim() || '#2F6F68';
+    const x = cv.getContext('2d'), W = cv.width, col = getComputedStyle(document.body).getPropertyValue('--brand').trim() || '#163A6B';
     x.fillStyle = '#fff'; x.fillRect(0, 0, W, cv.height);
     x.fillStyle = col; x.fillRect(0, 0, W, 130);
     x.direction = 'rtl'; x.textAlign = 'center'; x.fillStyle = '#fff'; x.font = '800 40px Cairo, sans-serif'; x.fillText(b.name, W / 2, 80);
-    x.fillStyle = '#1E3B38'; x.font = '800 34px Cairo, sans-serif'; x.fillText('احجز ميعادك أونلاين', W / 2, 200);
+    x.fillStyle = '#13233D'; x.font = '800 34px Cairo, sans-serif'; x.fillText('احجز ميعادك أونلاين', W / 2, 200);
     const qc = tmp.querySelector('canvas'); if (qc) x.drawImage(qc, (W - 440) / 2, 240, 440, 440);
-    x.fillStyle = '#5E7E79'; x.font = '700 24px Cairo, sans-serif'; x.fillText('امسح الكود واختار الميعاد اللي يناسبك', W / 2, 740);
+    x.fillStyle = '#5D6B82'; x.font = '700 24px Cairo, sans-serif'; x.fillText('امسح الكود واختار الميعاد اللي يناسبك', W / 2, 740);
   } catch (e) { toast('مقدرتش أعمل الـ QR دلوقتي — اتأكد من النت'); }
 };
 
@@ -5305,7 +5306,7 @@ A.consentModal = async clientId => {
     <div class="acts"><button class="btn" onclick="A.consentSave('${clientId}')">حفظ الإقرار</button><button class="btn ghost" onclick="A.consentClear()">امسح التوقيع</button><button class="btn ghost" onclick="A.closeModal()">إلغاء</button></div>`);
   A.consentText(clientId);
   const cv = document.getElementById('cnSig'), x = cv.getContext('2d');
-  x.lineWidth = 3; x.lineCap = 'round'; x.lineJoin = 'round'; x.strokeStyle = '#1E3B38';
+  x.lineWidth = 3; x.lineCap = 'round'; x.lineJoin = 'round'; x.strokeStyle = '#13233D';
   let on = false; S.sigDirty = false;
   const pt = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * cv.width / r.width, (e.clientY - r.top) * cv.height / r.height]; };
   cv.addEventListener('pointerdown', e => { on = true; cv.setPointerCapture(e.pointerId); const [a, b] = pt(e); x.beginPath(); x.moveTo(a, b); });
@@ -5337,7 +5338,7 @@ A.consentView = id => {
   if (!w) return toast('المتصفح منع فتح صفحة جديدة — اسمح بالنوافذ المنبثقة');
   w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>إقرار ${esc(x.clientName)}</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap">
-  <style>body{font-family:Cairo,sans-serif;max-width:720px;margin:30px auto;padding:0 20px;color:#1E3B38;line-height:1.9}h1{font-size:22px;border-bottom:2px solid #2F6F68;padding-bottom:10px}.t{white-space:pre-line}img{border:1px solid #ddd;border-radius:8px;max-width:320px}.m{color:#5E7E79;font-size:14px}button{font:inherit;background:#2F6F68;color:#fff;border:0;border-radius:10px;padding:10px 22px;cursor:pointer;margin-top:20px}@media print{button{display:none}}</style></head><body>
+  <style>body{font-family:Cairo,sans-serif;max-width:720px;margin:30px auto;padding:0 20px;color:#13233D;line-height:1.9}h1{font-size:22px;border-bottom:2px solid #163A6B;padding-bottom:10px}.t{white-space:pre-line}img{border:1px solid #ddd;border-radius:8px;max-width:320px}.m{color:#5D6B82;font-size:14px}button{font:inherit;background:#163A6B;color:#fff;border:0;border-radius:10px;padding:10px 22px;cursor:pointer;margin-top:20px}@media print{button{display:none}}</style></head><body>
   <h1>${esc(b.name)} — إقرار موافقة</h1><p class="m">العميل: <b>${esc(x.clientName)}</b>${x.service ? ` · الخدمة: ${esc(x.service)}` : ''} · ${esc(dayTxtC(x.date))}</p>
   <div class="t">${esc(x.text)}</div><p>توقيع العميل:</p><img src="${x.sig}" alt="التوقيع"><p class="m">سجّله: ${esc(x.createdByName || '')}</p>
   <button onclick="print()">طباعة / حفظ PDF</button></body></html>`);
@@ -5581,7 +5582,7 @@ const OFFER_STYLES = {
   brand: { name: 'ألوان العيادة', bg: null, ink: '#ffffff', sub: 'rgba(255,255,255,.82)', acc: null, band: 'rgba(0,0,0,.18)' },
   lux: { name: 'فخم', bg: '#151412', ink: '#F3EEE2', sub: '#B4AC98', acc: '#D4AF61', band: '#000000' },
   rose: { name: 'ناعم', bg: '#F6E4DF', ink: '#3B2228', sub: '#7A5D63', acc: '#B5566E', band: 'rgba(181,86,110,.12)' },
-  white: { name: 'أبيض', bg: '#FFFFFF', ink: '#1E3B38', sub: '#5E7E79', acc: null, band: 'rgba(47,111,104,.08)' },
+  white: { name: 'أبيض', bg: '#FFFFFF', ink: '#13233D', sub: '#5D6B82', acc: null, band: 'rgba(22,58,107,.08)' },
 };
 const canCampaign = () => feat('campaigns') && rpv('campaign');
 async function renderOffers() {
@@ -5623,7 +5624,7 @@ async function renderOffers() {
           <p class="meta">الكلمات اللي بين { } بتتغير لكل عميل لوحدها: {الاسم} {العرض} {الخدمات} {السعر} {لحد} {اللينك}</p></div>
       </div>
       <div class="fcol" style="flex:0 1 360px;min-width:280px;gap:10px;align-items:center">
-        <canvas id="offerCv" width="1080" height="1080" style="width:100%;max-width:360px;border-radius:18px;box-shadow:0 12px 30px rgba(30,59,56,.18);background:#fff" aria-label="صورة العرض"></canvas>
+        <canvas id="offerCv" width="1080" height="1080" style="width:100%;max-width:360px;border-radius:18px;box-shadow:0 12px 30px rgba(19,35,61,.18);background:#fff" aria-label="صورة العرض"></canvas>
         <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"><button class="btn gold sm" onclick="A.campDownload()">⬇️ تحميل الصورة</button>${navigator.canShare ? '<button class="btn ghost sm" onclick="A.campShare()">مشاركة الصورة</button>' : ''}</div>
       </div>
       <div class="card fcol" style="flex:1 1 300px;min-width:0;gap:8px">
@@ -5706,7 +5707,7 @@ async function drawOffer(cv, o, styleKey, upload) {
   try { await document.fonts?.load('800 60px Cairo'); await document.fonts?.load('700 30px Cairo'); } catch (e) {}
   const st = OFFER_STYLES[styleKey] || OFFER_STYLES.brand;
   const css = getComputedStyle(document.body);
-  const brand = css.getPropertyValue('--brand').trim() || '#2F6F68', gold = css.getPropertyValue('--gold-l').trim() || '#DDA86E';
+  const brand = css.getPropertyValue('--brand').trim() || '#163A6B', gold = css.getPropertyValue('--gold-l').trim() || '#D7AE57';
   const bg = st.bg || brand, acc = st.acc || (styleKey === 'white' ? brand : gold), ink = st.ink, sub = st.sub;
   const b = brandOf(S.clinic);
   x.fillStyle = bg; x.fillRect(0, 0, W, H);
