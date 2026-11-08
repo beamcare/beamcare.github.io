@@ -130,6 +130,7 @@ const TYPES = {
   maint: { ic: '🔧', name: 'Beam Care Maintenance', short: 'شركة صيانة', one: 'الشركة', desc: 'سيستم إدارة شركات صيانة الأجهزة الطبية: التقارير والطلبات والمخزن والفواتير والموظفين',
     limits: [['maxUsers', 'يوزر (موظف)', 'يوزرات (موظفين)', 'يوزر واحد'], ['maxCustomers', 'عيادة (عميل)', 'عيادات (عملاء)', 'عيادة واحدة']], zeroOpen: true },
 };
+const MAINT_PARTS = [['freon', 'الفريون'], ['sales', 'المبيعات والمستهلكات والعروض'], ['devices', 'بيع وإيجار الأجهزة'], ['contracts', 'عقود الصيانة'], ['suppliers', 'الموردين والمشتريات'], ['finance', 'الحسابات والخزينة'], ['hr', 'الحضور والإجازات'], ['payroll', 'المرتبات والمكافآت'], ['staff', 'إدارة الموظفين'], ['weekly', 'التقارير الدورية'], ['analytics', 'التحليلات']];
 const FEATS = { whiteLabel: 'السيستم يظهر باسمك ولوجوك', ownerManagesPerms: 'تتحكم في صلاحيات موظفينك بنفسك', onlineBooking: 'حجز أونلاين لعملائك بالمواعيد المتاحة (لينك و QR)', reminders: 'تذكير الحجوزات على الواتساب', consents: 'إقرار موافقة بتوقيع العميل', dayReport: 'تقرير آخر اليوم على الواتساب', loyalty: 'نقاط ولاء وترشيح للعملاء', campaigns: 'عروض مجمّعة وحملات واتساب بصور مصممة' };
 
 const P = new URLSearchParams(location.search);
@@ -169,6 +170,7 @@ function planCard(T, p) {
   const items = [
     ...T.limits.map(([k, one, many, single]) => limTxt(T, p.limits?.[k], one, many, single)),
     ...Object.entries(FEATS).filter(([k]) => p.features?.[k]).map(([, l]) => l),
+    ...(S.type === 'maint' ? (() => { const off = MAINT_PARTS.filter(([k]) => p.mods?.[k] === false); return off.length ? ['من غير: ' + off.map(([, l]) => l).join('، ')] : ['كل أجزاء السيستم']; })() : []),
     ...String(p.desc || '').split('\n').map(x => x.trim()).filter(Boolean),
   ];
   return `<label class="opt plan"><input type="radio" name="plan" value="${esc(p.id)}" ${S.planId === p.id ? 'checked' : ''} onchange="J.pickPlan(this.value)">
@@ -317,9 +319,10 @@ async function startTrial(f, p, name, phone, bad, sent) {
     if (S.type === 'maint') {
       const r = await addDoc(collection(db, 'requests'), lead);
       LS.set('bc-req-times', JSON.stringify([...sent, Date.now()]));
-      const url = MAINT_DEMO + '&trial=' + td + '&lead=' + r.id + (S.info?.wa ? '&wa=' + waNum(S.info.wa) : '');
+      const pl = { n: String(p.name || '').slice(0, 60), u: Number(p.limits?.maxUsers) || 0, c: Number(p.limits?.maxCustomers) || 0, m: p.mods || {}, w: !!p.features?.webReq, o: !!p.features?.ownerManagesPerms, l: !!p.features?.whiteLabel };
+      const url = MAINT_DEMO + '&trial=' + td + '&lead=' + r.id + '&plan=' + encodeURIComponent(JSON.stringify(pl)) + (S.info?.wa ? '&wa=' + waNum(S.info.wa) : '');
       $app.innerHTML = `<div class="step" style="text-align:center"><div style="font-size:54px">🎉</div><h2>نسختك التجريبية جاهزة!</h2>
-        <p>جرّب <b>${esc(TYPES.maint.name)}</b> كامل لمدة <b>${num(td)} ${td <= 10 ? 'أيام' : 'يوم'}</b> — لحد ${fmtDate(ymd(end))}.</p>
+        <p>جرّب <b>${esc(TYPES.maint.name)}</b> بباكدج <b>${esc(p.name)}</b> لمدة <b>${num(td)} ${td <= 10 ? 'أيام' : 'يوم'}</b> — لحد ${fmtDate(ymd(end))}.</p>
         <p class="muted">النسخة دي فيها بيانات تجربة وبتتحفظ على جهازك. لما تحب تشترك بالبيانات الحقيقية كلّمنا.</p>
         <a class="btn big" href="${esc(url)}">ابدأ التجربة ←</a></div>`;
       setTimeout(() => { location.href = url; }, 2500);
