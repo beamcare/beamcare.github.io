@@ -96,7 +96,8 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--mint);border-col
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getFirestore, doc, getDoc, getDocs, addDoc, collection, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, doc, getDoc, getDocs, addDoc, collection, query, where, serverTimestamp, writeBatch, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBF42mXPiwrPm4QKd55YtZVUtmZcbr3s_0",
@@ -106,7 +107,9 @@ const firebaseConfig = {
   messagingSenderId: "614318040492",
   appId: "1:614318040492:web:70fcf7b8de6be822684609"
 };
-const db = getFirestore(initializeApp(firebaseConfig));
+const fbApp = initializeApp(firebaseConfig);
+const db = getFirestore(fbApp);
+const EMAIL_DOMAIN = 'beamcare-clinic.app';
 const MAINT_DEMO = 'https://beamcare.github.io/m/?demo=1';
 const $ = id => document.getElementById(id);
 const $app = $('app');
@@ -131,7 +134,9 @@ const FEATS = { whiteLabel: 'السيستم يظهر باسمك ولوجوك', o
 
 const P = new URLSearchParams(location.search);
 const S = { type: TYPES[P.get('t')] ? P.get('t') : '', plans: {}, planId: '', info: null, kind: P.get('trial') ? 'trial' : 'sub' };
-const trialDays = () => S.type === 'clinic' ? Math.max(0, Number(S.info?.trialDays) || 0) : 0;
+const trialDays = () => Math.max(0, Number(S.type === 'clinic' ? S.info?.trialDays : S.type === 'maint' ? S.info?.maintTrialDays : 0) || 0);
+// التجربة بتتفتح على طول: العيادة لو Beam Care مفعّلة «أوتوماتيك»، وشركة الصيانة دايماً (نسخة تجربة على الجهاز)
+const autoTrial = () => isTrial() && (S.type === 'maint' || S.info?.trialAuto === true);
 const isTrial = () => S.kind === 'trial' && trialDays() > 0;
 
 /* ----- رقم الواتساب وطرق الدفع (من اللوحة) ----- */
@@ -216,13 +221,15 @@ function renderForm() {
     <section class="step" aria-labelledby="s3"><h2 class="step-t" id="s3"><span class="n">٣</span>بياناتك</h2>
       ${td ? `<div class="types" role="radiogroup" aria-label="عايز تشترك ولا تجرب">
         <label class="opt"><input type="radio" name="kind" value="sub" ${tr ? '' : 'checked'} onchange="J.setKind(this.value)"><b>اشترك</b><span>تبدأ بالباكدج اللي اخترته على طول</span></label>
-        <label class="opt"><input type="radio" name="kind" value="trial" ${tr ? 'checked' : ''} onchange="J.setKind(this.value)"><b>🎁 جرّب مجاناً ${num(td)} ${td <= 10 ? 'أيام' : 'يوم'}</b><span>نسخة حقيقية باسم عيادتك بحدود الباكدج ده، من غير ما تدفع حاجة</span></label></div>` : ''}
+        <label class="opt"><input type="radio" name="kind" value="trial" ${tr ? 'checked' : ''} onchange="J.setKind(this.value)"><b>🎁 جرّب مجاناً ${num(td)} ${td <= 10 ? 'أيام' : 'يوم'}</b><span>${S.type === 'maint' ? 'جرّب السيستم كامل على جهازك' : 'نسخة حقيقية باسم عيادتك'} بحدود الباكدج ده، من غير ما تدفع حاجة</span></label></div>` : ''}
       <form id="reqF" class="step" style="margin-top:0" novalidate>
         <div class="grid2">
           <label class="f">اسم ${esc(T.one)} *<input name="name" required maxlength="120" autocomplete="organization" value="${esc(v.name)}"></label>
           <label class="f">اسم المسؤول<input name="contact" maxlength="120" autocomplete="name" value="${esc(v.contact)}"></label>
           <label class="f">رقم الموبايل (واتساب) *<input name="phone" required dir="ltr" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="01xxxxxxxxx" value="${esc(v.phone)}"></label>
           <label class="f">المحافظة / المدينة<input name="city" maxlength="80" value="${esc(v.city)}"></label>
+          ${tr && S.type === 'clinic' && autoTrial() ? `<label class="f">اسم المستخدم للدخول (إنجليزي) *<input name="uname" required dir="ltr" autocomplete="username" autocapitalize="off" maxlength="30" placeholder="مثلاً: dermazone" value="${esc(v.uname)}"></label>
+          <label class="f">كلمة السر *<input name="pw" type="password" required dir="ltr" autocomplete="new-password" minlength="6" maxlength="40" value=""></label>` : ''}
           <label class="f" ${tr ? 'hidden' : ''}>عايز تبدأ من يوم *<input name="start" type="date" required min="${today}" value="${esc(v.start || today)}"></label>
           <label class="f" ${tr ? 'hidden' : ''}>لمدة *<select name="months" onchange="J.setMonths(this.value)">${ds.map(m => `<option value="${m}" ${m === S.months ? 'selected' : ''}>${monthsTxt(m)}</option>`).join('')}</select></label>
         </div>
@@ -230,8 +237,8 @@ function renderForm() {
         <label class="f">ملاحظات (اختياري)<textarea name="notes" rows="3" maxlength="1000" placeholder="مثلاً: عدد الفروع، أو أي حاجة محتاجها">${esc(v.notes)}</textarea></label>
         <div class="sum" id="sum"></div>
         <div id="ferr"></div>
-        <button class="btn big" type="submit">${tr ? '🎁 اطلب التجربة المجانية' : 'ابعت الطلب'}</button>
-        <p class="muted" style="text-align:center">${tr ? 'هنجهّزلك النسخة التجريبية ونبعتلك بيانات الدخول على الواتساب.' : 'مش هتدفع حاجة دلوقتي — هنراجع طلبك ونكلمك على الواتساب.'}</p>
+        <button class="btn big" type="submit">${tr ? (autoTrial() ? '🎁 ابدأ التجربة دلوقتي' : '🎁 اطلب التجربة المجانية') : 'ابعت الطلب'}</button>
+        <p class="muted" style="text-align:center">${tr ? (autoTrial() ? 'النسخة التجريبية هتتفتحلك على طول بعد ما تدوس.' : 'هنجهّزلك النسخة التجريبية ونبعتلك بيانات الدخول على الواتساب.') : 'مش هتدفع حاجة دلوقتي — هنراجع طلبك ونكلمك على الواتساب.'}</p>
       </form>
     </section>`;
   $('reqF').addEventListener('submit', submit);
@@ -246,7 +253,7 @@ function renderSum() {
   if (isTrial()) {
     const td = trialDays();
     box.innerHTML = `<div class="row"><span>الباكدج</span><b>${esc(p.name)}</b></div>
-      <div class="row"><span>المدة</span><b>تجربة ${num(td)} ${td <= 10 ? 'أيام' : 'يوم'} من يوم ما نفعّلهالك</b></div>
+      <div class="row"><span>المدة</span><b>تجربة ${num(td)} ${td <= 10 ? 'أيام' : 'يوم'} ${autoTrial() ? 'تبدأ من النهارده' : 'من يوم ما نفعّلهالك'}</b></div>
       <div class="row" style="align-items:center"><span>الإجمالي</span><span class="tot">مجاناً 🎁</span></div>`;
     return;
   }
@@ -273,6 +280,7 @@ async function submit(e) {
   if (sent.length >= 3) return bad('بعت طلبات كتير النهارده من الجهاز ده. لو محتاج حاجة كلّمنا على الواتساب.');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(f.start.value)) { f.start.focus(); return bad('اختار تاريخ البداية'); }
   const tr = isTrial();
+  if (tr && autoTrial()) return startTrial(f, p, name, phone, bad, sent);
   const data = {
     type: S.type, kind: tr ? 'trial' : 'sub', name, phone, planId: p.id, months: tr ? 1 : S.months, start: tr ? ymd(new Date()) : f.start.value, status: 'new', createdAt: serverTimestamp(),
     planName: String(p.name || '').slice(0, 120), price: Number(p.price) || 0, total: tr ? 0 : totalOf(p, S.months),
@@ -290,6 +298,64 @@ async function submit(e) {
   } catch (e2) {
     console.error(e2); btn.disabled = false; btn.textContent = btnTxt;
     bad('مقدرناش نبعت الطلب — اتأكد من النت وجرّب تاني.');
+  }
+}
+
+/* =========================================================
+   التجربة المجانية الأوتوماتيك
+   ========================================================= */
+const TRIAL_MODS = ['clients', 'bookings', 'sessions', 'packages', 'payments', 'inventory', 'staff', 'devices', 'reports'];
+async function startTrial(f, p, name, phone, bad, sent) {
+  const td = trialDays(), start = new Date(), end = new Date(start.getTime() + (td - 1) * 864e5); end.setHours(23, 59, 0, 0);
+  const contact = f.contact.value.trim(), city = f.city.value.trim(), notes = f.notes.value.trim();
+  const lead = { type: S.type, kind: 'trial', name, phone, planId: p.id, months: 1, start: ymd(start), status: 'new', createdAt: serverTimestamp(),
+    planName: String(p.name || '').slice(0, 120), price: Number(p.price) || 0, total: 0, auto: true, trialEnd: ymd(end) };
+  if (contact) lead.contact = contact; if (city) lead.city = city; if (notes) lead.notes = notes;
+  const btn = f.querySelector('[type=submit]'), btnTxt = btn.textContent; btn.disabled = true; btn.textContent = 'بنجهّز نسختك...';
+  const fail = m => { btn.disabled = false; btn.textContent = btnTxt; bad(m); };
+  try {
+    if (S.type === 'maint') {
+      const r = await addDoc(collection(db, 'requests'), lead);
+      LS.set('bc-req-times', JSON.stringify([...sent, Date.now()]));
+      const url = MAINT_DEMO + '&trial=' + td + '&lead=' + r.id + (S.info?.wa ? '&wa=' + waNum(S.info.wa) : '');
+      $app.innerHTML = `<div class="step" style="text-align:center"><div style="font-size:54px">🎉</div><h2>نسختك التجريبية جاهزة!</h2>
+        <p>جرّب <b>${esc(TYPES.maint.name)}</b> كامل لمدة <b>${num(td)} ${td <= 10 ? 'أيام' : 'يوم'}</b> — لحد ${fmtDate(ymd(end))}.</p>
+        <p class="muted">النسخة دي فيها بيانات تجربة وبتتحفظ على جهازك. لما تحب تشترك بالبيانات الحقيقية كلّمنا.</p>
+        <a class="btn big" href="${esc(url)}">ابدأ التجربة ←</a></div>`;
+      setTimeout(() => { location.href = url; }, 2500);
+      return;
+    }
+    const un = latin(f.uname.value).trim().toLowerCase(), pw = latin(f.pw.value);
+    if (!/^[a-z0-9._-]{3,30}$/.test(un)) { f.uname.focus(); return fail('اسم المستخدم لازم حروف إنجليزي صغيرة أو أرقام (3 حروف على الأقل) من غير مسافات'); }
+    if (pw.length < 6) { f.pw.focus(); return fail('كلمة السر لازم 6 حروف أو أرقام على الأقل'); }
+    const taken = await getDoc(doc(db, 'logins', un)).catch(() => null);
+    if (taken?.exists()) { f.uname.focus(); return fail('اسم المستخدم ده محجوز — اختار اسم تاني'); }
+    const email = `${un}@${EMAIL_DOMAIN}`;
+    let cred;
+    try { cred = await createUserWithEmailAndPassword(getAuth(fbApp), email, pw); }
+    catch (er) { return fail(er.code === 'auth/email-already-in-use' ? 'اسم المستخدم ده محجوز — اختار اسم تاني' : er.code === 'auth/weak-password' ? 'كلمة السر ضعيفة' : 'مقدرناش نعمل الحساب — جرّب تاني'); }
+    const uid = cred.user.uid, cref = doc(collection(db, 'clinics')), cid = cref.id, bref = doc(collection(db, 'clinics', cid, 'branches'));
+    const owner = contact || name, perms = Object.fromEntries(TRIAL_MODS.flatMap(m => [[m + '_view', true], [m + '_edit', true]]));
+    const b = writeBatch(db);
+    b.set(cref, { product: 'clinic', name, contactName: contact, contactPhone: phone, city, planId: p.id, planName: lead.planName, plan: p.limits || {}, features: p.features || {},
+      color: '#163A6B', logoUrl: '', notes: 'تجربة مجانية اتفتحت أوتوماتيك من صفحة الطلب', active: true, trial: true, selfTrial: true, ownerUid: uid,
+      startAt: Timestamp.fromDate(start), expiresAt: Timestamp.fromDate(end), createdAt: serverTimestamp() });
+    b.set(bref, { name: 'الفرع الرئيسي', address: city, phone, active: true, createdAt: serverTimestamp() });
+    b.set(doc(db, 'clinics', cid, 'staff', uid), { name: owner, role: 'owner', branchIds: [bref.id], active: true, prevIds: [] });
+    b.set(doc(db, 'users', uid), { name: owner, role: 'owner', branchIds: [bref.id], perms, active: true, product: 'clinic', tenantId: cid, clinicId: cid, clientId: '', username: un, authEmail: email, prevIds: [], createdAt: serverTimestamp() });
+    b.set(doc(db, 'logins', un), { email });
+    b.set(doc(db, 'brands', cid), { product: 'clinic', name, logoUrl: '', color: '#163A6B', whiteLabel: false, book: !!p.features?.onlineBooking });
+    b.set(doc(collection(db, 'requests')), { ...lead, tenantId: cid, username: un });
+    await b.commit();
+    LS.set('bc-req-times', JSON.stringify([...sent, Date.now()]));
+    $app.innerHTML = `<div class="step" style="text-align:center"><div style="font-size:54px">🎉</div><h2>عيادتك التجريبية جاهزة!</h2>
+      <p>سيستم <b>${esc(name)}</b> شغال لحد <b>${fmtDate(ymd(end))}</b>.</p>
+      <div class="sum" style="text-align:right"><div class="row"><span>اسم المستخدم</span><b dir="ltr">${esc(un)}</b></div><div class="row"><span>كلمة السر</span><b>اللي إنت كتبتها</b></div></div>
+      <p class="muted">احفظ اسم المستخدم وكلمة السر — هتدخل بيهم من أي موبايل أو كمبيوتر.</p>
+      <a class="btn big" href="../">ادخل السيستم دلوقتي ←</a></div>`;
+  } catch (e2) {
+    console.error(e2);
+    fail('مقدرناش نفتح التجربة دلوقتي — جرّب تاني بعد شوية أو كلّمنا على الواتساب.');
   }
 }
 
