@@ -2307,7 +2307,7 @@ async function devPlans() {
         <div class="head"><h3 style="flex:1">${esc(P.name)}</h3><button class="btn gold sm" onclick="A.planModal('${P.key}')">+ باكدج</button></div>
         ${ps.length ? `<div class="tbl-wrap"><table><thead><tr><th>الباكدج</th><th>السعر</th><th>المدة</th><th>الحدود</th><th>المميزات</th><th>الحالة</th><th></th></tr></thead><tbody>
           ${ps.map(p => `<tr><td><b>${esc(p.name)}</b></td><td>${money(p.price)}</td><td>${p.months} شهر</td><td>${planLimitsTxt(P, p.limits)}</td>
-            <td>${P.features.filter(f => p.features?.[f.key]).map(f => `<span class="chip mute">${esc(f.label)}</span>`).join(' ') || '—'}</td>
+            <td>${P.features.filter(f => p.features?.[f.key]).map(f => `<span class="chip mute">${esc(f.label)}</span>`).join(' ') || '—'}${P.key === 'maint' ? `<div class="meta" style="margin-top:4px">${(() => { const off = PIONEER_PARTS.filter(([k]) => p.mods?.[k] === false); return off.length ? 'من غير: ' + off.map(([, l]) => esc(l)).join('، ') : 'كل أجزاء السيستم'; })()}</div>` : ''}</td>
             <td>${p.active === false ? '<span class="chip mute">موقوف</span>' : '<span class="chip ok">متاح</span>'}</td>
             <td style="display:flex;gap:6px"><button class="btn ghost sm" onclick="A.planModal('${P.key}','${p.id}')">تعديل</button><button class="btn ghost sm" style="color:var(--red)" onclick="A.planDel('${p.id}')">حذف</button></td></tr>`).join('')}</tbody></table></div>`
           : '<p class="meta">مفيش باكدجات لسه.</p>'}
@@ -2341,6 +2341,7 @@ A.planModal = (pk, id) => {
     <div class="grid3">${P.limits.map(l => `<label class="f">${esc(l.label)}<input name="lim_${l.key}" type="number" min="${l.min}" required value="${p?.limits?.[l.key] ?? l.def}"></label>`).join('')}</div>
     <div class="section-t">المميزات</div>
     ${P.features.map(f => `<label class="chk"><input type="checkbox" name="ft_${f.key}" ${p?.features?.[f.key] ? 'checked' : ''}> ${esc(f.label)}</label>`).join('')}
+    ${pk === 'maint' ? `<div class="section-t">أجزاء السيستم في الباكدج</div><div class="grid2">${PIONEER_PARTS.map(([k, l]) => `<label class="chk"><input type="checkbox" name="part_${k}" ${p?.mods?.[k] === false ? '' : 'checked'}> ${esc(l)}</label>`).join('')}</div>` : ''}
     <label class="f">مميزات تظهر للعميل في صفحة طلب الاشتراك (كل سطر ميزة — اختياري)<textarea name="desc" rows="4" placeholder="مثلاً:&#10;المبيعات والفواتير&#10;دعم فني على الواتساب">${esc(p?.desc || '')}</textarea></label>
     <label class="chk"><input type="checkbox" name="act" ${p?.active === false ? '' : 'checked'}> متاح للبيع (بيظهر في صفحة طلب الاشتراك)</label>
     ${formActs()}
@@ -2356,6 +2357,7 @@ A.savePlan = async (e, pk, id) => {
     desc: f.desc.value.trim().slice(0, 1500),
     active: f.act.checked,
   };
+  if (pk === 'maint') { data.mods = {}; PIONEER_PARTS.forEach(([k]) => { if (f['part_' + k] && !f['part_' + k].checked) data.mods[k] = false; }); }
   try {
     if (id) await updateDoc(doc(db, 'plans', id), data);
     else await addDoc(collection(db, 'plans'), { ...data, createdAt: serverTimestamp() });
@@ -2447,6 +2449,7 @@ A.planPick = (f, pk, amountOnly) => {
   if (!amountOnly) {
     P.limits.forEach(l => { f['lim_' + l.key].value = p.limits?.[l.key] ?? l.def; });
     P.features.forEach(x => { f['ft_' + x.key].checked = !!p.features?.[x.key]; });
+    if (pk === 'maint') PIONEER_PARTS.forEach(([k]) => { if (f['part_' + k]) f['part_' + k].checked = p.mods?.[k] !== false; });
   }
   if (f.amount && f.months) f.amount.value = Math.round((p.price || 0) * Number(f.months.value) / (p.months || 1));
 };
