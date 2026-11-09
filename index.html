@@ -7,6 +7,14 @@
 <meta name="theme-color" content="#163A6B">
 <link rel="manifest" href="manifest.json?v=4">
 <link rel="apple-touch-icon" href="icon-192.png?v=4">
+<script>
+/* أيقونة العيادة: لو اللينك فيه ?c= والجهاز شاف العيادة دي قبل كده، الأيقونة واسم الأبلكيشن بيتغيروا قبل أي حاجة */
+(function(){try{var q=new URLSearchParams(location.search),c=q.get('c');if(!c||q.get('book'))return;var I=JSON.parse(localStorage.getItem('bc-icon-'+c)||'null');if(!I||!I.i192)return;
+var dir=location.origin+location.pathname.replace(/[^/]*$/,'');var m={id:dir+'?c='+c,name:I.name,short_name:String(I.name).slice(0,14),start_url:dir+'?c='+c,scope:dir,display:'standalone',dir:'rtl',lang:'ar',background_color:'#ffffff',theme_color:I.color||'#163A6B',
+icons:[{src:I.i192,sizes:'192x192',type:'image/png',purpose:'any'},{src:I.i512,sizes:'512x512',type:'image/png',purpose:'any'},{src:I.i512,sizes:'512x512',type:'image/png',purpose:'maskable'}]};
+var h=document.head;h.querySelector('link[rel="manifest"]').href=URL.createObjectURL(new Blob([JSON.stringify(m)],{type:'application/manifest+json'}));
+h.querySelector('link[rel="apple-touch-icon"]').href=I.i192;document.title=I.name;}catch(e){}})();
+</script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDI0IDEwMjQiPjxkZWZzPjxsaW5lYXJHcmFkaWVudCBpZD0ia2JnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMUQ0QTgyIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjMDkxQTMzIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMjQiIGhlaWdodD0iMTAyNCIgcng9IjIzMCIgZmlsbD0idXJsKCNrYmcpIi8+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoLTM0IDExMikgc2NhbGUoNCkiPjxkZWZzPjxsaW5lYXJHcmFkaWVudCBpZD0ia2IiIHgxPSIwIiB5MT0iMCIgeDI9IjEiIHkyPSIxIj48c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiNGRkZGRkYiLz48c3RvcCBvZmZzZXQ9Ii4zNSIgc3RvcC1jb2xvcj0iI0M5RDFEQyIvPjxzdG9wIG9mZnNldD0iLjU1IiBzdG9wLWNvbG9yPSIjRjRGNkY5Ii8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjOEU5QUFCIi8+PC9saW5lYXJHcmFkaWVudD4KPGxpbmVhckdyYWRpZW50IGlkPSJrZyIgeDE9IjAiIHkxPSIwIiB4Mj0iMSIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI0ZCRTdBNiIvPjxzdG9wIG9mZnNldD0iLjMiIHN0b3AtY29sb3I9IiNFMkI2NTciLz48c3RvcCBvZmZzZXQ9Ii42IiBzdG9wLWNvbG9yPSIjRjZEOThBIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjQTg3NzFGIi8+PC9saW5lYXJHcmFkaWVudD4KPGxpbmVhckdyYWRpZW50IGlkPSJrciIgeDE9IjAiIHkxPSIwIiB4Mj0iMSIgeTI9IjAiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI0ZGMkQyRCIgc3RvcC1vcGFjaXR5PSIwIi8+PHN0b3Agb2Zmc2V0PSIuNDUiIHN0b3AtY29sb3I9IiNGRjNCMzAiIHN0b3Atb3BhY2l0eT0iLjkiLz48c3RvcCBvZmZzZXQ9Ii41NSIgc3RvcC1jb2xvcj0iI0ZGRTNENiIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iI0ZGMkQyRCIgc3RvcC1vcGFjaXR5PSIwIi8+PC9saW5lYXJHcmFkaWVudD4KPHJhZGlhbEdyYWRpZW50IGlkPSJrZiI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjZmZmIi8+PHN0b3Agb2Zmc2V0PSIuMjUiIHN0b3AtY29sb3I9IiNGRkQ5Q0YiLz48c3RvcCBvZmZzZXQ9Ii42IiBzdG9wLWNvbG9yPSIjRkYzQjMwIiBzdG9wLW9wYWNpdHk9Ii40NSIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iI0ZGM0IzMCIgc3RvcC1vcGFjaXR5PSIwIi8+PC9yYWRpYWxHcmFkaWVudD4KPGZpbHRlciBpZD0ia3NoIiB4PSItMjAlIiB5PSItMjAlIiB3aWR0aD0iMTQwJSIgaGVpZ2h0PSIxNDAlIj48ZmVEcm9wU2hhZG93IGR4PSIwIiBkeT0iMyIgc3RkRGV2aWF0aW9uPSIzIiBmbG9vZC1jb2xvcj0iIzAwMCIgZmxvb2Qtb3BhY2l0eT0iMC40NSIvPjwvZmlsdGVyPjxjbGlwUGF0aCBpZD0ia2xvIj48cmVjdCB4PSIwIiB5PSIxMDMiIHdpZHRoPSIzMDAiIGhlaWdodD0iMTIwIi8+PC9jbGlwUGF0aD48bWFzayBpZD0ia20iIG1hc2tVbml0cz0idXNlclNwYWNlT25Vc2UiIHg9IjAiIHk9IjAiIHdpZHRoPSIzMDAiIGhlaWdodD0iMjIwIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIyMCIgZmlsbD0iI2ZmZiIvPgo8ZyBjbGlwLXBhdGg9InVybCgja2xvKSI+PHBhdGggZD0iTTE4NS4wNTU5OTk5OTk5OTk5OCAxNjEuMTUyMDAwMDAwMDAwMDJRMTcxLjExMiAxNjEuMTUyMDAwMDAwMDAwMDIgMTU5LjI2Nzk5OTk5OTk5OTk3IDE1Ni43MDAwMDAwMDAwMDAwMlExNDcuNDIzOTk5OTk5OTk5OTggMTUyLjI0ODAwMDAwMDAwMDAyIDEzOC43NzIgMTQ0LjAxNjAwMDAwMDAwMDAyUTEzMC4xMTk5OTk5OTk5OTk5OCAxMzUuNzg0MDAwMDAwMDAwMDIgMTI1LjI0Nzk5OTk5OTk5OTk5IDEyNC42MTIwMDAwMDAwMDAwMlExMjAuMzc1OTk5OTk5OTk5OTkgMTEzLjQ0MDAwMDAwMDAwMDAxIDEyMC4zNzU5OTk5OTk5OTk5OSAxMDAuMFExMjAuMzc1OTk5OTk5OTk5OTkgODYuNTYgMTI1LjI0Nzk5OTk5OTk5OTk5IDc1LjM4OFExMzAuMTE5OTk5OTk5OTk5OTggNjQuMjE2MDAwMDAwMDAwMDEgMTM4Ljc3MiA1NS45ODQwMDAwMDAwMDAwMVExNDcuNDIzOTk5OTk5OTk5OTggNDcuNzUyMDAwMDAwMDAwMDEgMTU5LjI2Nzk5OTk5OTk5OTk3IDQzLjMwMDAwMDAwMDAwMDAwNFExNzEuMTEyIDM4Ljg0OCAxODUuMDU1OTk5OTk5OTk5OTggMzguODQ4UTIwMS4zNTE5OTk5OTk5OTk5OCAzOC44NDggMjE0LjIwMzk5OTk5OTk5OTk4IDQ0LjU2UTIyNy4wNTU5OTk5OTk5OTk5OCA1MC4yNzIwMDAwMDAwMDAwMDYgMjM1LjYyNCA2MS4wMjRMMjE0LjQ1NiA4MC4xNzZRMjA4Ljc0NCA3My40NTYgMjAxLjk0IDY5LjkyOFExOTUuMTM2IDY2LjQgMTg2LjczNiA2Ni40UTE3OS41MTIgNjYuNCAxNzMuNDY0IDY4Ljc1MjAwMDAwMDAwMDAxUTE2Ny40MTYgNzEuMTA0IDE2My4xMzIgNzUuNTU2MDAwMDAwMDAwMDFRMTU4Ljg0Nzk5OTk5OTk5OTk4IDgwLjAwODAwMDAwMDAwMDAxIDE1Ni40MTE5OTk5OTk5OTk5OCA4Ni4yMjQwMDAwMDAwMDAwMlExNTMuOTc2IDkyLjQ0MDAwMDAwMDAwMDAxIDE1My45NzYgMTAwLjBRMTUzLjk3NiAxMDcuNTYgMTU2LjQxMTk5OTk5OTk5OTk4IDExMy43NzYwMDAwMDAwMDAwMVExNTguODQ3OTk5OTk5OTk5OTggMTE5Ljk5MjAwMDAwMDAwMDAyIDE2My4xMzIgMTI0LjQ0NDAwMDAwMDAwMDAyUTE2Ny40MTYgMTI4Ljg5NjAwMDAwMDAwMDAyIDE3My40NjQgMTMxLjI0ODAwMDAwMDAwMDAyUTE3OS41MTIgMTMzLjYwMDAwMDAwMDAwMDAyIDE4Ni43MzYgMTMzLjYwMDAwMDAwMDAwMDAyUTE5NS4xMzYgMTMzLjYwMDAwMDAwMDAwMDAyIDIwMS45NCAxMzAuMDcyUTIwOC43NDQgMTI2LjU0NDAwMDAwMDAwMDAxIDIxNC40NTYgMTE5LjgyNDAwMDAwMDAwMDAxTDIzNS42MjQgMTM4Ljk3NlEyMjcuMDU1OTk5OTk5OTk5OTggMTQ5LjU2IDIxNC4yMDM5OTk5OTk5OTk5OCAxNTUuMzU2UTIwMS4zNTE5OTk5OTk5OTk5OCAxNjEuMTUyMDAwMDAwMDAwMDIgMTg1LjA1NTk5OTk5OTk5OTk4IDE2MS4xNTIwMDAwMDAwMDAwMloiIGZpbGw9IiMwMDAiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLXdpZHRoPSI4IiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PC9nPgo8L21hc2s+PC9kZWZzPjxnIGZpbHRlcj0idXJsKCNrc2gpIj48cGF0aCBkPSJNMTg1LjA1NTk5OTk5OTk5OTk4IDE2MS4xNTIwMDAwMDAwMDAwMlExNzEuMTEyIDE2MS4xNTIwMDAwMDAwMDAwMiAxNTkuMjY3OTk5OTk5OTk5OTcgMTU2LjcwMDAwMDAwMDAwMDAyUTE0Ny40MjM5OTk5OTk5OTk5OCAxNTIuMjQ4MDAwMDAwMDAwMDIgMTM4Ljc3MiAxNDQuMDE2MDAwMDAwMDAwMDJRMTMwLjExOTk5OTk5OTk5OTk4IDEzNS43ODQwMDAwMDAwMDAwMiAxMjUuMjQ3OTk5OTk5OTk5OTkgMTI0LjYxMjAwMDAwMDAwMDAyUTEyMC4zNzU5OTk5OTk5OTk5OSAxMTMuNDQwMDAwMDAwMDAwMDEgMTIwLjM3NTk5OTk5OTk5OTk5IDEwMC4wUTEyMC4zNzU5OTk5OTk5OTk5OSA4Ni41NiAxMjUuMjQ3OTk5OTk5OTk5OTkgNzUuMzg4UTEzMC4xMTk5OTk5OTk5OTk5OCA2NC4yMTYwMDAwMDAwMDAwMSAxMzguNzcyIDU1Ljk4NDAwMDAwMDAwMDAxUTE0Ny40MjM5OTk5OTk5OTk5OCA0Ny43NTIwMDAwMDAwMDAwMSAxNTkuMjY3OTk5OTk5OTk5OTcgNDMuMzAwMDAwMDAwMDAwMDA0UTE3MS4xMTIgMzguODQ4IDE4NS4wNTU5OTk5OTk5OTk5OCAzOC44NDhRMjAxLjM1MTk5OTk5OTk5OTk4IDM4Ljg0OCAyMTQuMjAzOTk5OTk5OTk5OTggNDQuNTZRMjI3LjA1NTk5OTk5OTk5OTk4IDUwLjI3MjAwMDAwMDAwMDAwNiAyMzUuNjI0IDYxLjAyNEwyMTQuNDU2IDgwLjE3NlEyMDguNzQ0IDczLjQ1NiAyMDEuOTQgNjkuOTI4UTE5NS4xMzYgNjYuNCAxODYuNzM2IDY2LjRRMTc5LjUxMiA2Ni40IDE3My40NjQgNjguNzUyMDAwMDAwMDAwMDFRMTY3LjQxNiA3MS4xMDQgMTYzLjEzMiA3NS41NTYwMDAwMDAwMDAwMVExNTguODQ3OTk5OTk5OTk5OTggODAuMDA4MDAwMDAwMDAwMDEgMTU2LjQxMTk5OTk5OTk5OTk4IDg2LjIyNDAwMDAwMDAwMDAyUTE1My45NzYgOTIuNDQwMDAwMDAwMDAwMDEgMTUzLjk3NiAxMDAuMFExNTMuOTc2IDEwNy41NiAxNTYuNDExOTk5OTk5OTk5OTggMTEzLjc3NjAwMDAwMDAwMDAxUTE1OC44NDc5OTk5OTk5OTk5OCAxMTkuOTkyMDAwMDAwMDAwMDIgMTYzLjEzMiAxMjQuNDQ0MDAwMDAwMDAwMDJRMTY3LjQxNiAxMjguODk2MDAwMDAwMDAwMDIgMTczLjQ2NCAxMzEuMjQ4MDAwMDAwMDAwMDJRMTc5LjUxMiAxMzMuNjAwMDAwMDAwMDAwMDIgMTg2LjczNiAxMzMuNjAwMDAwMDAwMDAwMDJRMTk1LjEzNiAxMzMuNjAwMDAwMDAwMDAwMDIgMjAxLjk0IDEzMC4wNzJRMjA4Ljc0NCAxMjYuNTQ0MDAwMDAwMDAwMDEgMjE0LjQ1NiAxMTkuODI0MDAwMDAwMDAwMDFMMjM1LjYyNCAxMzguOTc2UTIyNy4wNTU5OTk5OTk5OTk5OCAxNDkuNTYgMjE0LjIwMzk5OTk5OTk5OTk4IDE1NS4zNTZRMjAxLjM1MTk5OTk5OTk5OTk4IDE2MS4xNTIwMDAwMDAwMDAwMiAxODUuMDU1OTk5OTk5OTk5OTggMTYxLjE1MjAwMDAwMDAwMDAyWiIgZmlsbD0idXJsKCNrZykiLz4KPHBhdGggZD0iTTM3LjM4OTk5OTk5OTk5OTk5IDE1OS41VjQwLjQ5OTk5OTk5OTk5OTk4Nkg5OC4yNVExMjEuNzEwMDAwMDAwMDAwMDEgNDAuNDk5OTk5OTk5OTk5OTg2IDEzMy4yNjk5OTk5OTk5OTk5OCA0OS4wODQ5OTk5OTk5OTk5OVExNDQuODI5OTk5OTk5OTk5OTggNTcuNjY5OTk5OTk5OTk5OTkgMTQ0LjgyOTk5OTk5OTk5OTk4IDcxLjYxUTE0NC44Mjk5OTk5OTk5OTk5OCA4MC43ODk5OTk5OTk5OTk5OSAxMzkuOTg0OTk5OTk5OTk5OTkgODcuNjc1UTEzNS4xNCA5NC41NiAxMjYuMzg0OTk5OTk5OTk5OTkgOTguNTU1UTExNy42MyAxMDIuNTUgMTA1LjU2IDEwMi41NUwxMDguOTYwMDAwMDAwMDAwMDEgOTQuMzlRMTIxLjU0IDk0LjM5IDEzMC44OTAwMDAwMDAwMDAwMSA5OC4yMTVRMTQwLjI0IDEwMi4wMzk5OTk5OTk5OTk5OSAxNDUuNDI1IDEwOS4yNjQ5OTk5OTk5OTk5OVExNTAuNjEgMTE2LjQ5IDE1MC42MSAxMjYuODZRMTUwLjYxIDE0Mi4zMjk5OTk5OTk5OTk5OCAxMzguMTE1IDE1MC45MTVRMTI1LjYyIDE1OS41IDEwMS42NSAxNTkuNVpNNzAuNzEwMDAwMDAwMDAwMDEgMTM1LjE5SDk4LjkzUTEwNy42IDEzNS4xOSAxMTIuMTA0OTk5OTk5OTk5OTkgMTMyLjIxNVExMTYuNjEgMTI5LjI0IDExNi42MSAxMjMuMTJRMTE2LjYxIDExNy4wIDExMi4xMDQ5OTk5OTk5OTk5OSAxMTQuMDI1UTEwNy42IDExMS4wNSA5OC45MyAxMTEuMDVINjguMzNWODcuNzU5OTk5OTk5OTk5OTlIOTMuODNRMTAyLjMzIDg3Ljc1OTk5OTk5OTk5OTk5IDEwNi41OCA4NC44Njk5OTk5OTk5OTk5OVExMTAuODMgODEuOTc5OTk5OTk5OTk5OTkgMTEwLjgzIDc2LjE5OTk5OTk5OTk5OTk5UTExMC44MyA3MC40MTk5OTk5OTk5OTk5OSAxMDYuNTggNjcuNjE0OTk5OTk5OTk5OThRMTAyLjMzIDY0LjgwOTk5OTk5OTk5OTk5IDkzLjgzIDY0LjgwOTk5OTk5OTk5OTk5SDcwLjcxMDAwMDAwMDAwMDAxWiIgZmlsbD0idXJsKCNrYikiIG1hc2s9InVybCgja20pIi8+PGcgY2xpcC1wYXRoPSJ1cmwoI2tsbykiPjxwYXRoIGQ9Ik0xODUuMDU1OTk5OTk5OTk5OTggMTYxLjE1MjAwMDAwMDAwMDAyUTE3MS4xMTIgMTYxLjE1MjAwMDAwMDAwMDAyIDE1OS4yNjc5OTk5OTk5OTk5NyAxNTYuNzAwMDAwMDAwMDAwMDJRMTQ3LjQyMzk5OTk5OTk5OTk4IDE1Mi4yNDgwMDAwMDAwMDAwMiAxMzguNzcyIDE0NC4wMTYwMDAwMDAwMDAwMlExMzAuMTE5OTk5OTk5OTk5OTggMTM1Ljc4NDAwMDAwMDAwMDAyIDEyNS4yNDc5OTk5OTk5OTk5OSAxMjQuNjEyMDAwMDAwMDAwMDJRMTIwLjM3NTk5OTk5OTk5OTk5IDExMy40NDAwMDAwMDAwMDAwMSAxMjAuMzc1OTk5OTk5OTk5OTkgMTAwLjBRMTIwLjM3NTk5OTk5OTk5OTk5IDg2LjU2IDEyNS4yNDc5OTk5OTk5OTk5OSA3NS4zODhRMTMwLjExOTk5OTk5OTk5OTk4IDY0LjIxNjAwMDAwMDAwMDAxIDEzOC43NzIgNTUuOTg0MDAwMDAwMDAwMDFRMTQ3LjQyMzk5OTk5OTk5OTk4IDQ3Ljc1MjAwMDAwMDAwMDAxIDE1OS4yNjc5OTk5OTk5OTk5NyA0My4zMDAwMDAwMDAwMDAwMDRRMTcxLjExMiAzOC44NDggMTg1LjA1NTk5OTk5OTk5OTk4IDM4Ljg0OFEyMDEuMzUxOTk5OTk5OTk5OTggMzguODQ4IDIxNC4yMDM5OTk5OTk5OTk5OCA0NC41NlEyMjcuMDU1OTk5OTk5OTk5OTggNTAuMjcyMDAwMDAwMDAwMDA2IDIzNS42MjQgNjEuMDI0TDIxNC40NTYgODAuMTc2UTIwOC43NDQgNzMuNDU2IDIwMS45NCA2OS45MjhRMTk1LjEzNiA2Ni40IDE4Ni43MzYgNjYuNFExNzkuNTEyIDY2LjQgMTczLjQ2NCA2OC43NTIwMDAwMDAwMDAwMVExNjcuNDE2IDcxLjEwNCAxNjMuMTMyIDc1LjU1NjAwMDAwMDAwMDAxUTE1OC44NDc5OTk5OTk5OTk5OCA4MC4wMDgwMDAwMDAwMDAwMSAxNTYuNDExOTk5OTk5OTk5OTggODYuMjI0MDAwMDAwMDAwMDJRMTUzLjk3NiA5Mi40NDAwMDAwMDAwMDAwMSAxNTMuOTc2IDEwMC4wUTE1My45NzYgMTA3LjU2IDE1Ni40MTE5OTk5OTk5OTk5OCAxMTMuNzc2MDAwMDAwMDAwMDFRMTU4Ljg0Nzk5OTk5OTk5OTk4IDExOS45OTIwMDAwMDAwMDAwMiAxNjMuMTMyIDEyNC40NDQwMDAwMDAwMDAwMlExNjcuNDE2IDEyOC44OTYwMDAwMDAwMDAwMiAxNzMuNDY0IDEzMS4yNDgwMDAwMDAwMDAwMlExNzkuNTEyIDEzMy42MDAwMDAwMDAwMDAwMiAxODYuNzM2IDEzMy42MDAwMDAwMDAwMDAwMlExOTUuMTM2IDEzMy42MDAwMDAwMDAwMDAwMiAyMDEuOTQgMTMwLjA3MlEyMDguNzQ0IDEyNi41NDQwMDAwMDAwMDAwMSAyMTQuNDU2IDExOS44MjQwMDAwMDAwMDAwMUwyMzUuNjI0IDEzOC45NzZRMjI3LjA1NTk5OTk5OTk5OTk4IDE0OS41NiAyMTQuMjAzOTk5OTk5OTk5OTggMTU1LjM1NlEyMDEuMzUxOTk5OTk5OTk5OTggMTYxLjE1MjAwMDAwMDAwMDAyIDE4NS4wNTU5OTk5OTk5OTk5OCAxNjEuMTUyMDAwMDAwMDAwMDJaIiBmaWxsPSJ1cmwoI2tnKSIvPjwvZz48L2c+PHJlY3QgeD0iMjIiIHk9Ijk4LjgiIHdpZHRoPSIyMjkiIGhlaWdodD0iMi40IiBmaWxsPSJ1cmwoI2tyKSIvPjxjaXJjbGUgY3g9IjE0NiIgY3k9IjEwMCIgcj0iMjAiIGZpbGw9InVybCgja2YpIi8+PHBhdGggZD0iTTE0NiA4NiBRMTQ3LjUgOTguNSAxNjAgMTAwIFExNDcuNSAxMDEuNSAxNDYgMTE0IFExNDQuNSAxMDEuNSAxMzIgMTAwIFExNDQuNSA5OC41IDE0NiA4NloiIGZpbGw9IiNmZmYiLz48L2c+PC9zdmc+">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -362,6 +370,8 @@ function brandOf(c) {
     ? { name: c.name, logo: c.logoUrl || '', color: c.color || '#163A6B', white: true }
     : { name: 'Beam Care Clinic', logo: '', color: '#163A6B', white: false };
 }
+// أيقونة الأبلكيشن لأي عيادة: لوجوها لو مترفع، ولو مفيش لوجو أول حرف من اسمها بلونها (عمرها ما تبقى أيقونة Beam Care)
+const iconBrandOf = c => c && c.name ? { name: c.name, logo: c.logoUrl || '', color: c.color || '#163A6B', white: true } : null;
 function logoHTML(b, size = 36) {
   // اللوجو في كارت أبيض بحواف مدورة وظل خفيف (بيستحمل اللوجوهات العريضة من غير ما تتقص)
   if (b.logo) return `<span class="lg-card" style="height:${size + 12}px;padding:6px ${Math.round(size / 4)}px"><img src="${esc(b.logo)}" alt="" style="height:${size}px;width:auto;max-width:${Math.round(size * 3.2)}px;object-fit:contain;display:block"></span>`;
@@ -371,11 +381,21 @@ function applyBrand(c) {
   const b = brandOf(c);
   document.documentElement.style.setProperty('--brand', b.color);
   document.title = b.name;
-  if (c?.id || c?.cid) applyAppIcon(c.id || c.cid, b);
+  if (c?.id || c?.cid) applyAppIcon(c.id || c.cid, iconBrandOf(c));
 }
 /* ----- لوجو العيادة في كل حاجة: أيقونة الموبايل، شاشة الفتح، صفحة الحجز، وتاب المتصفح ----- */
 const brandKey = id => 'bc-brand-' + id;
-function cachedBrand(id) { try { const v = localStorage.getItem(brandKey(id || localStorage.getItem('bc-brand-last') || '')); return v ? JSON.parse(v) : null; } catch (e) { return null; } }
+// جهاز فريق Beam Care: ما يحفظش ولا يعرض لوجو أي عيادة اتفتحت منه (حتى لو دخلت «كـ» عيادة من اللوحة)
+const devDevice = () => { try { return localStorage.getItem('bc-dev-device') === '1'; } catch (e) { return false; } };
+const lastBrand = () => { try { return devDevice() ? '' : (localStorage.getItem('bc-brand-last') || ''); } catch (e) { return ''; } };
+function cachedBrand(id) { try { const v = localStorage.getItem(brandKey(id || lastBrand())); return v ? JSON.parse(v) : null; } catch (e) { return null; } }
+function letterPng(b, size) {
+  const cv = document.createElement('canvas'); cv.width = cv.height = size; const g = cv.getContext('2d');
+  g.fillStyle = b.color || '#163A6B'; g.fillRect(0, 0, size, size);
+  g.fillStyle = '#ffffff'; g.font = `bold ${Math.round(size * 0.46)}px Cairo, Arial, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(String(b.name).trim().replace(/^(عيادة|عيادات|مركز)\s+/, '').replace(/^ال(?=\S{2})/, '').slice(0, 1).toUpperCase(), size / 2, size / 2 + size * 0.03);
+  return cv.toDataURL('image/png');
+}
 async function logoPng(url, size) {
   const im = await new Promise((ok, no) => { const i = new Image(); i.crossOrigin = 'anonymous'; i.onload = () => ok(i); i.onerror = no; i.src = url; });
   const cv = document.createElement('canvas'); cv.width = cv.height = size; const g = cv.getContext('2d');
@@ -387,24 +407,25 @@ async function logoPng(url, size) {
 const setHead = (sel, make, attr, val) => { let el = document.head.querySelector(sel); if (!el) { el = make(); document.head.appendChild(el); } el.setAttribute(attr, val); };
 let ICON_FOR = '';
 async function applyAppIcon(id, b) {
-  if (!b?.white || !b.logo) return;
-  try { localStorage.setItem(brandKey(id), JSON.stringify({ name: b.name, logo: b.logo, color: b.color, white: true })); if (!BOOK_C) localStorage.setItem('bc-brand-last', id); } catch (e) {}
+  if (!b?.name || S.isDev || devDevice()) return;
+  if (b.logo) try { localStorage.setItem(brandKey(id), JSON.stringify({ name: b.name, logo: b.logo, color: b.color, white: true })); if (!BOOK_C) localStorage.setItem('bc-brand-last', id); } catch (e) {}
   if (ICON_FOR === id + b.logo) return; ICON_FOR = id + b.logo;
   try {
-    const [i192, i512] = await Promise.all([logoPng(b.logo, 192), logoPng(b.logo, 512)]);
+    const [i192, i512] = b.logo ? await Promise.all([logoPng(b.logo, 192), logoPng(b.logo, 512)]) : [letterPng(b, 192), letterPng(b, 512)];
+    if (!BOOK_C) try { localStorage.setItem('bc-icon-' + id, JSON.stringify({ name: b.name, color: b.color, i192, i512 })); } catch (e) {}
     const dir = location.origin + location.pathname.replace(/[^/]*$/, '');
     const mf = { id: dir + '?c=' + id, name: b.name, short_name: b.name.slice(0, 14), start_url: dir + '?c=' + id, scope: dir, display: 'standalone', dir: 'rtl', lang: 'ar', background_color: '#ffffff', theme_color: b.color,
-      icons: [{ src: i192, sizes: '192x192', type: 'image/png', purpose: 'any' }, { src: i512, sizes: '512x512', type: 'image/png', purpose: 'any' }] };
+      icons: [{ src: i192, sizes: '192x192', type: 'image/png', purpose: 'any' }, { src: i512, sizes: '512x512', type: 'image/png', purpose: 'any' }, { src: i512, sizes: '512x512', type: 'image/png', purpose: 'maskable' }] };
     setHead('link[rel="icon"]', () => Object.assign(document.createElement('link'), { rel: 'icon' }), 'href', i192);
     setHead('link[rel="apple-touch-icon"]', () => Object.assign(document.createElement('link'), { rel: 'apple-touch-icon' }), 'href', i192);
     setHead('meta[name="theme-color"]', () => Object.assign(document.createElement('meta'), { name: 'theme-color' }), 'content', b.color);
     setHead('meta[name="apple-mobile-web-app-title"]', () => Object.assign(document.createElement('meta'), { name: 'apple-mobile-web-app-title' }), 'content', b.name);
-    if (!BOOK_C) setHead('link[rel="manifest"]', () => Object.assign(document.createElement('link'), { rel: 'manifest' }), 'href', 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(mf)));
+    if (!BOOK_C) setHead('link[rel="manifest"]', () => Object.assign(document.createElement('link'), { rel: 'manifest' }), 'href', URL.createObjectURL(new Blob([JSON.stringify(mf)], { type: 'application/manifest+json' })));
   } catch (e) { console.warn('icon', e); }
 }
 // شاشة الفتح: لو الجهاز ده فتح عيادة باسمها قبل كده، يظهر لوجوها على طول بدل «جاري التحميل»
 (() => { try {
-  const q = new URLSearchParams(location.search), id = q.get('c') || (BOOK_C ? String(BOOK_C).split(/[^A-Za-z0-9_-]/)[0] : '') || localStorage.getItem('bc-brand-last') || '';
+  const q = new URLSearchParams(location.search), id = q.get('c') || (BOOK_C ? String(BOOK_C).split(/[^A-Za-z0-9_-]/)[0] : '') || lastBrand();
   if (FB_C || ATT_Q) return; const b = id ? cachedBrand(id) : null; if (!b?.logo) return;
   document.title = b.name; document.documentElement.style.setProperty('--brand', b.color || '#163A6B');
   const el = document.getElementById('app'); if (el) el.innerHTML = `<div class="loading" style="display:flex;flex-direction:column;align-items:center;gap:14px;padding-top:18vh"><img src="${b.logo}" alt="" style="max-width:160px;max-height:110px;object-fit:contain"><span style="color:var(--muted)">جاري التحميل...</span><span style="color:var(--muted);font-size:12px;opacity:.8">Powered by Beam Care</span></div>`;
@@ -446,9 +467,9 @@ A.logout = async () => {
 /* ---------------- تسجيل الدخول ---------------- */
 async function loginBrand() {
   let c = new URLSearchParams(location.search).get('c');
-  if (!c) { try { c = localStorage.getItem('bc-brand-last') || ''; } catch (e) {} }
+  if (!c) c = lastBrand();
   if (!c) return brandOf(null);
-  try { const b = await getDoc(doc(db, 'brands', c)); if (!b.exists()) return brandOf(null); const br = brandOf(b.data()); if (br.white) applyAppIcon(c, br); return br; }
+  try { const b = await getDoc(doc(db, 'brands', c)); if (!b.exists()) return brandOf(null); const br = brandOf(b.data()); applyAppIcon(c, iconBrandOf(b.data())); return br; }
   catch { return brandOf(null); }
 }
 async function renderLogin(msg = '') {
@@ -498,7 +519,7 @@ onAuthStateChanged(auth, async u => {
     if (dev.exists()) {
       const dd = dev.data();
       if (dd.active === false) { await signOut(auth); return renderLogin('الحساب ده موقوف — كلّم صاحب الشركة'); }
-      S.isDev = true; S.dev = dd; applyBrand(null); return A.devHome();
+      S.isDev = true; S.dev = dd; try { localStorage.setItem('bc-dev-device', '1'); localStorage.removeItem('bc-brand-last'); } catch (e) {} applyBrand(null); return A.devHome();
     }
     const p = await getDoc(doc(db, 'users', u.uid));
     if (!p.exists() || p.data().active === false) { await signOut(auth); return renderLogin('الحساب ده موقوف أو مش موجود'); }
