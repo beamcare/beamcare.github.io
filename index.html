@@ -349,6 +349,28 @@ Object.keys(ROLE_PERMS).forEach(r => EXTRA_PERMS.forEach(([k]) => { ROLE_PERMS[r
 
 /* ---------------- أدوات ---------------- */
 let S = {};
+/* ----- متابعة الاستخدام + الأخطاء (بتوصل لوحة Beam Care) ----- */
+const BC_V = '2026.11.12';
+function bcPing() {
+  try {
+    if (!S.clinic?.id || !S.profile || S.isDev || S.viewAs) return;
+    const k = 'bc-ping-' + S.clinic.id + '-' + S.profile.id, d = todayStr();
+    if (localStorage.getItem(k) === d) return; localStorage.setItem(k, d);
+    _setDoc(doc(db, 'usage', S.clinic.id), { product: 'clinic', at: serverTimestamp(), day: d, user: S.profile.name || '', v: BC_V, users: { [S.profile.id]: { n: S.profile.name || '', d } } }, { merge: true }).catch(() => {});
+  } catch (e) {}
+}
+const BC_ERR = { n: 0, seen: new Set() };
+function bcErr(msg, src) {
+  try {
+    msg = String(msg || '').slice(0, 500); if (!msg || BC_ERR.n >= 5 || BC_ERR.seen.has(msg)) return;
+    if (/ResizeObserver|Script error\.?$|extension|Failed to fetch dynamically|NetworkError|Load failed|offline|unavailable/i.test(msg)) return;
+    if (!S.clinic?.id || S.isDev || !auth?.currentUser) return;
+    BC_ERR.n++; BC_ERR.seen.add(msg);
+    _setDoc(doc(collection(db, 'errlog')), { app: 'clinic', tenant: S.clinic.id, user: S.profile?.name || '', msg, src: String(src || '').slice(0, 280), page: String(S.view || location.hash || '').slice(0, 70), ua: navigator.userAgent.slice(0, 280), at: serverTimestamp(), v: BC_V }).catch(() => {});
+  } catch (e) {}
+}
+window.addEventListener('error', e => bcErr(e.message, (e.filename || '').split('/').pop() + ':' + (e.lineno || '')));
+window.addEventListener('unhandledrejection', e => { const r = e.reason; bcErr(r?.message || r?.code || String(r), r?.stack ? String(r.stack).split('\n')[1] : ''); });
 // علشان الأزرار اللي جوه الصفحة (onclick) تقدر توصل للحالة
 try { Object.defineProperty(window, 'S', { get: () => S, set: v => { S = v; }, configurable: true }); } catch (e) {}
 const A = window.A = {};
@@ -447,6 +469,7 @@ function statusChip(c) {
   return `<span class="chip ok">شغالة</span>`;
 }
 function toast(msg) {
+  if (/^مقدرتش|permission|حصلت مشكلة/.test(String(msg))) bcErr('رسالة للمستخدم: ' + msg, 'toast');
   document.querySelectorAll('.toast').forEach(x => x.remove());
   const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
   document.body.appendChild(t); setTimeout(() => t.remove(), 2600);
@@ -526,7 +549,7 @@ onAuthStateChanged(auth, async u => {
     S.profile = { id: u.uid, ...p.data() };
     const c = await getDoc(doc(db, 'clinics', S.profile.clinicId));
     S.clinic = { id: c.id, ...c.data() };
-    applyBrand(S.clinic);
+    applyBrand(S.clinic); bcPing();
     if (!clinicActive(S.clinic)) return renderLocked();
     applyLook(S.clinic.look); lookAnnounce(S.clinic.look || '');
     watchClinicUpd();
@@ -619,6 +642,7 @@ const PRODUCTS = {
       { key: 'onlineBooking', label: 'الحجز أونلاين للعملاء (لينك و QR بالمواعيد المتاحة)' },
       { key: 'reminders', label: 'تذكير الحجوزات على الواتساب' },
       { key: 'consents', label: 'إقرار الموافقة بتوقيع العميل' },
+      { key: 'photos', label: 'صور قبل وبعد في ملف العميل' },
       { key: 'dayReport', label: 'تقرير آخر اليوم على الواتساب' },
       { key: 'loyalty', label: 'نقاط الولاء والترشيح' },
       { key: 'campaigns', label: 'حملات العروض على الواتساب (بصورة عرض مصممة)' },
@@ -670,7 +694,7 @@ const PIONEER_ROLES = {
   admin: { label: 'مدير عام' }, exec: { label: 'مدير تنفيذي' }, manager: { label: 'مدير إدارة' }, engineer: { label: 'مهندس صيانة' },
   accountant: { label: 'موظف حسابات' }, cons_staff: { label: 'موظف مستهلكات' }, courier: { label: 'مندوب شحن' }, staff: { label: 'موظف' }, clinic: { label: 'عيادة (عميل)' },
 };
-const PIONEER_PARTS = [['freon', 'الفريون'], ['sales', 'المبيعات والمستهلكات والعروض'], ['devices', 'بيع وإيجار الأجهزة'], ['contracts', 'عقود الصيانة'], ['suppliers', 'الموردين والمشتريات'], ['finance', 'الحسابات والخزينة ورأس المال والآجل'], ['hr', 'الحضور والإجازات'], ['payroll', 'المرتبات والمكافآت'], ['staff', 'إدارة الموظفين (العهدة، الاجتماعات، التقييم، الاختبارات، الملفات)'], ['weekly', 'التقارير الدورية'], ['analytics', 'التحليلات'], ['gs', 'النسخ لجوجل شيت']];
+const PIONEER_PARTS = [['freon', 'الفريون'], ['sales', 'المبيعات والمستهلكات والعروض'], ['quotes', 'عروض الأسعار'], ['devices', 'بيع وإيجار الأجهزة'], ['contracts', 'عقود الصيانة'], ['suppliers', 'الموردين والمشتريات'], ['finance', 'الحسابات والخزينة ورأس المال والآجل'], ['hr', 'الحضور والإجازات'], ['payroll', 'المرتبات والمكافآت'], ['staff', 'إدارة الموظفين (العهدة، الاجتماعات، التقييم، الاختبارات، الملفات)'], ['weekly', 'التقارير الدورية'], ['analytics', 'التحليلات'], ['gs', 'النسخ لجوجل شيت']];
 Object.assign(PRODUCTS.maint, {
   ready: true, remote: true, viewAs: false, importer: false,
   roles: PIONEER_ROLES, linkedRole: 'clinic', rolePerms: {},
@@ -757,7 +781,7 @@ function subDocOf(t) {
     mods: t.mods || {}, whiteLabel: !!t.whiteLabel, ownerPerms: !!t.features?.ownerManagesPerms, webReq: !!t.features?.webReq,
     contact: t.renewPhone || '', vendor: 'Beam Care', product: PRODUCTS.maint.name, planName: t.planName || '',
     upd: !!t.upd, updMsg: t.updMsg || '', updUntil: t.updUntil || '', theme: t.theme || '', layout: t.layout || '', icons: t.icons || '', look: t.look || '', lookName: (typeof LOOKS !== 'undefined' && LOOKS[t.look]?.name) || '',
-    lockAt: Timestamp.fromDate(lock), updatedAt: new Date().toISOString(), by: 'panel',
+    lockAt: Timestamp.fromDate(lock), updatedAt: new Date().toISOString(), by: 'panel', tid: t.id,
   };
 }
 async function pushRemoteSub(t) {
@@ -1543,6 +1567,36 @@ function myCoCard(tenants) {
 }
 
 /* ----- التنبيهات ----- */
+/* ----- متابعة استخدام العملاء + أخطاء العملاء ----- */
+async function loadUsage() {
+  const U = {};
+  try { (await getDocs(collection(db, 'usage'))).forEach(d => { U[d.id] = d.data(); }); } catch (e) { console.error(e); }
+  S.usage = U; return U;
+}
+const lastUseOf = t => (S.usage || {})[(t.product === 'maint' ? 'm-' : '') + t.id];
+const usageDays = u => { const d = u?.at?.toDate ? u.at.toDate() : u?.day ? new Date(u.day + 'T12:00:00') : null; return d ? Math.floor((Date.now() - d.getTime()) / 864e5) : null; };
+const usageTxt = t => { const u = lastUseOf(t); const d = usageDays(u); if (d == null) return ''; return d <= 0 ? 'اتفتح النهارده' : d === 1 ? 'آخر فتح: امبارح' : `آخر فتح: من ${d} يوم`; };
+async function loadErrs(days = 7) {
+  try { const since = Timestamp.fromMillis(Date.now() - days * 864e5); return (await getDocs(query(collection(db, 'errlog'), where('at', '>=', since), orderBy('at', 'desc'), limit(300)))).docs.map(d => ({ id: d.id, ...d.data() })); }
+  catch (e) { console.error(e); return []; }
+}
+async function devErrors() {
+  const [L, T] = await Promise.all([loadErrs(14), loadAllTenants()]);
+  const tn = (app, id) => (T.find(t => t.id === id && t.product === (app === 'maint' ? 'maint' : 'clinic')) || T.find(t => t.id === id))?.name || id;
+  const by = {}; L.forEach(x => { const k = x.app + '|' + x.tenant + '|' + x.msg; (by[k] = by[k] || { ...x, n: 0, last: x.at }).n++; });
+  const G = Object.values(by);
+  devShell('errors', `<div class="head"><h2>🐞 أخطاء العملاء</h2>${L.length && devBoss() ? `<button class="btn ghost sm" onclick="A.errClear()">مسح الكل</button>` : ''}</div>
+    <p class="meta">أي خطأ بيحصل عند يوزر في عيادة أو شركة صيانة بيوصل هنا لوحده (آخر 14 يوم). الأخطاء المتشابهة متجمعة مع بعض.</p>
+    ${G.length ? `<div class="card tbl-wrap" style="padding:0"><table><thead><tr><th>العميل</th><th>الخطأ</th><th>عدد المرات</th><th>آخر مرة</th><th>اليوزر / الصفحة</th></tr></thead><tbody>${G.map(x => `<tr>
+      <td><b>${esc(tn(x.app, x.tenant))}</b><div class="meta">${x.app === 'maint' ? 'صيانة' : 'عيادة'}${x.v ? ' · نسخة ' + esc(x.v) : ''}</div></td>
+      <td style="max-width:420px;word-break:break-word">${esc(x.msg)}${x.src ? `<div class="meta" dir="ltr" style="font-size:11.5px">${esc(x.src)}</div>` : ''}</td>
+      <td>${x.n.toLocaleString('ar-EG')}</td><td>${x.last?.toDate ? esc(x.last.toDate().toLocaleString('ar-EG', { day: 'numeric', month: 'numeric', hour: 'numeric', minute: '2-digit' })) : ''}</td>
+      <td>${esc(x.user || '—')}${x.page ? `<div class="meta">${esc(x.page)}</div>` : ''}</td></tr>`).join('')}</tbody></table></div>` : '<div class="card empty">مفيش أخطاء وصلت آخر 14 يوم 👌</div>'}`);
+}
+A.errClear = async () => {
+  if (!confirm('تمسح كل الأخطاء اللي وصلت؟')) return;
+  try { const L = await loadErrs(60); const b = writeBatch(db); L.slice(0, 450).forEach(x => b.delete(doc(db, 'errlog', x.id))); await b.commit(); toast('اتمسحت ✓'); A.dev('errors'); } catch (e) { toast('مقدرتش أمسح: ' + (e.code || e.message)); }
+};
 async function loadAlerts(tenants) {
   const L = [];
   const P = t => PRODUCTS[t.product] || PRODUCTS.clinic;
@@ -1554,6 +1608,16 @@ async function loadAlerts(tenants) {
     else if (d <= 7) L.push({ lv: 'warn', t, msg: `الاشتراك هيخلص بعد ${d} يوم`, renew: true });
     if (t.upd) L.push({ lv: 'warn', t, msg: 'السيستم متوقف للتحديث — متنساش ترجّعه' });
   });
+  try {
+    const [U, E] = await Promise.all([loadUsage(), devCan('tenants') ? loadErrs(7) : Promise.resolve([])]);
+    tenants.forEach(t => {
+      if (t.id === MYCO?.tenantId || t.active === false || daysLeft(t) <= 0) return;
+      const d = usageDays(lastUseOf(t));
+      if (d != null && d >= 7) L.push({ lv: 'warn', t, msg: `محدش فتح السيستم من ${d} يوم — كلّمهم واطمن عليهم قبل ما يبطّلوا` });
+      const ne = E.filter(x => x.tenant === t.id && (x.app === 'maint') === (t.product === 'maint')).length;
+      if (ne) L.push({ lv: 'bad', t, msg: `ظهر ${ne} خطأ عند يوزرات العميل ده آخر 7 أيام`, errs: true });
+    });
+  } catch (e) { console.error(e); }
   try {
     const g = await ghCfg();
     if (g.token) {
@@ -1581,6 +1645,7 @@ function alertsCard(L) {
       <div style="flex:1;min-width:200px"><b>${esc(a.t.name)}</b> <span class="meta" style="display:inline">· ${esc(prodOf(a.t).short)}</span><div class="meta">${esc(a.msg)}</div></div>
       ${a.renew && a.t.contactPhone ? `<button class="btn ghost sm" onclick="A.waRenew('${a.t.product}','${a.t.id}')">💬 فكّره بالتجديد</button>` : ''}
       ${a.renew ? `<button class="btn gold sm" onclick="A.quickRenew('${a.t.product}','${a.t.id}')">تجديد</button>` : ''}
+      ${a.errs ? `<button class="btn ghost sm" onclick="A.dev('errors')">شوف الأخطاء</button>` : ''}
       <button class="btn ghost sm" onclick="A.openTenant('${a.t.product}','${a.t.id}','${a.tab || 'sub'}')">فتح</button></div>`).join('')
       : '<p class="meta">كل حاجة تمام 👌 مفيش حاجة محتاجة تتصرف فيها.</p>'}
   </div>`;
@@ -1996,6 +2061,7 @@ const NAV_ICO = {
   team: '<path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="m9 12 2 2 4-4"/>',
   offers: '<rect x="3" y="8" width="18" height="13" rx="2"/><path d="M3 12h18M12 8v13M8 8c-2 0-3-1.5-3-3s2-2 3 0l4 3 4-3c1-2 3-1.5 3 0s-1 3-3 3"/>',
   csettings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+  alert: '<path d="M12 3l9.5 17h-19z"/><path d="M12 10v4M12 17v.5"/>',
   inbox: '<path d="M3 13l3-8h12l3 8v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M3 13h5l1 2h6l1-2h5"/>',
 };
 const navIco = k => `<svg class="nico" viewBox="0 0 24 24" aria-hidden="true">${NAV_ICO[k] || NAV_ICO.home}</svg>`;
@@ -2120,19 +2186,19 @@ A.devThemeSet = k => {
   A.closeModal(); A.dev(S.devView && S.devView !== 'tenant' ? S.devView : 'home');
   setTimeout(A.devThemeModal, 50);
 };
-const DEV_NAV_ICO = { home: 'home', reqs: 'inbox', 't:clinic': 'clinic', 't:maint': 'wrench', looks: 'palette', plans: 'packages', billing: 'payments', team: 'staff', settings: 'csettings' };
+const DEV_NAV_ICO = { errors: 'alert', home: 'home', reqs: 'inbox', 't:clinic': 'clinic', 't:maint': 'wrench', looks: 'palette', plans: 'packages', billing: 'payments', team: 'staff', settings: 'csettings' };
 /* ----- فريق Beam Care: يوزرات الشركة الأساسية وصلاحياتهم ----- */
 const DEV_PERMS = [['reqs', 'طلبات الاشتراك'], ['tenants', 'العيادات وشركات الصيانة (فتح وتجديد ويوزرات)'], ['plans', 'باكدجات الاشتراك والأسعار'], ['billing', 'إيرادات الاشتراكات (الفلوس)'], ['looks', 'أشكال السيستم'], ['myco', 'شركتي (سيستم الصيانة)']];
 const DEV_JOBS = { manager: { l: 'مدير', p: ['reqs', 'tenants', 'plans', 'billing', 'looks', 'myco'] }, sales: { l: 'مبيعات', p: ['reqs', 'tenants'] }, support: { l: 'دعم فني', p: ['tenants', 'looks'] }, accounts: { l: 'حسابات', p: ['billing', 'reqs'] }, custom: { l: 'مخصص (اختار بإيدك)', p: [] } };
 const devBoss = () => !!S.isDev && (!S.dev || !S.dev.role || S.dev.role === 'owner');
 const devCan = k => devBoss() || !!S.dev?.perms?.[k];
-const devViewPerm = k => k === 'reqs' ? 'reqs' : (k.startsWith('t:') || k === 'tenant') ? 'tenants' : ['plans', 'billing', 'looks', 'myco'].includes(k) ? k : k === 'team' ? '@boss' : null;
+const devViewPerm = k => k === 'reqs' ? 'reqs' : (k.startsWith('t:') || k === 'tenant' || k === 'errors') ? 'tenants' : ['plans', 'billing', 'looks', 'myco'].includes(k) ? k : k === 'team' ? '@boss' : null;
 const devAllowed = k => { const p = devViewPerm(k); return !p || (p === '@boss' ? devBoss() : devCan(p)); };
 function devShell(view, content) {
   applyDevTheme();
   S.devView = view;
   watchReqs();
-  const nav = [['home', 'الرئيسية'], ['reqs', 'طلبات الاشتراك'], ...PRODUCT_LIST.map(p => ['t:' + p.key, p.short + (p.ready ? '' : ' · قريباً')]), ['looks', '🎨 أشكال السيستم'], ['plans', 'باكدجات الاشتراك'], ['billing', 'إيرادات الاشتراكات'], ['team', 'فريق Beam Care'], ['settings', 'الإعدادات']].filter(([k]) => devAllowed(k));
+  const nav = [['home', 'الرئيسية'], ['reqs', 'طلبات الاشتراك'], ...PRODUCT_LIST.map(p => ['t:' + p.key, p.short + (p.ready ? '' : ' · قريباً')]), ['looks', '🎨 أشكال السيستم'], ['plans', 'باكدجات الاشتراك'], ['billing', 'إيرادات الاشتراكات'], ['errors', '🐞 أخطاء العملاء'], ['team', 'فريق Beam Care'], ['settings', 'الإعدادات']].filter(([k]) => devAllowed(k));
   const on = k => view === k || (view === 'tenant' && k === 't:' + S.dp?.key);
   $app.innerHTML = `
   <div class="top">${ICON(36)}<div><div class="name">Beam Care</div><div class="sub">${devBoss() ? 'لوحة الإدارة' : esc(S.dev?.name || 'لوحة الإدارة')}</div></div><div class="sp"></div><button class="dev-gear${view === 'settings' ? ' on' : ''}" onclick="A.dev('settings')" title="الإعدادات" aria-label="الإعدادات">${navIco('csettings')}</button>
@@ -2274,6 +2340,7 @@ A.dev = async view => {
     if (view === 'myco') return await devMyCo();
     if (view === 'team') return await devTeam();
     if (view === 'settings') return await devSettings();
+    if (view === 'errors') return await devErrors();
     if (view.startsWith('t:')) return await devTenants(PRODUCTS[view.slice(2)]);
   } catch (e) {
     console.error(e);
@@ -2339,7 +2406,7 @@ function renderOverview() {
 
 /* ----- قايمة العملاء لكل منتج ----- */
 async function devTenants(P) {
-  const all = (await loadAllTenants()).filter(t => t.product === P.key);
+  const all = (await Promise.all([loadAllTenants(), loadUsage()]))[0].filter(t => t.product === P.key);
   await loadPlans();
   const q = (S.tq || '').trim().toLowerCase();
   const list = q ? all.filter(t => (t.name || '').toLowerCase().includes(q) || (t.contactPhone || '').includes(q) || (t.contactName || '').toLowerCase().includes(q)) : all;
@@ -2354,7 +2421,7 @@ async function devTenants(P) {
       return `<div class="card clinic-card">
         <div class="row">${logoHTML(b, 40)}<h3>${esc(t.name)}</h3>${statusChip(t)}</div>
         ${t.upd ? '<div class="meta"><span class="chip warn">🛠️ متوقف للتحديث</span></div>' : ''}
-        <div class="meta"><span>الباكدج: ${esc(t.planName) || 'مخصوص'}</span><span>ينتهي: ${fmt(t.expiresAt)}</span></div>
+        <div class="meta"><span>الباكدج: ${esc(t.planName) || 'مخصوص'}</span><span>ينتهي: ${fmt(t.expiresAt)}</span>${usageTxt(t) ? `<span>${usageTxt(t)}</span>` : ''}</div>
         <div class="meta"><span>${planLimitsTxt(P, t.plan)}</span></div>
         ${t.contactName || t.contactPhone ? `<div class="meta"><span>${esc(t.contactName)}</span><span dir="ltr">${esc(t.contactPhone)}</span></div>` : ''}
         <button class="btn sm" onclick="A.openTenant('${P.key}','${t.id}')">فتح</button>
@@ -3453,7 +3520,7 @@ async function renderHome() {
   }
   // المتابعات المستحقة (الخدمات اللي ليها "تتكرر كل كام يوم")
   let fu = '';
-  if (can('sessions_view') && (can('bookings_edit') || can('clients_view'))) { try { const L = await followUps(); if (L.length) fu = `<div class="card" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="font-size:26px">🔁</span><span style="flex:1;min-width:200px;display:flex;flex-direction:column"><b>${L.length.toLocaleString('ar-EG')} عميل ميعاد متابعتهم جه</b><span class="meta" style="font-size:13px">ابعتلهم واتساب يحجزوا الجلسة الجاية.</span></span><button class="btn sm" onclick="A.followUpModal()">افتح المتابعات</button></div>`; } catch (e) { console.error(e); } }
+  if (can('sessions_view') && (can('bookings_edit') || can('clients_view'))) { try { const [L, X] = await Promise.all([followUps(), extraFollows()]); const T = L.length + X.ending.length + X.noshow.length; if (T) fu = `<div class="card" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="font-size:26px">🔁</span><span style="flex:1;min-width:200px;display:flex;flex-direction:column"><b>${T.toLocaleString('ar-EG')} متابعة مستحقة</b><span class="meta" style="font-size:13px">${[L.length ? L.length.toLocaleString('ar-EG') + ' ميعاد جلسة جه' : '', X.ending.length ? X.ending.length.toLocaleString('ar-EG') + ' باكدج قربت تخلص' : '', X.noshow.length ? X.noshow.length.toLocaleString('ar-EG') + ' ما حضروش' : ''].filter(Boolean).join(' · ')} — ابعتلهم واتساب.</span></span><button class="btn sm" onclick="A.followUpModal()">افتح المتابعات</button></div>`; } catch (e) { console.error(e); } }
   const quick = [];
   if (can('clients_edit')) quick.push(`<button class="btn" onclick="A.clientModal()">+ عميل جديد</button>`);
   if (can('bookings_edit')) quick.push(`<button class="btn" onclick="A.bookingModal()">+ حجز</button>`);
@@ -3494,14 +3561,50 @@ async function followUps() {
     .filter(x => x.due <= today && x.due >= back(45) && !fut.has(x.clientId) && sent[x.clientId + '|' + x.svc] !== x.date)
     .sort((a, b) => a.due.localeCompare(b.due));
 }
+// متابعات زيادة: باكدجات قربت تخلص (يجدّدوا) + عملاء ما حضروش ومحجزوش تاني
+const pTot = p => p.items?.length ? p.items.reduce((a, i) => a + (Number(i.total) || 0), 0) : (p.totalSessions || 0);
+const pIsPulses = p => p.items?.length ? p.items.every(i => i.unit === 'pulses') : p.unit === 'pulses';
+async function extraFollows() {
+  const today = todayStr(), back = d => { const x = new Date(); x.setDate(x.getDate() - d); return toInput(x); };
+  const sent = (() => { try { return JSON.parse(localStorage.getItem('bc-fu2-' + S.clinic.id) || '{}'); } catch (e) { return {}; } })();
+  const [pk, bk, ss] = await Promise.all([
+    getDocs(ccol('cpackages')).then(r => r.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(query(ccol('sessions'), where('date', '>=', back(30)))).then(r => r.docs.map(d => d.data())).catch(() => []),
+    getDocs(query(ccol('bookings'), where('date', '>=', back(30)))).then(r => r.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+  ]);
+  const fut = new Set(bk.filter(b => b.date >= today && !['cancelled', 'noshow'].includes(b.status)).map(b => b.clientId));
+  const ending = pk.filter(p => !p.cancelled && !p.imported && pTot(p) > 0 && pLeft(p) > 0 && (pIsPulses(p) ? pLeft(p) / pTot(p) <= 0.15 : pLeft(p) <= 1))
+    .filter(p => sent['pk|' + p.id] !== pLeft(p)).map(p => ({ kind: 'pk', id: p.id, clientId: p.clientId, clientName: p.clientName, name: p.name, left: pLeft(p), unit: pIsPulses(p) ? 'بلصة' : 'جلسة' }));
+  const done = new Set(bk.filter(b => b.status === 'done').map(b => b.clientId + '|' + b.date));
+  const ns = {}; bk.filter(b => b.status === 'noshow' && b.date < today && !fut.has(b.clientId)).forEach(b => { if (!ns[b.clientId] || ns[b.clientId].date < b.date) ns[b.clientId] = b; });
+  const noshow = Object.values(ns).filter(b => !bk.some(x => x.clientId === b.clientId && x.date > b.date && x.status === 'done') && !ss.some(x => x.clientId === b.clientId && x.date >= b.date) && sent['ns|' + b.id] !== 1)
+    .map(b => ({ kind: 'ns', id: b.id, clientId: b.clientId, clientName: b.clientName, name: b.service || '', date: b.date }));
+  return { ending, noshow };
+}
+A.fu2Send = (kind, i) => {
+  const x = (kind === 'pk' ? S.fu2?.ending : S.fu2?.noshow)?.[i]; if (!x) return;
+  const c = (S.clients || []).find(y => y.id === x.clientId); if (!c?.phone) return;
+  const B = brandOf(S.clinic), nm = (c.name || '').split(' ')[0];
+  const msg = kind === 'pk'
+    ? `أهلاً ${nm} 🌸\nمعاك ${B.name} — باكدج *${x.name}* بتاعتك فاضل فيها ${x.left.toLocaleString('ar-EG')} ${x.unit} بس ✨\nتحبي نجهزلك التجديد بعرض خاص؟ ردّي علينا.`
+    : `أهلاً ${nm} 🌸\nمعاك ${B.name} — وحشتينا! ميعادك${x.name ? ' (' + x.name + ')' : ''} يوم ${x.date} ما لحقناش نشوفك فيه.\nتحبي نحجزلك ميعاد جديد يناسبك؟`;
+  window.open(`https://wa.me/${waNum(c.phone)}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
+  try { const k = 'bc-fu2-' + S.clinic.id, o = JSON.parse(localStorage.getItem(k) || '{}'); o[(kind === 'pk' ? 'pk|' : 'ns|') + x.id] = kind === 'pk' ? x.left : 1; localStorage.setItem(k, JSON.stringify(o)); } catch (e) {}
+};
 A.followUpModal = async () => {
-  const [L] = await Promise.all([followUps(), loadClients()]);
+  const [L, X] = await Promise.all([followUps(), extraFollows(), loadClients()]);
   const ph = id => (S.clients || []).find(c => c.id === id)?.phone || '';
-  S.fuList = L;
+  S.fuList = L; S.fu2 = X;
+  const row2 = (x, i, sub) => `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;border:1px solid var(--line);border-radius:12px;padding:10px 12px">
+      <span style="flex:1;min-width:180px;display:flex;flex-direction:column"><b>${esc(x.clientName || '')}</b><span class="meta" style="font-size:12.5px">${sub}</span></span>
+      ${ph(x.clientId) ? `<button class="btn sm" onclick="A.fu2Send('${x.kind}',${i});this.closest('div').style.opacity=.45">💬 واتساب</button>` : '<span class="chip mute">مفيش رقم</span>'}${can('bookings_edit') ? `<button class="btn ghost sm" onclick="A.closeModal();A.bookingModal({clientId:'${x.clientId}'})">احجز</button>` : ''}</div>`;
+  const extra = `${X.ending.length ? `<div class="section-t">📦 باكدجات قربت تخلص (${X.ending.length.toLocaleString('ar-EG')}) — فرصة تجديد</div><div class="fcol" style="gap:8px">${X.ending.map((x, i) => row2(x, i, `${esc(x.name)} · فاضل ${x.left.toLocaleString('ar-EG')} ${x.unit}`)).join('')}</div>` : ''}
+    ${X.noshow.length ? `<div class="section-t">🚫 ما حضروش ومحجزوش تاني (${X.noshow.length.toLocaleString('ar-EG')})</div><div class="fcol" style="gap:8px">${X.noshow.map((x, i) => row2(x, i, `${esc(x.name || 'حجز')} · كان يوم ${esc(x.date)}`)).join('')}</div>` : ''}`;
   openModal(`<h3>🔁 المتابعات المستحقة</h3><p class="meta">العملاء دول آخر جلسة ليهم عدّى عليها المدة اللي حددتها في الخدمة، ومفيش ليهم حجز جاي.</p>
     ${L.length ? `<div class="fcol" style="gap:8px">${L.map((x, i) => `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;border:1px solid var(--line);border-radius:12px;padding:10px 12px">
       <span style="flex:1;min-width:180px;display:flex;flex-direction:column"><b>${esc(x.clientName || '')}</b><span class="meta" style="font-size:12.5px">${esc(x.svc)} · آخر جلسة ${esc(x.date)} · كل ${x.every.toLocaleString('ar-EG')} يوم</span></span>
-      ${ph(x.clientId) ? `<button class="btn sm" onclick="A.fuSend(${i})">💬 واتساب</button>` : '<span class="chip mute">مفيش رقم</span>'}${can('bookings_edit') ? `<button class="btn ghost sm" onclick="A.closeModal();A.bookingModal({clientId:'${x.clientId}'})">احجز</button>` : ''}</div>`).join('')}</div>` : '<div class="empty">مفيش متابعات مستحقة دلوقتي 👌</div>'}
+      ${ph(x.clientId) ? `<button class="btn sm" onclick="A.fuSend(${i})">💬 واتساب</button>` : '<span class="chip mute">مفيش رقم</span>'}${can('bookings_edit') ? `<button class="btn ghost sm" onclick="A.closeModal();A.bookingModal({clientId:'${x.clientId}'})">احجز</button>` : ''}</div>`).join('')}</div>` : (X.ending.length || X.noshow.length ? '' : '<div class="empty">مفيش متابعات مستحقة دلوقتي 👌</div>')}
+    ${extra}
     <div class="acts"><button class="btn ghost" onclick="A.closeModal()">قفل</button></div>`);
 };
 A.fuSend = i => {
@@ -3511,6 +3614,71 @@ A.fuSend = i => {
   const msg = `أهلاً ${(c.name || '').split(' ')[0]} 🌸\nمعاك ${B.name} — ميعاد جلسة ${x.svc} الجاية جه ✨\nتحبي نحجزلك ميعاد؟ ردّي علينا بالميعاد اللي يناسبك.`;
   window.open(`https://wa.me/${waNum(c.phone)}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
   try { const k = 'bc-fu-' + S.clinic.id, o = JSON.parse(localStorage.getItem(k) || '{}'); o[x.clientId + '|' + x.svc] = x.date; localStorage.setItem(k, JSON.stringify(o)); } catch (e) {}
+};
+
+/* ----- صور قبل وبعد (ملف العميل) ----- */
+const PH_K = { before: 'قبل', after: 'بعد', follow: 'متابعة' };
+function shrinkImg(file, max = 1200) {
+  return new Promise((ok, no) => { const fr = new FileReader(); fr.onerror = no; fr.onload = () => { const im = new Image(); im.onerror = no; im.onload = () => {
+    const r = Math.min(1, max / Math.max(im.width, im.height)); const cv = document.createElement('canvas'); cv.width = Math.round(im.width * r); cv.height = Math.round(im.height * r);
+    cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height); let q = 0.78, d = cv.toDataURL('image/jpeg', q); while (d.length > 330000 && q > 0.35) { q -= 0.1; d = cv.toDataURL('image/jpeg', q); } ok(d); }; im.src = fr.result; }; fr.readAsDataURL(file); });
+}
+A.photosModal = async id => {
+  const c = (S.clients || []).find(x => x.id === id) || { id, name: '' };
+  openModal(`<h3>📸 صور ${esc(c.name)}</h3>${LOADING}`);
+  let L = [];
+  try { L = (await getDocs(query(ccol('cphotos'), where('clientId', '==', id)))).docs.map(d => ({ id: d.id, ...d.data() })); } catch (e) { return openModal(`<h3>📸 الصور</h3><div class="notice warn">مقدرتش أجيب الصور (${esc(e.code || e.message)})</div><div class="acts"><button class="btn ghost" onclick="A.closeModal()">قفل</button></div>`); }
+  L.sort((a, b) => (b.date || '').localeCompare(a.date || '') || (toDate(b.createdAt) || 0) - (toDate(a.createdAt) || 0));
+  S.phList = L; S.phSel = [];
+  const days = {}; L.forEach(x => (days[x.date] = days[x.date] || []).push(x));
+  const add = can('sessions_edit') || can('clients_edit');
+  openModal(`<h3>📸 صور ${esc(c.name)}</h3>
+    ${add ? `<form class="card fcol" style="gap:10px;padding:14px" onsubmit="A.photoAdd(event,'${id}')">
+      <div class="grid3">
+        <label class="f">النوع<select name="kind">${Object.entries(PH_K).map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select></label>
+        <label class="f">المنطقة / الخدمة<input name="area" list="servList" placeholder="مثلاً: وش، أندر آرم"></label>
+        <label class="f">التاريخ<input type="date" name="date" value="${todayStr()}" required></label>
+      </div>${servDatalist()}
+      <label class="f">الصور (ممكن أكتر من صورة)<input type="file" name="files" accept="image/*" multiple required></label>
+      <div class="acts" style="margin:0"><button class="btn sm" type="submit">رفع الصور</button></div>
+    </form>` : ''}
+    ${L.length ? `<p class="meta">اضغط على أي صورة تكبّرها — واختار صورتين وادوس «قارن» تشوفهم جنب بعض.</p>
+      <div class="fcol" style="gap:14px">${Object.entries(days).map(([d, xs]) => `<div class="fcol" style="gap:6px"><b>${esc(d)}</b><div style="display:flex;gap:8px;flex-wrap:wrap">${xs.map(x => `<div style="position:relative;width:118px">
+        <img src="${x.img}" alt="${esc(PH_K[x.kind] || '')} ${esc(x.area || '')}" style="width:118px;height:118px;object-fit:cover;border-radius:10px;border:1px solid var(--line);cursor:zoom-in;display:block" onclick="A.photoView('${x.id}')">
+        <label class="chk" style="font-size:12px;gap:4px;margin-top:3px"><input type="checkbox" onchange="A.phPick('${x.id}',this.checked)"> ${esc(PH_K[x.kind] || '')}${x.area ? ' · ' + esc(x.area) : ''}</label></div>`).join('')}</div></div>`).join('')}</div>` : '<div class="empty">لسه مفيش صور للعميل ده</div>'}
+    <div class="acts">${L.length > 1 ? `<button class="btn sm" onclick="A.phCompare()">قارن الصورتين</button>` : ''}<button class="btn ghost" onclick="A.closeModal()">قفل</button></div>`);
+};
+A.phPick = (pid, on) => { S.phSel = (S.phSel || []).filter(x => x !== pid); if (on) S.phSel.push(pid); };
+A.photoAdd = async (e, cid) => {
+  e.preventDefault(); const f = e.target, btn = f.querySelector('[type=submit]');
+  const files = [...f.files.files].slice(0, 12); if (!files.length) return toast('اختار صورة');
+  const c = (S.clients || []).find(x => x.id === cid) || {};
+  busy(btn, true, 'بيرفع...');
+  try {
+    for (const fl of files) {
+      const img = await shrinkImg(fl);
+      await addDoc(ccol('cphotos'), { clientId: cid, clientName: c.name || '', kind: f.kind.value, area: f.area.value.trim(), date: f.date.value, img, branchId: S.branch, createdAt: serverTimestamp(), createdBy: S.profile.id, createdByName: S.profile.name });
+    }
+    toast(`اترفعت ${files.length.toLocaleString('ar-EG')} صورة ✓`); A.photosModal(cid);
+  } catch (err) { console.error(err); busy(btn, false, 'رفع الصور'); toast('مقدرتش أرفع: ' + (err.code || err.message)); }
+};
+A.photoView = pid => {
+  const x = (S.phList || []).find(y => y.id === pid); if (!x) return;
+  const bg = document.createElement('div'); bg.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:16px';
+  bg.innerHTML = `<img src="${x.img}" alt="" style="max-width:100%;max-height:80vh;border-radius:10px"><div style="color:#fff;font-weight:700">${esc(PH_K[x.kind] || '')}${x.area ? ' · ' + esc(x.area) : ''} · ${esc(x.date)} · ${esc(x.createdByName || '')}</div>
+    <div style="display:flex;gap:8px">${isOwner() || can('sessions_edit') ? `<button class="btn ghost sm" style="background:#fff" data-del>مسح الصورة</button>` : ''}<button class="btn sm" data-x>قفل</button></div>`;
+  bg.onclick = ev => { if (ev.target === bg || ev.target.hasAttribute('data-x')) bg.remove(); };
+  const del = bg.querySelector('[data-del]'); if (del) del.onclick = async () => { if (!confirm('تمسح الصورة دي؟')) return; try { await deleteDoc(cdoc('cphotos', pid)); bg.remove(); A.photosModal(x.clientId); } catch (e) { toast('مقدرتش أمسح: ' + (e.code || e.message)); } };
+  document.body.appendChild(bg);
+};
+A.phCompare = () => {
+  const P = (S.phSel || []).map(id => (S.phList || []).find(x => x.id === id)).filter(Boolean);
+  if (P.length !== 2) return toast('اختار صورتين بالظبط (علّم عليهم)');
+  P.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  const bg = document.createElement('div'); bg.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:16px';
+  bg.innerHTML = `<div style="display:flex;gap:10px;max-width:100%;justify-content:center;flex-wrap:wrap">${P.map(x => `<figure style="margin:0;display:flex;flex-direction:column;align-items:center;gap:6px;max-width:48%;min-width:140px"><img src="${x.img}" alt="" style="max-width:100%;max-height:70vh;border-radius:10px"><figcaption style="color:#fff;font-weight:700;text-align:center">${esc(PH_K[x.kind] || '')} · ${esc(x.date)}</figcaption></figure>`).join('')}</div><button class="btn sm" data-x>قفل</button>`;
+  bg.onclick = ev => { if (ev.target === bg || ev.target.hasAttribute('data-x')) bg.remove(); };
+  document.body.appendChild(bg);
 };
 
 /* ----- رأي العميل بعد الجلسة ----- */
@@ -3778,6 +3946,7 @@ A.openClient = async id => {
     if (can('sessions_edit')) acts.push(`<button class="btn sm" onclick="A.sessionModal({clientId:'${id}'})">+ جلسة</button>`);
     if (can('packages_edit')) acts.push(`<button class="btn sm" onclick="A.sellModal('${id}')">+ بيع باكدج</button>`);
     if (can('payments_edit')) acts.push(`<button class="btn gold sm" onclick="A.payModal('${id}')">+ تحصيل</button>`);
+    if (feat('photos') && (can('clients_view') || can('sessions_view'))) acts.push(`<button class="btn ghost sm" onclick="A.photosModal('${id}')">📸 صور قبل وبعد</button>`);
     if (feat('consents') && (can('clients_edit') || can('sessions_edit'))) acts.push(`<button class="btn ghost sm" onclick="A.consentModal('${id}')">✍️ إقرار موافقة</button>`);
     if (can('clients_edit')) acts.push(`<button class="btn ghost sm" onclick="A.clientModal('${id}')">تعديل البيانات</button>`);
     const section = (title, rows, head, empty) => `<div class="card" style="display:flex;flex-direction:column;gap:10px;padding:16px">
@@ -4007,6 +4176,22 @@ A.areaChanged = f => {
   const sv = svcFlat().find(s => s.name === f.area.value.trim() && (s.kind || 'session') === 'session');
   if (sv) f.price.value = sv.price;
 };
+async function sessionUses(sess, sid) {
+  try {
+    const flat = svcFlat(await loadServices());
+    const sv = flat.find(x => x.name === sess.area) || flat.find(x => x.name === sess.packageItem) || flat.find(x => x.name === sess.packageName);
+    const U = (sv?.uses || []).filter(u => u.name && Number(u.qty) > 0); if (!U.length) return;
+    const items = await qAll('items', 'branchId', sess.branchId);
+    const batch = writeBatch(db); const miss = [];
+    U.forEach(u => {
+      const it = items.find(i => (i.name || '').trim() === u.name.trim()); if (!it) { miss.push(u.name); return; }
+      batch.update(cdoc('items', it.id), { qty: increment(-Number(u.qty)) });
+      batch.set(doc(ccol('stockMoves')), { itemId: it.id, itemName: it.name, branchId: sess.branchId, type: 'session', qty: Number(u.qty), sessionId: sid, note: `جلسة ${sess.area} — ${sess.clientName}`, date: sess.date, month: sess.month, createdAt: serverTimestamp(), createdBy: S.profile.id, createdByName: S.profile.name });
+    });
+    if (miss.length < U.length) await batch.commit();
+    if (miss.length) toast('مش لاقي في مخزن الفرع: ' + miss.join('، '));
+  } catch (e) { console.error(e); toast('الجلسة اتسجلت، بس المستهلكات ما اتخصمتش من المخزن (' + (e.code || e.message) + ')'); }
+}
 A.saveSession = async (e, bookingId) => {
   e.preventDefault();
   const f = e.target, btn = f.querySelector('[type=submit]');
@@ -4058,6 +4243,7 @@ A.saveSession = async (e, bookingId) => {
     toast(pkg ? `اتسجلت الجلسة (فاضل ${(leftNow - deduct).toLocaleString('ar-EG')} ${isPulses ? 'بلصة' : 'جلسة'}${itm ? ' من ' + itm.name : ' في الباكدج'})` : 'اتسجلت الجلسة');
     S.sDate = data.date;
     if (data.fluence) updateDoc(cdoc('clients', cl.id), { lastPower: data.fluence }).catch(() => {});
+    sessionUses(data, sref.id);
     afterSave(bookingId ? 'bookings' : 'sessions');
     if (feat('feedback') && cl.phone) setTimeout(() => A.fbAsk(sref.id, cl, data.area || data.packageName || 'الجلسة'), 400);
   } catch (err) { console.error(err); busy(btn, false, 'حفظ الجلسة'); toast('مقدرتش أحفظ: ' + err.code); }
@@ -4239,6 +4425,8 @@ A.serviceModal = async (id, catId) => {
   const ob = feat('onlineBooking');
   S.comboDraft = (x?.items || []).map(i => ({ ...i }));
   S.areaDraft = (x?.areas || []).map(a => ({ ...a }));
+  S.usesDraft = (x?.uses || []).map(u => ({ ...u }));
+  S.usesItems = can('inventory_view') ? await qAll('items', 'branchId', S.branch).catch(() => []) : [];
   openModal(`<h3>${x ? 'تعديل' : 'إضافة'} خدمة / باكدج</h3>
   <form onsubmit="A.saveService(event,'${id || ''}')" class="fcol">
     <label class="f">اسم الخدمة *<input name="name" required placeholder="مثلاً: إزالة شعر بالليزر، هيدرافيشيال" value="${esc(x?.name)}"></label>
@@ -4261,6 +4449,7 @@ A.serviceModal = async (id, catId) => {
       <label class="f">تذكير متابعة: يتكرر كل كام يوم؟ (0 = من غير تذكير)<input name="every" type="number" min="0" max="365" value="${Number(x?.every) || 0}"></label>
       <label class="f">وصف قصير (بيظهر للعميل في الحجز أونلاين)<input name="desc" maxlength="160" value="${esc(x?.desc || '')}"></label>
     </div>
+    <div id="usesEd" data-k="one" class="fcol" style="gap:8px"></div>
     ${ob ? `<label class="f">بيتعمل على (جهاز أو أوضة)<select name="res"><option value="">مش محتاجة جهاز معيّن</option>${res.map(r => `<option value="${r.id}" ${x?.resId === r.id ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}</select></label>
       ${res.length ? '' : '<p class="meta">مفيش أجهزة متسجلة. صاحب العيادة يضيفها من "إعدادات العيادة".</p>'}
       ${team.length ? `<div class="meta">مين يعملها (سيبها كلها فاضية = أي حد):</div><div class="grid3">${team.map(s => `<label class="chk"><input type="checkbox" name="st_${s.id}" ${(x?.staffIds || []).includes(s.id) ? 'checked' : ''}> ${esc(s.name)}</label>`).join('')}</div>` : ''}
@@ -4278,8 +4467,21 @@ A.kindChanged = f => {
   f.sessions.disabled = f.unit.disabled = k !== 'package';
   f.querySelectorAll('[data-k=pkg]').forEach(el => { el.style.display = k === 'package' ? '' : 'none'; });
   f.querySelectorAll('[data-k=one]').forEach(el => { el.style.display = k === 'combo' ? 'none' : ''; });
-  comboEdDraw(); areaEdDraw();
+  comboEdDraw(); areaEdDraw(); usesEdDraw();
 };
+// المستهلكات اللي بتتخصم من المخزن لوحدها مع كل جلسة من الخدمة دي (جل، شفرات، جوانتي…)
+function usesEdDraw() {
+  const box = document.getElementById('usesEd'), f = $modal.querySelector('form'); if (!box || !f) return;
+  if (f.kind.value === 'combo') { box.innerHTML = ''; return; }
+  const D = S.usesDraft || [], IT = S.usesItems || [];
+  box.innerHTML = `<div class="section-t">المستهلكات اللي بتتخصم من المخزن مع كل جلسة <span class="meta" style="display:inline">(اختياري — بتتخصم لوحدها من مخزن الفرع لما الجلسة تتسجل)</span></div>
+    <datalist id="usesList">${IT.map(i => `<option value="${esc(i.name)}">`).join('')}</datalist>
+    ${D.map((u, k) => `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+      <input aria-label="الصنف" list="usesList" placeholder="اسم الصنف زي ما هو في المخزن" value="${esc(u.name || '')}" style="flex:3 1 170px" oninput="S.usesDraft[${k}].name=this.value">
+      <input aria-label="الكمية" type="number" min="0" step="any" placeholder="الكمية" value="${u.qty ?? ''}" style="flex:1 1 80px" oninput="S.usesDraft[${k}].qty=this.value">
+      <button type="button" class="btn ghost sm" onclick="S.usesDraft.splice(${k},1);usesEdDraw()">✕</button></div>`).join('')}
+    <button type="button" class="btn ghost sm" style="align-self:flex-start" onclick="(S.usesDraft=S.usesDraft||[]).push({name:'',qty:1});usesEdDraw()">+ صنف بيتخصم</button>`;
+}
 // المناطق جوه الخدمة: شارب 5 د، أندر آرم 5 د، فل بادي 80 د…
 function areaEdDraw() {
   const box = document.getElementById('areaEd'), f = $modal.querySelector('form'); if (!box || !f) return;
@@ -4347,6 +4549,7 @@ A.saveService = async (e, id) => {
     data.areas = (S.areaDraft || []).filter(a => String(a.name || '').trim()).slice(0, 40).map(a => ({ id: a.id || Math.random().toString(36).slice(2, 8), name: String(a.name).trim().slice(0, 60), dur: Math.max(5, Math.round(Number(a.dur) || data.dur)), price: a.price === '' || a.price == null ? '' : Number(a.price) || 0 }));
   }
   if (kind !== 'combo') data.every = Math.max(0, Math.round(Number(f.every?.value) || 0));
+  if (kind !== 'combo') data.uses = (S.usesDraft || []).map(u => ({ name: String(u.name || '').trim(), qty: Number(u.qty) || 0 })).filter(u => u.name && u.qty > 0);
   if (f.desc) data.desc = f.desc.value.trim().slice(0, 160);
   if (f.color && SVC_COLORS.includes(f.color.value)) data.color = f.color.value;
   data.updatedByName = S.profile.name; data.updatedAt = todayStr();
@@ -5407,8 +5610,16 @@ async function renderReports() {
   clinicShell('reports', LOADING);
   await ensureData();
   const g = col => (all ? qAll(col, 'month', M) : qBranch(col, 'month', M)).catch(() => []);
-  const [pays, exps, sess, pkgs, newCl] = await Promise.all([g('payments'), g('expenses'), g('sessions'), g('cpackages'), qAll('clients', 'month', M).catch(() => [])]);
+  const [pays, exps, sess, pkgs, newCl, bks, mv] = await Promise.all([g('payments'), g('expenses'), g('sessions'), g('cpackages'), qAll('clients', 'month', M).catch(() => []),
+    can('bookings_view') ? g('bookings') : Promise.resolve([]), can('inventory_view') ? g('stockMoves') : Promise.resolve([])]);
   const inc = sumAmt(pays), out = sumAmt(exps);
+  // قيمة كل جلسة: سعرها لو منفردة، ولو من باكدج = سعر الباكدج ÷ عدد جلساتها/بلصاتها
+  const pkIds = [...new Set(sess.filter(x => x.packageId).map(x => x.packageId))].slice(0, 200);
+  const PK = {}; pkgs.forEach(p => PK[p.id] = p);
+  await Promise.all(pkIds.filter(i => !PK[i]).map(i => getDoc(cdoc('cpackages', i)).then(d => { if (d.exists()) PK[i] = { id: i, ...d.data() }; }).catch(() => {})));
+  const sVal = x => { if (!x.packageId) return Number(x.price) || 0; const p = PK[x.packageId]; if (!p || !pTot(p)) return 0; const per = (Number(p.price) || 0) / pTot(p); return per * (x.pulsesDeducted || 1); };
+  const bk = bks.filter(b => b.status !== 'cancelled'), bDone = bk.filter(b => b.status === 'done').length, bNo = bk.filter(b => b.status === 'noshow').length;
+  const bPast = bk.filter(b => b.date < todayStr()).length;
   const group = (l, key, val = () => 1) => { const o = {}; l.forEach(x => { const k = key(x) || '—'; o[k] = (o[k] || 0) + val(x); }); return Object.entries(o).sort((a, b) => b[1] - a[1]); };
   const box = (title, rows, fmtV = v => v.toLocaleString('ar-EG')) => {
     const max = rows[0]?.[1] || 0;
@@ -5436,7 +5647,17 @@ async function renderReports() {
       ${box('الجلسات حسب الدكتور', group(sess, s => s.doctorName))}
       ${box('أكتر المناطق / الخدمات', group(sess, s => s.area))}
       ${box('الشوتات حسب الجهاز', group(sess.filter(s => s.shots), s => s.device, s => s.shots || 0))}
+      ${box('قيمة الشغل حسب الدكتور (تقريبي)', group(sess, s => s.doctorName, sVal), v => money(Math.round(v)))}
+      ${box('قيمة الشغل حسب الخدمة (تقريبي)', group(sess, s => s.area || s.packageName, sVal), v => money(Math.round(v)))}
+      ${pkgs.length ? box('أكتر الباكدجات مبيعاً', group(pkgs.filter(p => !p.cancelled), p => p.name, p => p.price || 0), money) : ''}
+      ${mv.some(m => m.type === 'session') ? box('المستهلكات اللي اتصرفت في الجلسات', group(mv.filter(m => m.type === 'session'), m => m.itemName, m => Number(m.qty) || 0)) : ''}
     </div>
+    ${bks.length ? `<div class="card" style="display:flex;flex-direction:column;gap:10px"><h3>الحجوزات والحضور</h3><div class="cards">
+      <div class="card stat"><b>${bk.length.toLocaleString('ar-EG')}</b><span>حجز</span></div>
+      <div class="card stat"><b style="color:var(--ok)">${bDone.toLocaleString('ar-EG')}</b><span>حضروا</span></div>
+      <div class="card stat"><b style="color:var(--red)">${bNo.toLocaleString('ar-EG')}</b><span>ما حضروش${bPast ? ` (${Math.round(bNo * 100 / bPast)}%)` : ''}</span></div>
+      <div class="card stat"><b>${bks.filter(b => b.status === 'cancelled').length.toLocaleString('ar-EG')}</b><span>اتلغوا</span></div>
+    </div><p class="meta">«قيمة الشغل» = سعر الجلسة المنفردة، أو نصيب الجلسة من سعر الباكدج. بتفرق عن التحصيل لأن الباكدج ممكن تتدفع قبلها أو بعدها.</p></div>` : ''}
     ${can('clients_view') ? `<div class="card" style="display:flex;flex-direction:column;gap:12px" id="debtsBox"><div class="head"><h3 style="flex:1">المديونيات (كل العملاء)</h3><button class="btn sm" onclick="A.calcDebts()">احسب المديونيات</button></div><p class="meta">بيحسب المتبقي على كل عميل من أول ما اتسجل.</p></div>` : ''}
   `);
 }
