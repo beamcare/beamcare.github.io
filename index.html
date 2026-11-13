@@ -535,7 +535,7 @@ async function renderLogin(msg = '') {
     <label class="f">اسم المستخدم<input name="u" autocomplete="username" required dir="ltr"></label>
     <label class="f">كلمة المرور<input name="p" type="password" autocomplete="current-password" required dir="ltr"></label>
     <button class="btn" type="submit">دخول</button>
-    ${b.white ? `<p style="margin:0;text-align:center;color:var(--muted);font-size:12px">Powered by Beam Care</p>` : ''}
+    <p style="margin:0;text-align:center;color:var(--muted);font-size:12px">${b.white ? 'Powered by Beam Care · ' : ''}<a href="privacy.html" target="_blank" rel="noopener" style="color:inherit">الخصوصية والشروط</a></p>
   </form></div>`;
 }
 A.login = async e => {
@@ -1746,7 +1746,8 @@ A.receipt = id => {
 /* =========================================================
    طلبات الاشتراك: صفحة الطلب العامة (لينك + QR) ← موافقة ← استلام الفلوس ← تشغيل السيستم
    ========================================================= */
-const JOIN_URL = 'https://beamcare.github.io/join/';
+const BC_BASE = location.origin + location.pathname.replace(/[^/]*$/, '');
+const JOIN_URL = BC_BASE + 'join/';
 const REQ_ST = { new: ['جديد', 'warn'], approved: ['بانتظار الدفع', 'mute'], paid: ['تم الدفع · قيد التجهيز', 'ok'], active: ['تم التفعيل', 'ok'], rejected: ['مرفوض', 'bad'] };
 const REQ_TABS = [['new', 'جديدة'], ['approved', 'بانتظار الدفع'], ['paid', 'مدفوعة · تحتاج إلى تجهيز'], ['active', 'مفعّلة'], ['rejected', 'مرفوضة']];
 const reqMonths = m => { m = Number(m) || 1; return m === 1 ? 'شهر' : m === 2 ? 'شهرين' : m === 12 ? 'سنة' : m === 24 ? 'سنتين' : `${m.toLocaleString('ar-EG')} ${m <= 10 ? 'شهور' : 'شهر'}`; };
@@ -2922,7 +2923,7 @@ A.logoPick = async inp => {
 A.logoClear = f => { f.logo.value = ''; document.getElementById('logoPrev').innerHTML = ICON(44); };
 const brandDoc = (P, d) => ({ product: P.key, name: d.name, logoUrl: d.logoUrl || '', color: d.color || '#163A6B', whiteLabel: !!d.whiteLabel, ...(P.key === 'clinic' ? { book: !!d.features?.onlineBooking } : {}), ...(P.remote && d.fb ? { fb: d.fb } : {}) });
 // رابط واحد لكل شركات الصيانة: كل شركة بالكود بتاعها
-const MAINT_APP = 'https://beamcare.github.io/m/';
+const MAINT_APP = BC_BASE + 'm/';
 A.saveTenant = async (e, pk, id) => {
   e.preventDefault();
   const isNew = !id;
@@ -7515,7 +7516,7 @@ async function renderBookPage() {
   }
   function draw() {
     $app.innerHTML = `<div style="max-width:520px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;background:var(--bg)">${head()}
-      <main style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:14px">${P.shopOn ? shopView() : (P.step === 2 && SHOP.length ? `<button type="button" onclick="BK.shop(true)" style="font:inherit;cursor:pointer;text-align:right;display:flex;gap:10px;align-items:center;background:#fff;border:1.5px dashed var(--brand);border-radius:16px;padding:12px 14px;color:var(--ink)"><span style="font-size:26px">🛍️</span><span style="flex:1;display:flex;flex-direction:column"><b>اطلب منتجاتنا</b><span class="meta" style="font-size:13px">${SHOP.length.toLocaleString('ar-EG')} منتجات وبوكسات — من غير حجز</span></span><b style="color:var(--brand)">←</b></button>` : '') + body()}<p style="margin:8px 0 0;text-align:center;color:var(--muted);font-size:11px;opacity:.75">Powered by Beam Care</p></main>
+      <main style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:14px">${P.shopOn ? shopView() : (P.step === 2 && SHOP.length ? `<button type="button" onclick="BK.shop(true)" style="font:inherit;cursor:pointer;text-align:right;display:flex;gap:10px;align-items:center;background:#fff;border:1.5px dashed var(--brand);border-radius:16px;padding:12px 14px;color:var(--ink)"><span style="font-size:26px">🛍️</span><span style="flex:1;display:flex;flex-direction:column"><b>اطلب منتجاتنا</b><span class="meta" style="font-size:13px">${SHOP.length.toLocaleString('ar-EG')} منتجات وبوكسات — من غير حجز</span></span><b style="color:var(--brand)">←</b></button>` : '') + body()}<p style="margin:8px 0 0;text-align:center;color:var(--muted);font-size:11px;opacity:.75">Powered by Beam Care · <a href="privacy.html" target="_blank" rel="noopener" style="color:inherit">الخصوصية</a></p></main>
       <footer style="position:sticky;bottom:0;padding:12px 18px calc(16px + env(safe-area-inset-bottom,0px));background:#fff;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:10px">${foot()}</footer></div>`;
   }
   try { history.replaceState({ bk: 2 }, ''); } catch (e) {}
