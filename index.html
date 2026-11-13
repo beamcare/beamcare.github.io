@@ -123,6 +123,14 @@ body.nav-top .side .navsec,body.nav-top .side .mini-tg{display:none}
 .lg-card{display:inline-flex;align-items:center;justify-content:center;background:#fff;border-radius:14px;box-shadow:0 4px 16px rgba(20,40,40,.10);border:1px solid rgba(0,0,0,.05);flex:none;box-sizing:border-box}
 .lg-ico{display:inline-flex;flex:none;box-shadow:0 5px 16px rgba(9,26,51,.30);overflow:hidden}
 .mbar{display:none}
+
+/* حركة الكبسولة بين أيقونات القائمة */
+.navpill{position:absolute;top:0;left:0;width:0;height:0;z-index:0;border-radius:10px;background:var(--brand);pointer-events:none;will-change:top,left,width,height}
+body.ico-circle .side .navpill,body.ico-square .side .navpill{background:var(--soft,#0001)}
+.mbar .navpill{background:var(--soft,#0001);border-radius:14px}
+.side.has-pill button,.mbar.has-pill button{position:relative;z-index:1}
+.side.has-pill button.on{background:transparent!important}
+.side.has-pill button{transition:color .25s ease .1s}
 .hamb,.dr-head,.drawer-bg{display:none}
 .hamb{background:none;border:0;cursor:pointer;color:var(--ink);width:42px;height:42px;border-radius:12px;align-items:center;justify-content:center;flex:none}
 .hamb:hover{background:var(--bg)}
@@ -7832,6 +7840,68 @@ A.exportDebts = () => downloadXLSX(`debts-${todayStr()}.xlsx`, 'المديوني
 
 if (BOOK_C) renderBookPage();
 if (FB_C) renderFeedbackPage();
+</script>
+<script>
+/* الكبسولة بتتنقل بين أيقونات القائمة: الطرف اللي قدام بيسبق، واللي ورا بيلحقه */
+(() => {
+  const FAST = 360, SLOW = 550, outE = t => 1 - Math.pow(1 - t, 3), inOutE = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  const still = matchMedia('(prefers-reduced-motion: reduce)');
+  const ST = {}; // لكل قائمة: الحالة الحالية
+  const vis = el => el && el.offsetWidth > 0 && el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden';
+  const btnsOf = c => [...c.querySelectorAll('button')].filter(b => !b.classList.contains('plus') && (b.closest('.side,.mbar') === c) && !b.closest('.dr-head'));
+  function off(el, c) { let x = 0, y = 0, e = el; while (e && e !== c) { x += e.offsetLeft; y += e.offsetTop; e = e.offsetParent; } return { x, y }; }
+  function geo(c, b, axis) { const o = off(b, c); return axis === 'y' ? { a: o.y, b: o.y + b.offsetHeight, ca: o.x, cb: b.offsetWidth } : { a: o.x, b: o.x + b.offsetWidth, ca: o.y, cb: b.offsetHeight }; }
+  function paint(k) {
+    const st = ST[k]; if (!st || !st.pill || !st.btn) return;
+    const g = geo(st.c, st.btn, st.axis), p = st.pill.style, ins = k === 'mbar' ? 4 : 0;
+    if (st.axis === 'y') { p.top = st.a + 'px'; p.height = (st.b - st.a) + 'px'; p.left = g.ca + 'px'; p.width = g.cb + 'px'; }
+    else { p.left = (st.a + ins) + 'px'; p.width = Math.max(0, st.b - st.a - ins * 2) + 'px'; p.top = (g.ca + ins) + 'px'; p.height = Math.max(0, g.cb - ins * 2) + 'px'; }
+  }
+  function tween(k, key, to, dur, ease) {
+    const st = ST[k], from = st[key], t0 = performance.now();
+    cancelAnimationFrame(st.raf[key]);
+    const step = now => { const q = Math.min(1, (now - t0) / dur); st[key] = from + (to - from) * ease(q); paint(k); if (q < 1) st.raf[key] = requestAnimationFrame(step); else st.raf[key] = 0; };
+    st.raf[key] = requestAnimationFrame(step);
+  }
+  function moveTo(k, c, b) {
+    const axis = k === 'side' && getComputedStyle(c).flexDirection.startsWith('column') ? 'y' : 'x';
+    let st = ST[k];
+    const fresh = !st || st.axis !== axis || st.c !== c && !st.moving;
+    if (!st) st = ST[k] = { raf: {} };
+    if (getComputedStyle(c).position === 'static') c.style.position = 'relative';
+    if (!st.pill || st.pill.parentNode !== c) { st.pill = document.createElement('div'); st.pill.className = 'navpill'; st.pill.setAttribute('aria-hidden', 'true'); c.prepend(st.pill); c.classList.add('has-pill'); }
+    const g = geo(c, b, axis), same = st.btn && st.tb === g.b && st.ta === g.a && st.axis === axis;
+    st.c = c; st.btn = b; st.axis = axis; st.ta = g.a; st.tb = g.b;
+    st.ro?.disconnect(); st.ro = new ResizeObserver(() => { if (!st.raf.a && !st.raf.b) { const h = geo(st.c, st.btn, st.axis); st.a = h.a; st.b = h.b; } paint(k); }); st.ro.observe(b);
+    if (fresh || still.matches || st.a == null) { cancelAnimationFrame(st.raf.a); cancelAnimationFrame(st.raf.b); st.raf = {}; st.a = g.a; st.b = g.b; paint(k); return; }
+    if (same && (st.raf.a || st.raf.b)) { paint(k); return; }
+    if (Math.abs(g.a - st.a) < 1 && Math.abs(g.b - st.b) < 1) { st.a = g.a; st.b = g.b; paint(k); return; }
+    const fwd = g.a > st.a;
+    st.moving = true; setTimeout(() => st.moving = false, SLOW + 50);
+    if (fwd) { tween(k, 'b', g.b, FAST, outE); tween(k, 'a', g.a, SLOW, inOutE); }
+    else { tween(k, 'a', g.a, FAST, outE); tween(k, 'b', g.b, SLOW, inOutE); }
+  }
+  function sync() {
+    for (const k of ['side', 'mbar']) {
+      const c = [...document.querySelectorAll('.' + k)].find(vis);
+      if (!c) continue;
+      const b = btnsOf(c).find(x => x.classList.contains('on'));
+      const st = ST[k];
+      if (!b) { if (st?.pill?.parentNode === c) st.pill.style.width = '0'; continue; }
+      moveTo(k, c, b);
+    }
+  }
+  // أول ما تدوس، الكبسولة تتحرك على طول من غير ما تستنى الصفحة تحمّل
+  document.addEventListener('click', e => {
+    const b = e.target.closest?.('.side button,.mbar button'); if (!b || b.classList.contains('plus') || b.closest('.dr-head')) return;
+    const c = b.closest('.side,.mbar'), k = c.classList.contains('mbar') ? 'mbar' : 'side';
+    if (!vis(c) || !ST[k] || ST[k].c !== c || !/A\.(go|dev)\(/.test(b.getAttribute('onclick') || '')) return;
+    c.querySelectorAll('button.on').forEach(x => x !== b && x.classList.remove('on')); b.classList.add('on');
+    moveTo(k, c, b);
+  }, true);
+  let q = 0; new MutationObserver(() => { if (!q) q = requestAnimationFrame(() => { q = 0; sync(); }); }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+  addEventListener('resize', () => { for (const k in ST) { const st = ST[k]; if (st.btn && st.c) { const g = geo(st.c, st.btn, st.axis); st.a = g.a; st.b = g.b; paint(k); } } });
+})();
 </script>
 </body>
 </html>
