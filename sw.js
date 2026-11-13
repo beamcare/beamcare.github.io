@@ -1,5 +1,5 @@
 /* Beam Care — ملف تشغيل الأبلكيشن من غير نت */
-const V = 'beamcare-v7';
+const V = 'beamcare-v8';
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(['./', './index.html'])).catch(() => {})); self.skipWaiting(); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== V && k.startsWith('beamcare-')).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 const CDN = /(gstatic\.com\/firebasejs|cdnjs\.cloudflare\.com|fonts\.gstatic\.com|fonts\.googleapis\.com)/;
@@ -20,7 +20,7 @@ self.addEventListener('fetch', e => {
 /* إشعارات الموبايل: السيرفر بيصحّي الموبايل، وإحنا بنجيب نص الإشعار ونعرضه */
 self.addEventListener('push', e => {
   e.waitUntil((async () => {
-    let m = { title: '🔔 Beam Care', body: 'فيه حاجة جديدة على السيستم' }, home = './';
+    let m = { title: '🔔 Beam Care', body: 'يوجد جديد في النظام' }, home = './';
     try { const c = await caches.open('bc-meta'); const r = await c.match('/__bc_meta'); if (r) { const meta = await r.json(); home = meta.home || home; const x = await fetch(meta.url + '/last?t=' + encodeURIComponent(meta.t)).then(r => r.json()); if (x.title) m = x; } } catch (er) {}
     await self.registration.showNotification(m.title, { body: m.body, icon: 'icon-192.png', badge: 'icon-192.png', dir: 'rtl', lang: 'ar', tag: 'bc-' + (m.at || Date.now()), data: { url: home } });
   })());
