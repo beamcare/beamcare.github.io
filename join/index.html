@@ -92,7 +92,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--mint);border-col
   <p id="heroP">أنظمة لإدارة العيادات وشركات الصيانة — من الموبايل أو الكمبيوتر</p>
 </header>
 <main class="wrap"><div class="panel lift" id="app"><div class="loading">جاري التحميل...</div></div>
-<p class="foot">Beam Care · بياناتك محفوظة وبيتاخد منها نسخة احتياطية كل يوم</p></main>
+<p class="foot">Beam Care · بياناتك محفوظة وبيتاخد منها نسخة احتياطية كل يوم · <a href="../privacy.html" target="_blank" rel="noopener" style="color:inherit">الخصوصية والشروط</a></p></main>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -110,7 +110,7 @@ const firebaseConfig = {
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
 const EMAIL_DOMAIN = 'beamcare-clinic.app';
-const MAINT_DEMO = 'https://beamcare.github.io/m/?demo=1';
+const MAINT_DEMO = location.origin + location.pathname.replace(/join\/?[^/]*$/, '') + 'm/?demo=1';
 const $ = id => document.getElementById(id);
 const $app = $('app');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
