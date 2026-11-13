@@ -5444,6 +5444,52 @@ A.partsAll = async () => {
     <div class="acts"><button class="btn ghost" onclick="A.closeModal()">قفل</button></div>`);
 };
 
+/* ----- الشفتات: أنواع الشفتات + جدول أسبوعي لكل موظف ----- */
+const WDAYS = ['الأحد', 'الاتنين', 'التلات', 'الأربع', 'الخميس', 'الجمعة', 'السبت'];
+const shiftsOf = () => hrCfg().shifts || [];
+// شيفت الموظف في يوم معيّن: من جدوله الأسبوعي، ولو ملوش جدول = الدوام العادي وأجازات العيادة
+function shiftFor(x, ds) {
+  const h = hrCfg(), dow = new Date(ds + 'T12:00:00').getDay(), w = x?.week;
+  if (w && w[dow] != null && w[dow] !== '') { if (w[dow] === 'off') return null; const sh = shiftsOf().find(z => z.id === w[dow]); if (sh) return sh; }
+  if (w && Object.keys(w).length && (w[dow] == null || w[dow] === '')) return null;
+  return h.off.includes(dow) ? null : { id: '', name: 'الدوام العادي', start: h.start, end: h.end };
+}
+const shTxt = sh => sh ? `${sh.name} (${time12(sh.start)} – ${time12(sh.end)})` : 'إجازة';
+function shiftsTab(emps, ed) {
+  const SH = shiftsOf(), own = isOwner();
+  const cell = (x, d) => { const sh = shiftFor(x, toInput(nextDow(d))); return sh ? `<span class="chip" style="background:${sh.color || 'var(--ok-bg)'};color:var(--ink);font-size:12px">${esc(sh.name)}<br><span style="font-size:11px;opacity:.8">${time12(sh.start)}–${time12(sh.end)}</span></span>` : '<span class="meta" style="font-size:12px">إجازة</span>'; };
+  return `<div class="card fcol"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><h3 style="flex:1;margin:0">🕒 أنواع الشفتات</h3>${own ? `<button class="btn ghost sm" onclick="A.shiftsModal()">تعديل الشفتات</button>` : ''}</div>
+    ${SH.length ? `<div style="display:flex;gap:8px;flex-wrap:wrap">${SH.map(z => `<span class="chip" style="background:${z.color || 'var(--ok-bg)'};color:var(--ink)">${esc(z.name)} · ${time12(z.start)} – ${time12(z.end)}</span>`).join('')}</div>` : `<p class="meta">لسه مفيش شفتات. ${own ? 'دوس «تعديل الشفتات» واعمل مثلاً: صباحي ٩ص–٥م، مسائي ٢م–١٠م.' : ''}</p>`}
+    <p class="meta">الموظف اللي ملوش جدول بيمشي على الدوام العادي (${time12(hrCfg().start)} – ${time12(hrCfg().end)}). التأخير والغياب في المرتب بيتحسبوا على شيفت الموظف في اليوم ده.</p></div>
+    <div class="card tbl-wrap" style="padding:0"><table><thead><tr><th>الموظف</th>${WDAYS.map(d => `<th>${d}</th>`).join('')}<th></th></tr></thead>
+    <tbody>${emps.filter(x => x.active !== false).map(x => `<tr><td><b>${esc(x.name)}</b><div class="meta" style="font-size:12px">${esc(x.job || '')}</div></td>${WDAYS.map((_, d) => `<td style="text-align:center">${cell(x, d)}</td>`).join('')}<td>${ed ? `<button class="btn ghost sm" onclick="A.weekModal('${x.id}')">تعديل</button>` : ''}</td></tr>`).join('')}</tbody></table></div>`;
+}
+function nextDow(d) { const t = new Date(); t.setHours(12, 0, 0, 0); t.setDate(t.getDate() + ((d - t.getDay() + 7) % 7)); return t; }
+const SH_COLORS = ['#DCEFE4', '#E3E8F7', '#F7E7D4', '#F2DDE9', '#E6E1F5', '#DDF0F2'];
+A.shiftsModal = () => {
+  S.shDraft = shiftsOf().map(z => ({ ...z })); if (!S.shDraft.length) S.shDraft.push({ id: 'sh1', name: 'صباحي', start: '09:00', end: '17:00' }, { id: 'sh2', name: 'مسائي', start: '14:00', end: '22:00' });
+  openModal(`<h3>🕒 أنواع الشفتات</h3><form class="fcol" onsubmit="A.shiftsSave(event)"><p class="meta">اسم الشيفت ومواعيده. بعد كده من «الشفتات» تحدد كل موظف شغال أنهي شيفت في كل يوم.</p><div id="shRows" class="fcol" style="gap:6px"></div>
+    <button type="button" class="btn ghost sm" style="align-self:flex-start" onclick="S.shDraft.push({id:'sh'+Date.now().toString(36),name:'',start:'10:00',end:'18:00'});shDraw()">+ شيفت</button>${formActs()}</form>`);
+  window.shDraw = () => { document.getElementById('shRows').innerHTML = S.shDraft.map((z, k) => `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><input aria-label="اسم الشيفت" placeholder="مثلاً: صباحي" value="${esc(z.name)}" style="flex:2 1 120px" oninput="S.shDraft[${k}].name=this.value"><label class="f" style="flex:1 1 110px;font-size:12px">من<input type="time" value="${z.start}" oninput="S.shDraft[${k}].start=this.value"></label><label class="f" style="flex:1 1 110px;font-size:12px">لحد<input type="time" value="${z.end}" oninput="S.shDraft[${k}].end=this.value"></label><button type="button" class="btn ghost sm" onclick="S.shDraft.splice(${k},1);shDraw()">✕</button></div>`).join(''); };
+  shDraw();
+};
+A.shiftsSave = async e => {
+  e.preventDefault(); const shifts = (S.shDraft || []).filter(z => z.name.trim() && z.start && z.end).map((z, i) => ({ id: z.id, name: z.name.trim(), start: z.start, end: z.end, color: SH_COLORS[i % SH_COLORS.length] }));
+  const hr = { ...hrCfg(), shifts };
+  try { await setDoc(cdoc('cfg', 'main'), { hr }, { merge: true }); S.cfg = { ...(S.cfg || {}), hr }; A.closeModal(); toast('اتحفظت ✓'); S.stTab = 'shifts'; A.go('staff'); } catch (er) { toast('مقدرتش أحفظ: ' + (er.code || er.message)); }
+};
+A.weekModal = id => {
+  const x = (S.emps || []).find(e => e.id === id); if (!x) return; const SH = shiftsOf(), h = hrCfg(), w = x.week || {};
+  const opt = d => { const cur = Object.keys(w).length ? (w[d] ?? 'off') : (h.off.includes(d) ? 'off' : ''); return `<option value="" ${cur === '' ? 'selected' : ''}>الدوام العادي (${time12(h.start)}–${time12(h.end)})</option>${SH.map(z => `<option value="${z.id}" ${cur === z.id ? 'selected' : ''}>${esc(z.name)} (${time12(z.start)}–${time12(z.end)})</option>`).join('')}<option value="off" ${cur === 'off' ? 'selected' : ''}>إجازة</option>`; };
+  openModal(`<h3>🕒 شفتات ${esc(x.name)}</h3><form class="fcol" onsubmit="A.weekSave(event,'${id}')"><p class="meta">اختار الموظف شغال أنهي شيفت في كل يوم من أيام الأسبوع.</p>
+    ${WDAYS.map((d, i) => `<label class="f" style="flex-direction:row;align-items:center;gap:10px"><span style="min-width:70px;font-weight:700">${d}</span><select name="d${i}" style="flex:1">${opt(i)}</select></label>`).join('')}
+    <label class="chk"><input type="checkbox" name="reset"> رجّعه على الدوام العادي وأجازات العيادة (من غير جدول)</label>${formActs()}</form>`);
+};
+A.weekSave = async (e, id) => {
+  e.preventDefault(); const f = e.target; const week = {}; for (let i = 0; i < 7; i++) week[i] = f['d' + i].value;
+  try { await updateDoc(cdoc('employees', id), { week: f.reset.checked ? deleteField() : week }); A.closeModal(); toast('اتحفظ ✓'); S.stTab = 'shifts'; A.go('staff'); } catch (er) { toast('مقدرتش أحفظ: ' + (er.code || er.message)); }
+};
+
 /* ----- الموظفين والمرتبات ----- */
 async function renderStaff() {
   const tab = S.stTab || 'list';
@@ -5459,14 +5505,15 @@ async function renderStaff() {
         <td>${esc((S.staff || []).find(s => s.id === x.userId)?.name) || '—'}</td><td>${x.active === false ? '<span class="chip mute">مش شغال</span>' : '<span class="chip ok">شغال</span>'}</td>
         <td>${ed ? `<button class="btn ghost sm" onclick="A.empModal('${x.id}')">تعديل</button>` : ''}</td></tr>`).join('')}</tbody></table></div>`
       : `<div class="card empty">مفيش موظفين مسجلين في الفرع ده.</div>`;
-  } else {
+  } else if (tab === 'shifts') { await loadCfg(); body = shiftsTab(emps, ed); }
+  else {
     const M = S.prMonth || monthStr();
     await loadCfg();
     body = tab === 'adj' ? await adjTab(M) : await payrollTab(M);
   }
   clinicShell('staff', `
     <div class="head"><h2>شؤون الموظفين</h2>${isOwner() ? `<button class="btn ghost" onclick="A.hrCfgModal()">⚙️ الدوام والبصمة</button>` : ''}${ed && tab === 'list' ? `<button class="btn" onclick="A.addDoctor()">+ دكتور</button><button class="btn gold" onclick="A.empModal()">+ موظف</button>` : ''}</div>
-    <div class="tabs">${[['list', 'الموظفين'], ['adj', 'الجزاءات والإضافي'], ['payroll', 'المرتبات']].map(([k, l]) => `<button class="${tab === k ? 'on' : ''}" onclick="A.stTabSet('${k}')">${l}</button>`).join('')}</div>
+    <div class="tabs">${[['list', 'الموظفين'], ['shifts', '🕒 الشفتات'], ['adj', 'الجزاءات والإضافي'], ['payroll', 'المرتبات']].map(([k, l]) => `<button class="${tab === k ? 'on' : ''}" onclick="A.stTabSet('${k}')">${l}</button>`).join('')}</div>
     ${body}`);
 }
 A.stTabSet = k => { S.stTab = k; A.go('staff'); };
@@ -5749,9 +5796,10 @@ async function renderMe() {
   const today = todayStr();
   let mine = [], slips = [], pun = null;
   try {
-    [mine, slips, pun] = await Promise.all([
+    [mine, slips, , pun] = await Promise.all([
       getDocs(query(ccol('approvals'), where('createdBy', '==', myUid()))).then(x => x.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
       getDocs(query(ccol('payslips'), where('uid', '==', myUid()))).then(x => x.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+      getDocs(query(ccol('employees'), where('userId', '==', myUid()))).then(x => { S.myEmp = x.docs[0] ? { id: x.docs[0].id, ...x.docs[0].data() } : null; }).catch(() => { S.myEmp = null; }),
       getDoc(cdoc('punches', myUid() + '_' + today)).then(d => d.exists() ? d.data() : null).catch(() => null)]);
   } catch (e) {}
   mine.sort((a, b) => (toDate(b.createdAt) || 0) - (toDate(a.createdAt) || 0)); slips.sort((a, b) => (b.month || '').localeCompare(a.month || ''));
@@ -5762,6 +5810,7 @@ async function renderMe() {
   clinicShell('me', `<div class="head"><div style="display:flex;gap:12px;align-items:center;flex:1">${avHTML(S.profile, 52)}<div><h2 style="margin:0">${esc(S.profile.name)}</h2><div class="meta"><span>${esc(roleTitle(S.profile))}</span></div></div></div></div>
     ${att ? `<div class="card" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="font-size:28px" aria-hidden="true">⏱️</span><span style="flex:1;min-width:200px;display:flex;flex-direction:column"><b>${!pun?.in ? 'لسه ما بصمتش حضور النهارده' : !pun.out ? `حاضر من ${hm(pun.in)}` : `حضرت ${hm(pun.in)} وانصرفت ${hm(pun.out)}`}</b><span class="meta">${S.cfg?.hr?.gps && S.cfg?.hr?.geo?.[S.branch] ? `البصمة بالموقع — لازم تكون في حدود ${(Number(S.cfg.hr.geo[S.branch].r) || 100).toLocaleString('ar-EG')} متر من العيادة` : 'سجّل حضورك وانصرافك من هنا'}</span></span>
       ${!pun?.out ? `<button class="btn" onclick="A.punchNow('me')">${!pun?.in ? '✅ بصمة حضور' : '👋 بصمة انصراف'}</button>` : ''}</div>` : ''}
+    ${oh && S.myEmp ? `<div class="card" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="font-size:22px">🕒</span><span style="flex:1"><b>شيفتك النهارده:</b> ${esc(shTxt(shiftFor(S.myEmp, today)))}<span class="meta" style="display:block">بكرة: ${esc(shTxt(shiftFor(S.myEmp, toInput(new Date(Date.now() + 864e5)))))}</span></span></div>` : ''}
     ${!oh ? `<div class="card meta">إنت صاحب العيادة: ملكش بصمة ولا مرتب ولا طلبات إجازة. لو عايز تتعامل كموظف، فعّلها من إعدادات الحضور.</div>` : ''}
     ${oh ? `<div class="card fcol"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><h3 style="flex:1;margin:0">📝 طلباتي</h3><button class="btn ghost sm" onclick="A.leaveModal()">🌴 طلب إجازة</button><button class="btn ghost sm" onclick="A.advModal()">💵 طلب سلفة</button></div>
       ${mine.length ? mine.slice(0, 12).map(x => aprCard(x, false)).join('') : '<p class="meta">مفيش طلبات.</p>'}</div>
@@ -5864,7 +5913,8 @@ async function payCalc(M) {
   const [sess, pun, adj, appr] = await Promise.all([qBranch('sessions', 'month', M).catch(() => []), qBranch('punches', 'month', M).catch(() => []), qBranch('hradj', 'month', M).catch(() => []),
     getDocs(query(ccol('approvals'), where('status', '==', 'approved'))).then(x => x.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => [])]);
   const [y, m] = M.split('-').map(Number), dim = new Date(y, m, 0).getDate(), lastDay = M < today.slice(0, 7) ? dim : M === today.slice(0, 7) ? Number(today.slice(8)) - 1 : 0;
-  const work = []; for (let d = 1; d <= lastDay; d++) { const ds = `${M}-${String(d).padStart(2, '0')}`; if (!h.off.includes(new Date(ds + 'T12:00:00').getDay())) work.push(ds); }
+  const work = [], allDays = []; for (let d = 1; d <= lastDay; d++) { const ds = `${M}-${String(d).padStart(2, '0')}`; allDays.push(ds); if (!h.off.includes(new Date(ds + 'T12:00:00').getDay())) work.push(ds); }
+  const workAll = work;
   return (S.emps || []).filter(x => x.active !== false).map(x => {
     const st = (S.staff || []).find(s => s.id === x.userId);
     const ids = new Set([x.userId, ...(st?.prevIds || []), 'e_' + x.id].filter(Boolean));
@@ -5882,8 +5932,9 @@ async function payCalc(M) {
     let lateMin = 0, absentN = 0;
     const monthly = t === 'monthly' && x.userId;
     if (monthly) {
-      const st0 = tMin(x.start || h.start) + Number(h.grace || 0);
-      pp.forEach(p => { if (!p.in || leaveDays.has(p.date)) return; const d = toDate(p.in); const mm = d.getHours() * 60 + d.getMinutes(); if (mm > st0) lateMin += mm - st0; });
+      // التأخير على شيفت الموظف في اليوم ده (ولو ملوش جدول = الدوام العادي)
+      pp.forEach(p => { if (!p.in || leaveDays.has(p.date)) return; const sh = shiftFor(x, p.date); if (!sh) return; const st0 = tMin(x.start || sh.start) + Number(h.grace || 0); const d = toDate(p.in); const mm = d.getHours() * 60 + d.getMinutes(); if (mm > st0) lateMin += mm - st0; });
+      const work = x.week && Object.keys(x.week).length ? allDays.filter(ds => shiftFor(x, ds)) : workAll;
       // الغياب بيتحسب بس من يوم ما البصمة اتفعّلت ومن يوم ما الموظف اتضاف
       const from = [h.since || '', toInput(x.createdAt || new Date(0)), pp.map(p => p.date).sort()[0] || ''].filter(Boolean).sort().pop() || '';
       if (h.absent) { const have = new Set(pp.map(p => p.date)); absentN = work.filter(ds => ds >= from && !have.has(ds) && !leaveDays.has(ds)).length; }
