@@ -359,6 +359,40 @@ function bcPing() {
     _setDoc(doc(db, 'usage', S.clinic.id), { product: 'clinic', at: serverTimestamp(), day: d, user: S.profile.name || '', v: BC_V, users: { [S.profile.id]: { n: S.profile.name || '', d } } }, { merge: true }).catch(() => {});
   } catch (e) {}
 }
+// نبضة كل دقيقتين والسيستم مفتوح: اللوحة بتعرف مين شغال دلوقتي (النقطة الخضرا)
+let BC_BEAT = 0;
+function bcBeat() {
+  try { if (!S.clinic?.id || !S.profile || S.isDev || S.viewAs || document.hidden) return; if (Date.now() - BC_BEAT < 110000) return; BC_BEAT = Date.now();
+    _setDoc(doc(db, 'usage', S.clinic.id), { users: { [S.profile.id]: { n: S.profile.name || '', d: todayStr(), t: serverTimestamp() } } }, { merge: true }).catch(() => {}); } catch (e) {}
+}
+setInterval(bcBeat, 120000); document.addEventListener('visibilitychange', () => { if (!document.hidden) bcBeat(); });
+/* ----- إشعارات الموبايل (حجز أونلاين / طلب منتجات) ----- */
+const BC_VAPID = 'BLVZwt4S0_JXsCy-a_ss0N0TpE0A5TfUY24Z4TwRkc_cWwlP8m7ilXuKEYcqY_gR-qec8gBXMlV_DB1-zPrJL-s';
+let BC_PUSH_URL = null;
+async function bcPushUrl() {
+  if (BC_PUSH_URL !== null) return BC_PUSH_URL;
+  try { const d = await getDoc(doc(db, 'pub', 'push')); BC_PUSH_URL = (d.exists() && d.data().url || '').replace(/\/+$/, ''); } catch (e) { BC_PUSH_URL = ''; }
+  return BC_PUSH_URL;
+}
+async function bcNotify(t, kind) { try { const u = await bcPushUrl(); if (!u) return; await fetch(u + '/notify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ t, kind }), keepalive: true }); } catch (e) {} }
+const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+const pushIsOn = () => { try { return Notification.permission === 'granted' && localStorage.getItem('bc-push-' + S.clinic.id) === '1'; } catch (e) { return false; } };
+const pushOn = async () => {
+  if (!pushSupported()) return toast(/iPhone|iPad/.test(navigator.userAgent) ? 'على الآيفون: ثبّت السيستم على الشاشة الرئيسية الأول (مشاركة ← إضافة للشاشة الرئيسية)، وافتحه منها' : 'الموبايل ده مش بيدعم الإشعارات');
+  const u = await bcPushUrl(); if (!u) return toast('الإشعارات لسه ما اتفعلتش من Beam Care');
+  try {
+    const perm = await Notification.requestPermission(); if (perm !== 'granted') return toast('لازم توافق على الإشعارات من المتصفح');
+    const reg = await navigator.serviceWorker.ready;
+    const key = Uint8Array.from(atob(BC_VAPID.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+    const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+    const r = await fetch(u + '/sub', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ t: S.clinic.id, uid: S.profile.id, sub: sub.toJSON() }) });
+    if (!r.ok) throw new Error('السيرفر رفض');
+    const c = await caches.open('bc-meta'); await c.put('/__bc_meta', new Response(JSON.stringify({ t: S.clinic.id, url: u, home: location.origin + location.pathname + '?c=' + S.clinic.id })));
+    try { localStorage.setItem('bc-push-' + S.clinic.id, '1'); } catch (e) {}
+    await fetch(u + '/notify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ t: S.clinic.id, kind: 'test' }) }).catch(() => {});
+    toast('الإشعارات اشتغلت على الموبايل ده ✓'); A.go('home');
+  } catch (e) { console.error(e); toast('مقدرتش أشغّل الإشعارات: ' + (e.message || e)); }
+};
 const BC_ERR = { n: 0, seen: new Set() };
 function bcErr(msg, src) {
   try {
@@ -374,6 +408,7 @@ window.addEventListener('unhandledrejection', e => { const r = e.reason; bcErr(r
 // علشان الأزرار اللي جوه الصفحة (onclick) تقدر توصل للحالة
 try { Object.defineProperty(window, 'S', { get: () => S, set: v => { S = v; }, configurable: true }); } catch (e) {}
 const A = window.A = {};
+A.pushOn = pushOn;
 
 function ICON(size = 36) {
   // لوجو Beam Care الجديد (BC بالخط الأحمر)
@@ -549,7 +584,7 @@ onAuthStateChanged(auth, async u => {
     S.profile = { id: u.uid, ...p.data() };
     const c = await getDoc(doc(db, 'clinics', S.profile.clinicId));
     S.clinic = { id: c.id, ...c.data() };
-    applyBrand(S.clinic); bcPing();
+    applyBrand(S.clinic); bcPing(); setTimeout(bcBeat, 3000); bcPushUrl();
     if (!clinicActive(S.clinic)) return renderLocked();
     applyLook(S.clinic.look); lookAnnounce(S.clinic.look || '');
     watchClinicUpd();
@@ -643,6 +678,8 @@ const PRODUCTS = {
       { key: 'reminders', label: 'تذكير الحجوزات على الواتساب' },
       { key: 'consents', label: 'إقرار الموافقة بتوقيع العميل' },
       { key: 'photos', label: 'صور قبل وبعد في ملف العميل' },
+      { key: 'export', label: 'صاحب العيادة يقدر يحمّل كل بياناته Excel' },
+      { key: 'shop', label: 'بيع منتجات وبوكسات + طلبها من صفحة الحجز' },
       { key: 'dayReport', label: 'تقرير آخر اليوم على الواتساب' },
       { key: 'loyalty', label: 'نقاط الولاء والترشيح' },
       { key: 'campaigns', label: 'حملات العروض على الواتساب (بصورة عرض مصممة)' },
@@ -694,7 +731,7 @@ const PIONEER_ROLES = {
   admin: { label: 'مدير عام' }, exec: { label: 'مدير تنفيذي' }, manager: { label: 'مدير إدارة' }, engineer: { label: 'مهندس صيانة' },
   accountant: { label: 'موظف حسابات' }, cons_staff: { label: 'موظف مستهلكات' }, courier: { label: 'مندوب شحن' }, staff: { label: 'موظف' }, clinic: { label: 'عيادة (عميل)' },
 };
-const PIONEER_PARTS = [['freon', 'الفريون'], ['sales', 'المبيعات والمستهلكات والعروض'], ['quotes', 'عروض الأسعار'], ['devices', 'بيع وإيجار الأجهزة'], ['contracts', 'عقود الصيانة'], ['suppliers', 'الموردين والمشتريات'], ['finance', 'الحسابات والخزينة ورأس المال والآجل'], ['hr', 'الحضور والإجازات'], ['payroll', 'المرتبات والمكافآت'], ['staff', 'إدارة الموظفين (العهدة، الاجتماعات، التقييم، الاختبارات، الملفات)'], ['weekly', 'التقارير الدورية'], ['analytics', 'التحليلات'], ['gs', 'النسخ لجوجل شيت']];
+const PIONEER_PARTS = [['freon', 'الفريون'], ['sales', 'المبيعات والمستهلكات والعروض'], ['quotes', 'عروض الأسعار'], ['export', 'تحميل كل البيانات Excel'], ['devices', 'بيع وإيجار الأجهزة'], ['contracts', 'عقود الصيانة'], ['suppliers', 'الموردين والمشتريات'], ['finance', 'الحسابات والخزينة ورأس المال والآجل'], ['hr', 'الحضور والإجازات'], ['payroll', 'المرتبات والمكافآت'], ['staff', 'إدارة الموظفين (العهدة، الاجتماعات، التقييم، الاختبارات، الملفات)'], ['weekly', 'التقارير الدورية'], ['analytics', 'التحليلات'], ['gs', 'النسخ لجوجل شيت']];
 Object.assign(PRODUCTS.maint, {
   ready: true, remote: true, viewAs: false, importer: false,
   roles: PIONEER_ROLES, linkedRole: 'clinic', rolePerms: {},
@@ -857,7 +894,7 @@ function remoteUsersBody(P) {
     ${S.dUsers.length ? `<div class="card tbl-wrap" style="padding:0"><table>
       <thead><tr><th>الاسم</th><th>اسم الدخول</th><th>الدور</th><th>كلمة السر</th><th>آخر تغيير</th><th>الحالة</th><th></th></tr></thead>
       <tbody>${[...S.dUsers].sort((a, b) => order.indexOf(a.role) - order.indexOf(b.role)).map(u => `<tr>
-        <td><b>${esc(u.name)}</b>${u.main ? ' <span class="chip warn">👑 صاحب الحساب</span>' : ''}</td><td dir="ltr" style="text-align:right">${esc(u.username)}</td><td>${esc(P.roles[u.role]?.label || u.role)}</td>
+        <td><b>${esc(u.name)}</b>${presDot(S.dc, u.id)}${u.main ? ' <span class="chip warn">👑 صاحب الحساب</span>' : ''}</td><td dir="ltr" style="text-align:right">${esc(u.username)}</td><td>${esc(P.roles[u.role]?.label || u.role)}</td>
         <td>${u.pw ? `<span class="pwv" data-pw="${esc(u.pw)}" dir="ltr">••••••</span> <button class="btn ghost sm" onclick="A.pwShow(this)">إظهار</button> <button class="btn ghost sm" onclick="navigator.clipboard.writeText(this.parentElement.querySelector('.pwv').dataset.pw);A.toast('اتنسخ')">نسخ</button>` : '<span class="chip bad">مش متسجلة</span>'}</td>
         <td>${u.pwAt ? fmt(u.pwAt) : '—'}</td>
         <td>${u.active === false ? '<span class="chip bad">موقوف</span>' : '<span class="chip ok">شغال</span>'}</td>
@@ -1597,6 +1634,21 @@ A.errClear = async () => {
   if (!confirm('تمسح كل الأخطاء اللي وصلت؟')) return;
   try { const L = await loadErrs(60); const b = writeBatch(db); L.slice(0, 450).forEach(x => b.delete(doc(db, 'errlog', x.id))); await b.commit(); toast('اتمسحت ✓'); A.dev('errors'); } catch (e) { toast('مقدرتش أمسح: ' + (e.code || e.message)); }
 };
+// مين شغال دلوقتي على السيستم (نبضة آخر ٣ دقايق)
+const presOf = (t, uid) => { const u = (S.dUsage?.users || {})[uid]; if (!u) return null; const d = u.t?.toDate ? u.t.toDate() : u.t ? new Date(u.t) : null; return d; };
+function presDot(t, uid) {
+  const d = presOf(t, uid); if (!d) return '';
+  const m = Math.floor((Date.now() - d.getTime()) / 6e4);
+  if (m < 4) return '<span title="شغال على السيستم دلوقتي — ما تدخلش بحسابه" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#1FA463;box-shadow:0 0 0 3px #1FA46333;margin-inline-start:6px;vertical-align:middle"></span><span class="meta" style="display:block;color:#1E7B4F">شغال دلوقتي</span>';
+  return `<span class="meta" style="display:block">آخر ظهور: ${m < 60 ? 'من ' + m + ' دقيقة' : m < 1440 ? 'من ' + Math.floor(m / 60) + ' ساعة' : 'من ' + Math.floor(m / 1440) + ' يوم'}</span>`;
+}
+async function loadTenantUsage(c) {
+  const key = (c.product === 'maint' || S.dp?.remote ? 'm-' : '') + c.id;
+  if (S.dUsageFor === key && Date.now() - (S.dUsageAt || 0) < 60000) return;
+  try { const d = await getDoc(doc(db, 'usage', key)); S.dUsage = d.exists() ? d.data() : {}; } catch (e) { S.dUsage = {}; }
+  S.dUsageFor = key; S.dUsageAt = Date.now();
+  if (!S.dTab || S.dTab === 'users') renderTenant();
+}
 async function loadAlerts(tenants) {
   const L = [];
   const P = t => PRODUCTS[t.product] || PRODUCTS.clinic;
@@ -2209,6 +2261,15 @@ function devShell(view, content) {
 }
 A.devHome = () => A.dev('home');
 /* ----- الإعدادات ----- */
+A.pushCfg = async () => {
+  let cur = ''; try { const d = await getDoc(doc(db, 'pub', 'push')); cur = d.exists() ? d.data().url || '' : ''; } catch (e) {}
+  openModal(`<h3>🔔 سيرفر الإشعارات</h3><form class="fcol" onsubmit="A.pushCfgSave(event)"><p class="meta">الصق هنا رابط سيرفر الإشعارات (اللي بيخلص بـ workers.dev) بعد ما تعمله مرة واحدة حسب ملف الخطوات.</p>
+    <label class="f">الرابط<input name="url" dir="ltr" value="${esc(cur)}" placeholder="https://beamcare-push.xxxx.workers.dev"></label>${formActs()}</form>`);
+};
+A.pushCfgSave = async e => { e.preventDefault(); const url = e.target.url.value.trim().replace(/\/+$/, '');
+  if (url && !/^https:\/\/[a-z0-9.-]+\.workers\.dev$/i.test(url) && !/^https:\/\//.test(url)) return toast('الرابط لازم يبدأ بـ https://');
+  try { if (url) { const r = await fetch(url, { method: 'GET' }); const j = await r.json().catch(() => ({})); if (!/push/i.test(j.name || '')) return toast('الرابط ده مش سيرفر الإشعارات — راجع الخطوات'); }
+    await setDoc(doc(db, 'pub', 'push'), { url, at: serverTimestamp() }); A.closeModal(); toast('اتحفظ ✓'); } catch (er) { toast('مقدرتش أحفظ: ' + (er.code || er.message)); } };
 async function devSettings() {
   const boss = devBoss();
   if (boss) await Promise.all([loadDevMain(), loadPub().catch(() => null)]);
@@ -2221,6 +2282,7 @@ async function devSettings() {
     ${row('🎨', 'شكل اللوحة', 'الألوان والأيقونات وشكل القايمة', `<button class="btn ghost sm" onclick="A.devThemeModal()">غيّر الشكل</button>`)}
     ${boss ? `<div class="section-t" style="margin-top:10px">الشركة</div>
     ${row('👥', 'فريق Beam Care', nTeam ? `${nTeam} عضو · كل واحد بيشوف الأجزاء اللي إنت مدّيهاله بس` : 'ضيف الناس اللي شغالة معاك، وحدد كل واحد يفتح إيه', `<button class="btn sm" onclick="A.dev('team')">افتح الفريق</button>`)}
+    ${row('🔔', 'سيرفر الإشعارات', 'إشعار على موبايلات العيادات والشركات مع كل حجز أونلاين أو طلب جديد', `<button class="btn ghost sm" onclick="A.pushCfg()">الإعداد</button>`)}
     ${row('📝', 'صفحة طلب الاشتراك', 'رقم الواتساب وطرق الدفع وأيام التجربة المجانية', `<button class="btn ghost sm" onclick="A.payInfoModal()">تعديل</button><button class="btn ghost sm" onclick="A.joinModal()">الرابط و QR</button>`)}
     ${row('🧪', 'رقمك في رابط التجربة', DEVCFG_MAIN?.phone ? `<span dir="ltr">${esc(DEVCFG_MAIN.phone)}</span>` : 'لسه ما اتحطش', `<button class="btn ghost sm" onclick="A.demoPhone()">تعديل</button>`)}
     ${row('💾', 'النسخ الاحتياطية', 'المكان اللي بتتحفظ فيه نسخ بيانات العيادات والشركات', `<button class="btn ghost sm" onclick="A.ghSetup()">إعداد</button>`)}` : ''}
@@ -2754,6 +2816,7 @@ function usageOf(l) {
 }
 function renderTenant() {
   const P = S.dp, c = S.dc, tab = S.dTab;
+  if (tab === 'users' || !tab) loadTenantUsage(c);
   const b = brandOf({ ...c, whiteLabel: true });
   const maxUsers = c.plan?.maxUsers ?? 0, maxBr = c.plan?.maxBranches ?? 0;
   const staff = S.dUsers.filter(u => !isLinked(P, u)).length;
@@ -2825,7 +2888,7 @@ function renderTenant() {
     ${S.dUsers.length ? `<div class="card tbl-wrap" style="padding:0"><table>
       <thead><tr><th>الاسم</th><th>اسم المستخدم</th><th>الدور</th><th>الفروع</th><th>الحالة</th><th></th></tr></thead>
       <tbody>${[...S.dUsers].sort((a, b) => order.indexOf(a.role) - order.indexOf(b.role)).map(u => `<tr>
-        <td><b>${esc(u.name)}</b>${u.role === 'owner' ? ' <span class="chip warn">👑 صاحب الحساب</span>' : ''}</td><td dir="ltr" style="text-align:right">${esc(u.username)}</td><td>${esc(P.roles[u.role]?.label || u.role)}</td>
+        <td><b>${esc(u.name)}</b>${presDot(c, u.id)}${u.role === 'owner' ? ' <span class="chip warn">👑 صاحب الحساب</span>' : ''}</td><td dir="ltr" style="text-align:right">${esc(u.username)}</td><td>${esc(P.roles[u.role]?.label || u.role)}</td>
         <td>${esc(branchNames(u, S.dBranches, P.roles))}</td>
         <td>${u.active === false ? '<span class="chip bad">موقوف</span>' : '<span class="chip ok">شغال</span>'}</td>
         <td><div style="display:flex;gap:6px">
@@ -2976,6 +3039,8 @@ A.userModal = id => {
       <label class="f">الاسم<input name="name" required value="${esc(u?.name)}"></label>
       <label class="f">الدور<select name="role" onchange="A.roleChanged(this)">${Object.entries(P.roles).map(([k, r]) => `<option value="${k}" ${k === role ? 'selected' : ''}>${r.label}</option>`).join('')}</select></label>
     </div>
+    <label class="f">المسمى اللي بيظهر جنب اسمه (اختياري — لو فاضي: صاحب العيادة ما بيظهرش جنبه حاجة، والباقي اسم الدور)<input name="title" value="${esc(u?.title || '')}" placeholder="مثلاً: رئيس مجلس الإدارة"></label>
+    ${P.key === 'clinic' ? `<label class="chk"><input type="checkbox" name="hr" ${u?.hr ? 'checked' : ''}> صاحب العيادة ده له مرتب وبصمة وطلبات إجازة/سلف زي الموظفين (لصاحب العيادة بس)</label>` : ''}
     ${u ? `<div class="meta"><span>اسم المستخدم: <b dir="ltr">${esc(u.username)}</b></span><span>لتغيير كلمة السر استخدم زرار "كلمة سر جديدة"</span></div>` : `
     <div class="grid2">
       <label class="f">اسم المستخدم (إنجليزي)<input name="username" required dir="ltr" pattern="[a-zA-Z0-9._\\-]{3,30}" title="حروف إنجليزي وأرقام بس، من 3 لـ 30" autocomplete="off"></label>
@@ -3023,7 +3088,7 @@ A.saveUser = async (e, id) => {
   const wasStaff = id ? !isLinked(P, S.dUsers.find(x => x.id === id)) : false;
   const staffCount = S.dUsers.filter(u => !isLinked(P, u)).length;
   if (role !== P.linkedRole && !wasStaff && staffCount >= (c.plan?.maxUsers ?? 0)) return toast('وصلت لحد اليوزرات في الباكدج');
-  const data = { name: f.name.value.trim(), role, branchIds, perms: role === P.linkedRole ? P.rolePerms[role] : readPerms(f, P.modules), active: f.act.checked,
+  const data = { name: f.name.value.trim(), title: (f.title?.value || '').trim(), ...(f.hr ? { hr: role === 'owner' && f.hr.checked } : {}), role, branchIds, perms: role === P.linkedRole ? P.rolePerms[role] : readPerms(f, P.modules), active: f.act.checked,
     product: P.key, tenantId: c.id, [P.userKey]: c.id, clientId };
   let newCreds = null;
   busy(btn, true, 'جاري الحفظ...');
@@ -3319,9 +3384,9 @@ function clinicShell(view, content) {
     ? `<select aria-label="الفرع" style="width:auto;min-height:38px" onchange="A.setBranch(this.value)">${brs.map(x => `<option value="${x.id}" ${x.id === S.branch ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select>`
     : (brs[0] ? `<span class="chip mute">${esc(brs[0].name)}</span>` : '');
   $app.innerHTML = `
-  ${S.viewAs ? `<div style="background:var(--gold);color:#fff;padding:8px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-weight:700"><span style="flex:1">إنت شايف السيستم كأنك ${esc(S.profile.name)} (${esc(ROLES[S.profile.role]?.label)}). أي حاجة تعملها هتتسجل فعلاً.</span><button class="btn sm" style="background:#fff;color:var(--ink)" onclick="A.exitViewAs()">رجوع للوحة المطور</button></div>` : ''}
-  <div class="top">${S.profile.role === 'client' ? '' : `<button class="hamb" onclick="A.drawer(true)" aria-label="القائمة"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>`}${logoHTML(b, 36)}<div><div class="name">${esc(b.name)}</div><div class="sub">${esc(S.profile.name)} · ${esc(ROLES[S.profile.role]?.label)}</div></div><div class="sp"></div>
-    ${brSel}${S.profile.role === 'client' ? '' : `<button class="top-ic" onclick="A.gsOpen()" title="بحث في كل حاجة" aria-label="بحث"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></button>`}${S.viewAs ? '' : `<button class="me-av" onclick="A.meMenu()" title="حسابي" aria-label="حسابي">${avHTML(S.profile, 36)}</button>`}
+  ${S.viewAs ? `<div style="background:var(--gold);color:#fff;padding:8px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-weight:700"><span style="flex:1">إنت شايف السيستم كأنك ${esc(S.profile.name)}${roleTitle(S.profile) ? ' (' + esc(roleTitle(S.profile)) + ')' : ''}. أي حاجة تعملها هتتسجل فعلاً.</span><button class="btn sm" style="background:#fff;color:var(--ink)" onclick="A.exitViewAs()">رجوع للوحة المطور</button></div>` : ''}
+  <div class="top">${S.profile.role === 'client' ? '' : `<button class="hamb" onclick="A.drawer(true)" aria-label="القائمة"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>`}${logoHTML(b, 36)}<div><div class="name">${esc(b.name)}</div><div class="sub">${esc(S.profile.name)}${roleTitle(S.profile) ? ' · ' + esc(roleTitle(S.profile)) : ''}</div></div><div class="sp"></div>
+    ${brSel}${isOwner() || can('staff_view') ? `<button class="top-ic" onclick="A.sysQr()" title="QR السيستم للموظفين الجداد" aria-label="QR السيستم"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></svg></button>` : ''}${S.profile.role === 'client' ? '' : `<button class="top-ic" onclick="A.gsOpen()" title="بحث في كل حاجة" aria-label="بحث"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></button>`}${S.viewAs ? '' : `<button class="me-av" onclick="A.meMenu()" title="حسابي" aria-label="حسابي">${avHTML(S.profile, 36)}</button>`}
     ${S.viewAs ? `<button class="btn ghost sm" onclick="A.logout()">رجوع</button>` : ''}</div>
   <div class="drawer-bg" onclick="A.drawer(false)"></div>
   <div class="layout"><nav class="side"><div class="dr-head">${logoHTML(b, 32)}<b style="flex:1">${esc(b.name)}</b><button onclick="A.drawer(false)" aria-label="قفل القائمة" style="width:40px;height:40px;justify-content:center;padding:0">✕</button></div>${nav.map(([k, l]) => k === '§' ? `<div class="navsec">${esc(l)}</div>` : `<button class="${view === k ? 'on' : ''}" onclick="A.go('${k}')" title="${esc(l)}" aria-label="${esc(l)}">${navIco(k)}<span>${l}</span></button>`).join('')}
@@ -3343,7 +3408,7 @@ A.quickSheet = () => {
   if (can('sessions_edit')) L.push(['✨', 'تسجيل جلسة', 'A.sessionModal()']);
   if (can('packages_edit')) L.push(['🎁', 'بيع باكدج', 'A.sellModal()']);
   if (can('payments_edit')) L.push(['💵', 'تحصيل', 'A.payModal()']);
-  if (feat('attendance')) L.push(['⏱️', 'حضور / انصراف', 'A.closeModal();A.punchNow()']);
+  if (feat('attendance') && ownerHr()) L.push(['⏱️', 'حضور / انصراف', 'A.closeModal();A.punchNow()']);
   openModal(`<h3>إجراء سريع</h3><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">${L.map(([ic, l, on]) => `<button class="btn ghost" style="min-height:64px;flex-direction:column;gap:4px;display:flex;align-items:center;justify-content:center" onclick="${on}"><span style="font-size:22px">${ic}</span>${l}</button>`).join('')}</div><div class="acts"><button class="btn ghost" onclick="A.closeModal()">قفل</button></div>`);
 };
 A.drawer = on => { document.body.classList.toggle('drawer-open', !!on); };
@@ -3388,7 +3453,7 @@ function avHTML(u, size = 34) {
   u = u || {}; const nm = (u.name || '?').trim(); let h = 0; for (const ch of (u.id || nm)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   return `<span class="av" style="width:${size}px;height:${size}px;font-size:${Math.round(size * .42)}px;background:${AV_COLORS[h % AV_COLORS.length]}">${u.photo ? `<img src="${esc(u.photo)}" alt="">` : esc(nm.charAt(0) || '?')}</span>`;
 }
-A.meMenu = () => openModal(`<div style="display:flex;gap:14px;align-items:center">${avHTML(S.profile, 64)}<div><h3 style="margin:0">${esc(S.profile.name)}</h3><div class="meta"><span>${esc(ROLES[S.profile.role]?.label || '')}</span>${S.profile.username ? `<span dir="ltr">${esc(S.profile.username)}</span>` : ''}</div></div></div>
+A.meMenu = () => openModal(`<div style="display:flex;gap:14px;align-items:center">${avHTML(S.profile, 64)}<div><h3 style="margin:0">${esc(S.profile.name)}</h3><div class="meta"><span>${esc(roleTitle(S.profile))}</span>${S.profile.username ? `<span dir="ltr">${esc(S.profile.username)}</span>` : ''}</div></div></div>
   <div class="fcol" style="gap:8px;margin-top:6px">
     <label class="btn ghost" style="cursor:pointer;justify-content:flex-start">📷 ${S.profile.photo ? 'غيّر صورتك' : 'حط صورتك'}<input type="file" accept="image/*" hidden onchange="A.avPick(this)"></label>
     ${S.profile.photo ? `<button class="btn ghost" style="justify-content:flex-start" onclick="A.avSet('')">شيل الصورة</button>` : ''}
@@ -3449,7 +3514,7 @@ A.gsOpen = async () => {
     grp('باكدجات العملاء', D.pk.filter(hit).map(x => ({ go: `A.openClient('${x.clientId}')`, l: `${x.no ? `<span dir="ltr">#${String(x.no).padStart(4, '0')}</span> ` : ''}${esc(x.clientName || '')} — ${esc(x.name || '')}`, s: `${money(x.price || 0)} · ${esc(x.date || '')}` })));
     grp('التحصيل والإيصالات', D.pay.filter(x => hit(x) || (x.no && String(x.no).includes(t.replace(/^#?0*/, ''))) ).map(x => ({ go: `A.openClient('${x.clientId}')`, l: `${x.no ? `<span dir="ltr">#${String(x.no).padStart(4, '0')}</span> ` : ''}${esc(x.clientName || '')} — ${money(x.amount || 0)}`, s: `${esc(x.date || '')} · ${esc(x.note || '')}` })));
     grp('الخدمات والأسعار', D.sv.filter(hit).map(x => ({ go: `A.pTabSet('prices')`, l: esc(x.name), s: x.price ? money(x.price) : '' })));
-    grp('الموظفين', D.st.filter(hit).map(x => ({ go: `A.go('${can('staff_view') ? 'staff' : 'team'}')`, l: esc(x.name), s: esc(ROLES[x.role]?.label || '') })));
+    grp('الموظفين', D.st.filter(hit).map(x => ({ go: `A.go('${can('staff_view') ? 'staff' : 'team'}')`, l: esc(x.name), s: esc(roleTitle(x)) })));
     box.innerHTML = G.join('') || '<p class="meta">مفيش نتايج.</p>';
   };
   q.oninput = run; run();
@@ -3528,11 +3593,16 @@ async function renderHome() {
   if (can('packages_edit')) quick.push(`<button class="btn" onclick="A.sellModal()">+ بيع باكدج</button>`);
   if (can('payments_edit')) quick.push(`<button class="btn gold" onclick="A.payModal()">+ تحصيل</button>`);
   if (feat('dayReport') && (can('payments_view') || isOwner())) quick.push(`<button class="btn ghost" onclick="A.dayReport()">📊 تقرير النهارده</button>`);
-  const [apN, newSlip] = await Promise.all([isApprover() ? loadApprovals().then(() => S.apprPending).catch(() => 0) : 0,
-    getDocs(query(ccol('payslips'), where('uid', '==', S.user.uid), where('seen', '==', false))).then(x => x.docs[0]?.data()).catch(() => null)]);
+  const [apN, newSlip, devW] = await Promise.all([isApprover() ? loadApprovals().then(() => S.apprPending).catch(() => 0) : 0,
+    getDocs(query(ccol('payslips'), where('uid', '==', myUid()), where('seen', '==', false))).then(x => x.docs[0]?.data()).catch(() => null),
+    can('devices_view') ? qAll('devices', 'branchId', S.branch).then(L => L.filter(d => d.active !== false).map(d => ({ d, x: devDue(d) })).filter(o => o.x.due || o.x.soon)).catch(() => []) : []]);
   clinicShell('home', `
     <div class="head"><h2>أهلاً ${esc(S.profile.name)}</h2></div>
     ${newSlip ? `<div class="notice info" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="flex:1">💰 <b>مرتب شهر ${esc(newSlip.month)} نزل</b> — ${money(newSlip.net)}</span><button class="btn sm" onclick="A.go('me')">شوف التفاصيل</button></div>` : ''}
+    ${BC_PUSH_URL && pushSupported() && !pushIsOn() && (can('bookings_view') || isOwner()) && (feat('onlineBooking') || feat('shop')) && !S.isDev ? `<div class="notice info" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="flex:1">🔔 <b>شغّل الإشعارات على الموبايل ده</b> — يوصلك إشعار أول ما عميل يحجز أونلاين أو يطلب منتج، حتى لو السيستم مقفول</span><button class="btn sm" onclick="A.pushOn()">شغّل الإشعارات</button></div>` : ''}
+    ${dailyDue() ? `<div class="notice info" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="flex:1">📊 <b>تقرير النهارده جاهز</b> — ابعته صورة على الواتساب بضغطة</span><button class="btn sm" onclick="A.dailyReport()">افتح التقرير</button></div>` : ''}
+    ${canCampaign() && campDue() ? `<div class="notice info" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="flex:1">📣 <b>حملة النهارده جه ميعادها</b> — افتح العروض وابعت للعملاء</span><button class="btn sm" onclick="S.camp=Object.assign(S.camp||{},{offerId:S.cfg.campSched.offerId});try{localStorage.setItem('bc-campdone-'+S.clinic.id+'-'+todayStr(),String(campDue()))}catch(e){};A.go('offers')">ابعت الحملة</button></div>` : ''}
+    ${devW.length ? `<div class="notice warn" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="flex:1">🔧 ${devW.map(o => `<b>${esc(o.d.name)}</b>: ${esc(o.x.txt)}`).join(' · ')}</span><button class="btn sm" onclick="A.go('devices')">الأجهزة</button></div>` : ''}
     ${apN ? `<div class="notice warn" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="flex:1">✅ فيه <b>${apN.toLocaleString('ar-EG')}</b> طلب مستني موافقتك</span><button class="btn sm" onclick="A.go('approvals')">افتح الطلبات</button></div>` : ''}
     ${seesSub && d <= 7 ? `<div class="notice warn">الاشتراك هيخلص بعد ${d} يوم (${fmt(c.expiresAt)}). كلّم Beam Care علشان التجديد.</div>` : ''}
     ${onb}
@@ -3681,6 +3751,275 @@ A.phCompare = () => {
   document.body.appendChild(bg);
 };
 
+/* ----- QR السيستم: الموظف الجديد يعمل سكان ويفتح السيستم على طول ----- */
+A.sysQr = async () => {
+  const link = location.origin + location.pathname + '?c=' + S.clinic.id;
+  const B = brandOf(S.clinic);
+  openModal(`<h3>📱 QR السيستم</h3><p class="meta">الموظف الجديد يفتح كاميرا الموبايل ويعمل سكان، السيستم هيفتح عنده باسم ${esc(B.name)} ولوجوها. بعدها يدخل باليوزر وكلمة السر اللي إديتهاله، ويقدر يثبّت الأبلكيشن على موبايله.</p>
+    <div style="display:flex;justify-content:center"><div id="sysQrBox" style="background:#fff;padding:14px;border-radius:14px;border:1px solid var(--line)"></div></div>
+    <p class="meta" dir="ltr" style="text-align:center;word-break:break-all">${esc(link)}</p>
+    <div class="acts"><button class="btn sm" onclick="A.sysQrShare()">📤 ابعته / احفظه</button><button class="btn ghost sm" onclick="navigator.clipboard?.writeText('${link}').then(()=>toast('اتنسخ اللينك ✓'))">نسخ اللينك</button><button class="btn ghost" onclick="A.closeModal()">قفل</button></div>`);
+  try { await loadQrLib(); new window.QRCode(document.getElementById('sysQrBox'), { text: link, width: 240, height: 240, colorDark: '#13233D', colorLight: '#ffffff', correctLevel: window.QRCode.CorrectLevel.M }); }
+  catch (e) { document.getElementById('sysQrBox').textContent = 'مقدرتش أعمل الـ QR — استخدم اللينك'; }
+};
+A.sysQrShare = async () => {
+  const im = document.querySelector('#sysQrBox img') || document.querySelector('#sysQrBox canvas'); if (!im) return;
+  const src = im.tagName === 'CANVAS' ? im.toDataURL('image/png') : im.src;
+  const blob = await (await fetch(src)).blob(); const file = new File([blob], 'qr-system.png', { type: 'image/png' });
+  try { if (navigator.canShare && navigator.canShare({ files: [file] })) return await navigator.share({ files: [file], text: 'ادخل على السيستم من هنا: ' + location.origin + location.pathname + '?c=' + S.clinic.id }); } catch (e) { if (e?.name === 'AbortError') return; }
+  const a = document.createElement('a'); a.href = src; a.download = 'qr-system.png'; a.click();
+};
+
+/* ----- صورة التحويل (إنستاباي / فودافون كاش) ----- */
+async function saveProof(file, meta) {
+  const img = await shrinkImg(file, 1100);
+  const r = await addDoc(ccol('proofs'), { img, kind: meta.kind || 'payment', clientId: meta.clientId || '', branchId: meta.branchId || S.branch || '', createdAt: serverTimestamp(), createdBy: S.profile?.id || '', createdByName: S.profile?.name || '' });
+  return r.id;
+}
+A.proofView = async id => {
+  try { const d = await getDoc(cdoc('proofs', id)); if (!d.exists()) return toast('الصورة مش موجودة');
+    const bg = document.createElement('div'); bg.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:16px';
+    bg.innerHTML = `<img src="${d.data().img}" alt="صورة التحويل" style="max-width:100%;max-height:82vh;border-radius:10px"><button class="btn sm" data-x>قفل</button>`;
+    bg.onclick = ev => { if (ev.target === bg || ev.target.hasAttribute('data-x')) bg.remove(); }; document.body.appendChild(bg);
+  } catch (e) { toast('مقدرتش أفتح الصورة: ' + (e.code || e.message)); }
+};
+
+/* ----- فاتورة الحجز للعميل على الواتساب (صورة) ----- */
+async function bkInvoiceData(id) {
+  const bd = await getDoc(cdoc('bookings', id)); if (!bd.exists()) throw new Error('الحجز مش موجود');
+  const b = { id, ...bd.data() };
+  const [pkgs, pays, svs] = await Promise.all([
+    getDocs(query(ccol('cpackages'), where('clientId', '==', b.clientId))).then(x => x.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(query(ccol('payments'), where('bookingId', '==', id))).then(x => x.docs.map(d => d.data())).catch(() => []),
+    loadServices().catch(() => [])]);
+  const svc = String(b.service || ''), flat = svcFlat(svs);
+  const pk = pkgs.filter(p => !p.cancelled && pLeft(p) > 0).find(p => (p.items || []).some(i => svc.includes(i.name)) || svc.includes(p.name) || (p.name || '').includes(svc)) || null;
+  const br = (S.branches || []).find(x => x.id === b.branchId);
+  const o = { b, pk, branch: br?.name || '' };
+  if (pk) { o.kind = 'باكدج'; o.price = Number(pk.price) || 0; o.paid = Number(pk.paid) || 0; o.left = pLeft(pk); o.unit = pIsPulses(pk) ? 'بلصة' : 'جلسة'; }
+  else { o.kind = 'جلسة'; const sv = flat.find(x => svc.split(' + ').includes(x.name)); o.price = svc.split(' + ').reduce((a, n) => a + (Number(flat.find(x => x.name === n)?.price) || 0), 0) || Number(sv?.price) || 0; o.paid = pays.reduce((a, p) => a + (Number(p.amount) || 0), 0); }
+  o.due = Math.max(0, o.price - o.paid);
+  return o;
+}
+function bkInvoiceCanvas(o) {
+  const Bd = brandOf(S.clinic), css = getComputedStyle(document.documentElement);
+  const brand = css.getPropertyValue('--brand').trim() || '#163A6B', gold = css.getPropertyValue('--gold-l').trim() || '#D7AE57';
+  const W = 1080, rows = [['العميل', o.b.clientName], ['الخدمة', o.b.service || '—'], ['الميعاد', `${dayName(o.b.date)} · ${time12(o.b.time)}`], o.b.doctorName ? ['مع', o.b.doctorName] : null, o.branch ? ['الفرع', o.branch] : null,
+    ['نوع الحجز', o.kind === 'باكدج' ? `باكدج: ${o.pk.name}` : 'جلسة منفردة'], o.kind === 'باكدج' ? ['فاضل في الباكدج', `${o.left.toLocaleString('ar-EG')} ${o.unit}`] : null].filter(Boolean);
+  const money3 = [o.price ? [o.kind === 'باكدج' ? 'سعر الباكدج' : 'السعر', money(o.price)] : null, ['المدفوع', money(o.paid)], o.price ? ['المتبقي', money(o.due)] : null].filter(Boolean);
+  const H = 300 + rows.length * 86 + 60 + money3.length * 80 + 170;
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const g = cv.getContext('2d'); g.direction = 'rtl';
+  g.fillStyle = '#F7F5F0'; g.fillRect(0, 0, W, H);
+  g.fillStyle = brand; g.fillRect(0, 0, W, 230); g.fillStyle = gold; g.fillRect(0, 230, W, 8);
+  g.fillStyle = '#fff'; g.textAlign = 'right'; g.font = '800 60px Cairo, Tahoma, sans-serif'; g.fillText('تأكيد حجز', W - 70, 110);
+  g.font = '600 34px Cairo, Tahoma, sans-serif'; g.globalAlpha = .9; g.fillText(Bd.name, W - 70, 170); g.globalAlpha = 1;
+  let y = 300; g.font = '600 32px Cairo, Tahoma, sans-serif';
+  rows.forEach(([k, v], i) => { if (i % 2 === 0) { g.fillStyle = '#EFEBE2'; g.fillRect(50, y - 52, W - 100, 80); } g.fillStyle = '#5A6475'; g.textAlign = 'right'; g.fillText(k, W - 80, y); g.fillStyle = '#14213D'; g.font = '700 34px Cairo, Tahoma, sans-serif'; g.textAlign = 'left'; g.fillText(String(v).slice(0, 44), 80, y); g.font = '600 32px Cairo, Tahoma, sans-serif'; y += 86; });
+  y += 30; g.fillStyle = '#fff'; g.strokeStyle = '#E3DCCB'; g.lineWidth = 3; g.beginPath(); g.roundRect ? g.roundRect(50, y - 50, W - 100, money3.length * 80 + 30, 24) : g.rect(50, y - 50, W - 100, money3.length * 80 + 30); g.fill(); g.stroke();
+  money3.forEach(([k, v], i) => { const last = i === money3.length - 1 && o.price; g.fillStyle = last && o.due > 0 ? '#B3261E' : '#14213D'; g.textAlign = 'right'; g.font = '600 32px Cairo, Tahoma, sans-serif'; g.fillText(k, W - 90, y + 10); g.textAlign = 'left'; g.font = '800 38px Cairo, Tahoma, sans-serif'; g.fillText(v, 90, y + 10); y += 80; });
+  g.fillStyle = '#5A6475'; g.textAlign = 'center'; g.font = '600 28px Cairo, Tahoma, sans-serif'; g.fillText('مستنيينك في ميعادك 🌸', W / 2, H - 80);
+  g.font = '500 22px Cairo, Tahoma, sans-serif'; g.globalAlpha = .7; g.fillText('Powered by Beam Care', W / 2, H - 36); g.globalAlpha = 1;
+  return new Promise(res => { if (!Bd.logo) return res(cv); const im = new Image(); im.onload = () => { const h = 120, w = Math.min(260, im.width * h / im.height); g.fillStyle = '#fff'; g.beginPath(); g.roundRect ? g.roundRect(60, 55, w + 30, h + 20, 18) : g.rect(60, 55, w + 30, h + 20); g.fill(); g.drawImage(im, 75, 65, w, h); res(cv); }; im.onerror = () => res(cv); im.src = Bd.logo; });
+}
+A.bkInvoice = async id => {
+  if (!id) return;
+  openModal(`<h3>🧾 فاتورة الحجز</h3>${LOADING}`);
+  try {
+    const o = await bkInvoiceData(id); const cv = await bkInvoiceCanvas(o); S.bkInv = { o, cv };
+    openModal(`<h3>🧾 فاتورة الحجز</h3><p class="meta">ابعتها للعميل على الواتساب كصورة. على الموبايل هتفتح قايمة المشاركة: اختار واتساب وبعدين العميل.</p>
+      <img src="${cv.toDataURL('image/png')}" alt="فاتورة الحجز" style="width:100%;max-width:420px;align-self:center;border-radius:12px;border:1px solid var(--line)">
+      <div class="acts"><button class="btn" onclick="A.bkInvSend()">📤 ابعتها على الواتساب</button><button class="btn ghost" onclick="A.closeModal()">بعدين</button></div>`);
+  } catch (e) { console.error(e); openModal(`<h3>🧾 فاتورة الحجز</h3><div class="notice warn">مقدرتش أجهز الفاتورة (${esc(e.code || e.message)})</div><div class="acts"><button class="btn ghost" onclick="A.closeModal()">قفل</button></div>`); }
+};
+A.bkInvSend = async () => {
+  const x = S.bkInv; if (!x) return; const { o, cv } = x; const Bd = brandOf(S.clinic);
+  const txt = `أهلاً ${(o.b.clientName || '').split(' ')[0]} 🌸\nتم تأكيد حجزك في ${Bd.name}\n📅 ${dayName(o.b.date)} · ${time12(o.b.time)}\n✨ ${o.b.service || ''}${o.kind === 'باكدج' ? `\n🎁 باكدج ${o.pk.name} — فاضل ${o.left.toLocaleString('ar-EG')} ${o.unit}` : ''}\nالمدفوع: ${money(o.paid)}${o.price ? `\nالمتبقي: ${money(o.due)}` : ''}`;
+  const blob = await new Promise(r => cv.toBlob(r, 'image/png')); const file = new File([blob], 'booking.png', { type: 'image/png' });
+  try { if (navigator.canShare && navigator.canShare({ files: [file] })) { navigator.clipboard?.writeText(o.b.clientPhone || '').catch(() => {}); await navigator.share({ files: [file], text: txt }); A.closeModal(); return; } } catch (e) { if (e?.name === 'AbortError') return; }
+  const a = document.createElement('a'); a.href = cv.toDataURL('image/png'); a.download = 'booking.png'; a.click();
+  window.open(`https://wa.me/${waNum(o.b.clientPhone)}?text=${encodeURIComponent(txt)}`, '_blank', 'noopener'); A.closeModal();
+};
+
+/* ----- تحميل كل بيانات العيادة في ملف Excel (شيت لكل حاجة، بالعربي) ----- */
+function loadXlsx() {
+  if (window.XLSX) return Promise.resolve();
+  return new Promise((ok, no) => { const sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; sc.onload = ok; sc.onerror = () => no(new Error('مقدرتش أحمّل أداة الإكسيل — اتأكد من النت')); document.head.appendChild(sc); });
+}
+const xD = v => { const d = toDate(v); return d ? d.toLocaleString('ar-EG', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : (v || ''); };
+const XSHEETS = [
+  ['العملاء', 'clients', [['code', 'كود'], ['name', 'الاسم'], ['phone', 'الموبايل'], ['gender', 'النوع', v => v === 'm' ? 'راجل' : v === 'f' ? 'ست' : ''], ['birth', 'تاريخ الميلاد'], ['source', 'عرفنا منين'], ['notes', 'ملاحظات طبية'], ['branchId', 'الفرع', 'br'], ['createdAt', 'اتسجل', xD]]],
+  ['الحجوزات', 'bookings', [['date', 'التاريخ'], ['time', 'الساعة'], ['clientName', 'العميل'], ['clientPhone', 'الموبايل'], ['service', 'الخدمة'], ['doctorName', 'الدكتور'], ['status', 'الحالة', v => ({ booked: 'محجوز', arrived: 'وصل', done: 'خلص', cancelled: 'اتلغى', noshow: 'ما جاش' }[v] || v)], ['branchId', 'الفرع', 'br'], ['notes', 'ملاحظات']]],
+  ['الجلسات', 'sessions', [['date', 'التاريخ'], ['clientName', 'العميل'], ['area', 'الخدمة / المنطقة'], ['doctorName', 'الدكتور'], ['device', 'الجهاز'], ['shots', 'الشوتات'], ['fluence', 'الباور'], ['packageName', 'الباكدج'], ['price', 'السعر'], ['branchId', 'الفرع', 'br'], ['notes', 'ملاحظات']]],
+  ['الباكدجات', 'cpackages', [['date', 'التاريخ'], ['clientName', 'العميل'], ['name', 'الباكدج'], ['price', 'السعر'], ['paid', 'المدفوع'], ['totalSessions', 'عدد الجلسات'], ['usedSessions', 'اللي اتعمل'], ['cancelled', 'ملغي', v => v ? 'أيوه' : ''], ['branchId', 'الفرع', 'br']]],
+  ['التحصيلات', 'payments', [['no', 'رقم الإيصال'], ['date', 'التاريخ'], ['clientName', 'العميل'], ['amount', 'المبلغ'], ['method', 'طريقة الدفع', v => METHODS[v] || v], ['note', 'ملاحظة'], ['refund', 'استرداد', v => v ? 'أيوه' : ''], ['branchId', 'الفرع', 'br'], ['createdByName', 'سجّلها']]],
+  ['المصروفات', 'expenses', [['date', 'التاريخ'], ['category', 'البند'], ['amount', 'المبلغ'], ['method', 'طريقة الدفع', v => METHODS[v] || v], ['note', 'ملاحظة'], ['branchId', 'الفرع', 'br'], ['createdByName', 'سجّلها']]],
+  ['المخزن', 'items', [['name', 'الصنف'], ['unit', 'الوحدة'], ['qty', 'الرصيد'], ['minQty', 'الحد الأدنى'], ['cost', 'تكلفة الوحدة'], ['sell', 'سعر البيع'], ['branchId', 'الفرع', 'br']]],
+  ['حركة المخزن', 'stockMoves', [['date', 'التاريخ'], ['itemName', 'الصنف'], ['type', 'النوع', v => ({ in: 'وارد', out: 'منصرف', session: 'جلسة', use: 'مستهلك تشغيلي', waste: 'هالك', sale: 'مبيعات' }[v] || v)], ['qty', 'الكمية'], ['note', 'ملاحظة'], ['branchId', 'الفرع', 'br'], ['createdByName', 'بواسطة']]],
+  ['الموردين', 'suppliers', [['name', 'المورد'], ['phone', 'التليفون'], ['note', 'ملاحظة']]],
+  ['فواتير الشراء', 'purchases', [['date', 'التاريخ'], ['supplierName', 'المورد'], ['total', 'الإجمالي'], ['paid', 'المدفوع'], ['lines', 'الأصناف', v => (v || []).map(l => `${l.name} × ${l.qty}`).join('، ')], ['note', 'ملاحظة'], ['branchId', 'الفرع', 'br']]],
+  ['سداد الموردين', 'supPays', [['date', 'التاريخ'], ['supplierName', 'المورد'], ['amount', 'المبلغ'], ['method', 'طريقة الدفع', v => METHODS[v] || v], ['note', 'ملاحظة']]],
+  ['الموظفين', 'employees', [['name', 'الاسم'], ['job', 'الوظيفة'], ['salary', 'المرتب'], ['phone', 'التليفون'], ['active', 'شغال', v => v === false ? 'لأ' : 'أيوه'], ['branchId', 'الفرع', 'br']]],
+  ['المرتبات', 'payslips', [['month', 'الشهر'], ['name', 'الموظف'], ['base', 'الأساسي'], ['comm', 'العمولة'], ['bonus', 'مكافآت'], ['penalty', 'جزاءات'], ['net', 'الصافي']]],
+  ['الأجهزة', 'devices', [['name', 'الجهاز'], ['model', 'الموديل'], ['serial', 'الرقم التسلسلي'], ['shots', 'الشوتات'], ['uses', 'الجلسات'], ['lastServiceDate', 'آخر صيانة'], ['branchId', 'الفرع', 'br']]],
+  ['صيانة الأجهزة', 'deviceLogs', [['date', 'التاريخ'], ['deviceName', 'الجهاز'], ['type', 'النوع'], ['cost', 'التكلفة'], ['by', 'الشركة'], ['eng', 'المهندس'], ['parts', 'القطع', v => (v || []).map(p => p.name + (p.warranty ? ' (ضمان ' + p.warranty + ')' : '')).join('، ')], ['note', 'ملاحظة']]],
+];
+A.exportAll = async () => {
+  if (!isOwner() || !feat('export')) return;
+  openModal(`<h3>⬇️ تحميل كل بياناتي</h3><p class="meta" id="xpMsg">بيجهّز الملف… ممكن ياخد دقيقة لو البيانات كتير.</p>`);
+  try {
+    await loadXlsx(); const brs = {}; (S.branches || []).forEach(b => brs[b.id] = b.name);
+    const wb = XLSX.utils.book_new(); const summary = [['البيان', 'العدد']];
+    for (const [title, col, cols] of XSHEETS) {
+      const m = document.getElementById('xpMsg'); if (m) m.textContent = 'بيجهّز: ' + title + '…';
+      let L = []; try { L = (await getDocs(ccol(col))).docs.map(d => d.data()); } catch (e) { continue; }
+      const rows = L.map(x => Object.fromEntries(cols.map(([k, l, fn]) => [l, fn === 'br' ? (brs[x[k]] || '') : fn ? fn(x[k], x) : (x[k] && typeof x[k] === 'object' && x[k].toDate ? xD(x[k]) : (x[k] ?? ''))])));
+      const ws = XLSX.utils.json_to_sheet(rows.length ? rows : [Object.fromEntries(cols.map(([, l]) => [l, '']))]);
+      ws['!cols'] = cols.map(([, l]) => ({ wch: Math.max(12, l.length + 4) })); ws['!views'] = [{ RTL: true }];
+      XLSX.utils.book_append_sheet(wb, ws, title.slice(0, 31)); summary.push([title, rows.length]);
+    }
+    const sm = XLSX.utils.aoa_to_sheet([[brandOf(S.clinic).name], ['تاريخ التحميل', new Date().toLocaleString('ar-EG')], [], ...summary]); sm['!cols'] = [{ wch: 26 }, { wch: 22 }]; sm['!views'] = [{ RTL: true }];
+    XLSX.utils.book_append_sheet(wb, sm, 'الملخص'); wb.SheetNames.unshift(wb.SheetNames.pop());
+    wb.Workbook = { Views: [{ RTL: true }] };
+    XLSX.writeFile(wb, `بيانات-${brandOf(S.clinic).name}-${todayStr()}.xlsx`);
+    openModal(`<h3>⬇️ تحميل كل بياناتي</h3><div class="notice ok">اتحمّل الملف ✓ — فيه شيت لكل حاجة، وأول شيت ملخص بالأعداد.</div><div class="acts"><button class="btn ghost" onclick="A.closeModal()">قفل</button></div>`);
+  } catch (e) { console.error(e); openModal(`<h3>⬇️ تحميل كل بياناتي</h3><div class="notice warn">${esc(e.message || e.code)}</div><div class="acts"><button class="btn ghost" onclick="A.closeModal()">قفل</button></div>`); }
+};
+
+/* ----- المنتجات والبوكسات: بيع للعملاء + طلب من صفحة الحجز ----- */
+async function renderShop() {
+  const [items, bundles, orders] = await Promise.all([qAll('items', 'branchId', S.branch), getDocs(ccol('bundles')).then(x => x.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(query(ccol('orders'), where('status', '==', 'new'))).then(x => x.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => [])]);
+  S.items = items; S.bundles = bundles; S.orders = orders;
+  const forSale = items.filter(i => i.forSale), ed = can('inventory_edit');
+  clinicShell('inventory', `
+    <div class="head"><h2>المخزن والمشتريات</h2><div style="display:flex;gap:8px;flex-wrap:wrap">${can('payments_edit') ? `<button class="btn gold" onclick="A.saleModal()">🛒 بيع لعميل</button>` : ''}${ed ? `<button class="btn ghost" onclick="A.bundleModal()">+ بوكس</button>` : ''}</div></div>
+    ${invTabs()}
+    ${orders.length ? `<div class="card fcol" style="border:1.5px solid var(--gold-l)"><h3>📥 طلبات منتجات من صفحة الحجز (${orders.length.toLocaleString('ar-EG')})</h3>${orders.map(o => `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:8px">
+      <span style="flex:1;min-width:200px"><b>${esc(o.name)}</b> <a dir="ltr" href="https://wa.me/${waNum(o.phone)}" target="_blank" rel="noopener">${esc(o.phone)}</a><span class="meta" style="display:block">${(o.lines || []).map(l => `${esc(l.name)} × ${l.qty}`).join('، ')} · ${money(o.total)}${o.paidClaim ? ` · بيقول حوّل ${money(o.paidClaim)}` : ''}</span></span>
+      ${o.proofId ? `<button class="btn ghost sm" onclick="A.proofView('${o.proofId}')">📎 التحويل</button>` : ''}${can('payments_edit') ? `<button class="btn sm" onclick="A.saleModal(null,'${o.id}')">سلّم واقبض</button>` : ''}<button class="btn ghost sm" onclick="A.orderDone('${o.id}','cancelled')">إلغاء</button></div>`).join('')}</div>` : ''}
+    <div class="card fcol"><h3>المنتجات اللي بتتباع</h3>${forSale.length ? `<div class="tbl-wrap"><table><thead><tr><th>المنتج</th><th>الرصيد</th><th>سعر البيع</th><th>التكلفة</th><th>صفحة الحجز</th></tr></thead><tbody>${forSale.map(i => `<tr><td><b>${esc(i.name)}</b></td><td>${i.qty || 0} ${esc(i.unit || '')}</td><td>${money(i.sell)}</td><td>${money(i.cost)}</td><td>${i.online ? '✓' : '—'}</td></tr>`).join('')}</tbody></table></div>` : '<p class="meta">لسه مفيش منتجات. من «الأصناف» عدّل أي صنف وعلّم «بيتباع للعملاء» واكتب سعر البيع.</p>'}</div>
+    <div class="card fcol"><h3>🎁 البوكسات</h3>${bundles.length ? bundles.map(b => `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:8px"><span style="flex:1"><b>${esc(b.name)}</b> · ${money(b.price)}${b.online ? ' · <span class="chip ok">في صفحة الحجز</span>' : ''}<span class="meta" style="display:block">${(b.items || []).map(x => `${esc(x.name)} × ${x.qty}`).join('، ')}</span></span>${ed ? `<button class="btn ghost sm" onclick="A.bundleModal('${b.id}')">تعديل</button>` : ''}</div>`).join('') : '<p class="meta">البوكس = كذا صنف مع بعض بسعر واحد (مثلاً بوكس عناية بعد الليزر). دوس «+ بوكس».</p>'}</div>`);
+}
+A.bundleModal = id => {
+  const b = id ? (S.bundles || []).find(x => x.id === id) : null; const IT = (S.items || []);
+  S.bDraft = (b?.items || []).map(x => ({ ...x })); if (!S.bDraft.length) S.bDraft.push({ itemId: '', name: '', qty: 1 });
+  openModal(`<h3>${b ? 'تعديل بوكس' : 'بوكس جديد'}</h3><form onsubmit="A.bundleSave(event,'${id || ''}')" class="fcol">
+    <div class="grid2"><label class="f">اسم البوكس<input name="name" required value="${esc(b?.name || '')}"></label><label class="f">سعر البوكس<input name="price" type="number" min="0" step="any" required value="${b?.price ?? ''}"></label></div>
+    <div id="bdRows" class="fcol" style="gap:6px"></div><button type="button" class="btn ghost sm" style="align-self:flex-start" onclick="S.bDraft.push({itemId:'',name:'',qty:1});bdDraw()">+ صنف</button>
+    <label class="chk"><input type="checkbox" name="online" ${b?.online ? 'checked' : ''}> يظهر في صفحة الحجز أونلاين</label>
+    <label class="chk"><input type="checkbox" name="act" ${b?.active === false ? '' : 'checked'}> شغال</label>${formActs()}</form>`);
+  window.bdDraw = () => { const box = document.getElementById('bdRows'); if (!box) return; box.innerHTML = S.bDraft.map((x, k) => `<div style="display:flex;gap:6px;flex-wrap:wrap"><select aria-label="الصنف" style="flex:3 1 170px" onchange="S.bDraft[${k}].itemId=this.value;S.bDraft[${k}].name=this.selectedOptions[0].text"><option value="">اختار صنف</option>${IT.map(i => `<option value="${i.id}" ${x.itemId === i.id ? 'selected' : ''}>${esc(i.name)}</option>`).join('')}</select><input aria-label="الكمية" type="number" min="1" step="any" value="${x.qty}" style="flex:0 0 80px" oninput="S.bDraft[${k}].qty=this.value">${S.bDraft.length > 1 ? `<button type="button" class="btn ghost sm" onclick="S.bDraft.splice(${k},1);bdDraw()">✕</button>` : ''}</div>`).join(''); };
+  bdDraw();
+};
+A.bundleSave = async (e, id) => {
+  e.preventDefault(); const f = e.target; const items = (S.bDraft || []).filter(x => x.itemId && Number(x.qty) > 0).map(x => ({ itemId: x.itemId, name: x.name, qty: Number(x.qty) }));
+  if (!items.length) return toast('اختار صنف واحد على الأقل');
+  const data = { name: f.name.value.trim(), price: Number(f.price.value) || 0, items, online: f.online.checked, active: f.act.checked, branchId: S.branch, updatedAt: serverTimestamp() };
+  try { if (id) await updateDoc(cdoc('bundles', id), data); else await addDoc(ccol('bundles'), data); await syncShopPub(); A.closeModal(); toast('اتحفظ ✓'); A.go('inventory'); } catch (er) { toast('مقدرتش أحفظ: ' + (er.code || er.message)); }
+};
+// المنتجات اللي بتظهر في صفحة الحجز (اسم وسعر بس) بتتنشر في cfg/public
+async function syncShopPub() {
+  try { const [it, bd] = await Promise.all([getDocs(query(ccol('items'), where('online', '==', true))), getDocs(query(ccol('bundles'), where('online', '==', true)))]);
+    const shop = [...it.docs.map(d => ({ id: 'i:' + d.id, name: d.data().name, price: Number(d.data().sell) || 0, br: d.data().branchId || '', ok: d.data().forSale !== false && (d.data().qty || 0) > 0 })),
+      ...bd.docs.map(d => ({ id: 'b:' + d.id, name: d.data().name, price: Number(d.data().price) || 0, br: d.data().branchId || '', box: (d.data().items || []).map(x => x.name + ' × ' + x.qty).join('، '), ok: d.data().active !== false }))].filter(x => x.ok && x.price > 0).map(({ ok, ...x }) => x).slice(0, 80);
+    await setDoc(cdoc('cfg', 'public'), { shop }, { merge: true });
+  } catch (e) { console.error(e); }
+}
+A.saleModal = async (clientId, orderId) => {
+  await loadClients().catch(() => {}); const IT = (S.items || []).filter(i => i.forSale), BD = (S.bundles || []).filter(b => b.active !== false);
+  const o = orderId ? (S.orders || []).find(x => x.id === orderId) : null;
+  S.slLines = o ? (o.lines || []).map(l => ({ ref: l.ref, qty: l.qty, price: l.price })) : [{ ref: '', qty: 1, price: '' }]; S.slOrder = o;
+  const cl = clientId ? (S.clients || []).find(c => c.id === clientId) : null;
+  openModal(`<h3>🛒 بيع منتجات</h3><form onsubmit="A.saleSave(event)" class="fcol" oninput="A.slTot(this)">
+    <label class="f">العميل${o ? ` (من طلب أونلاين: ${esc(o.name)} ${esc(o.phone)})` : ''}<input name="client" list="slClList" autocomplete="off" value="${esc(cl ? clientLabel(cl) : '')}" placeholder="اختار العميل (أو سيبه فاضي)"></label><datalist id="slClList">${(S.clients || []).map(c => `<option value="${esc(clientLabel(c))}"></option>`).join('')}</datalist>
+    <div id="slRows" class="fcol" style="gap:6px"></div><button type="button" class="btn ghost sm" style="align-self:flex-start" onclick="S.slLines.push({ref:'',qty:1,price:''});slDraw()">+ منتج</button>
+    <div class="grid2"><label class="f">الإجمالي<input name="total" type="number" readonly></label><label class="f">طريقة الدفع<select name="method">${methodOpts('cash')}</select></label></div>
+    <label class="f">صورة التحويل (اختياري)<input name="proof" type="file" accept="image/*"></label>${formActs('بيع')}</form>`);
+  window.slDraw = () => { const box = document.getElementById('slRows'); if (!box) return; box.innerHTML = S.slLines.map((l, k) => `<div style="display:flex;gap:6px;flex-wrap:wrap"><select aria-label="المنتج" style="flex:3 1 180px" onchange="A.slPick(${k},this.value)"><option value="">اختار منتج أو بوكس</option>${IT.map(i => `<option value="i:${i.id}" ${l.ref === 'i:' + i.id ? 'selected' : ''}>${esc(i.name)} (${i.qty || 0})</option>`).join('')}${BD.map(b => `<option value="b:${b.id}" ${l.ref === 'b:' + b.id ? 'selected' : ''}>🎁 ${esc(b.name)}</option>`).join('')}</select><input aria-label="الكمية" type="number" min="1" step="any" value="${l.qty}" style="flex:0 0 70px" oninput="S.slLines[${k}].qty=this.value"><input aria-label="السعر" type="number" min="0" step="any" value="${l.price}" placeholder="السعر" style="flex:0 0 100px" oninput="S.slLines[${k}].price=this.value">${S.slLines.length > 1 ? `<button type="button" class="btn ghost sm" onclick="S.slLines.splice(${k},1);slDraw()">✕</button>` : ''}</div>`).join(''); A.slTot($modal.querySelector('form')); };
+  slDraw();
+};
+A.slPick = (k, ref) => { const l = S.slLines[k]; l.ref = ref; const [t, id] = ref.split(':'); l.price = t === 'i' ? ((S.items || []).find(i => i.id === id)?.sell || '') : ((S.bundles || []).find(b => b.id === id)?.price || ''); slDraw(); };
+A.slTot = f => { if (f?.total) f.total.value = (S.slLines || []).reduce((a, l) => a + (Number(l.qty) || 0) * (Number(l.price) || 0), 0); };
+A.saleSave = async e => {
+  e.preventDefault(); const f = e.target, btn = f.querySelector('[type=submit]');
+  const L = (S.slLines || []).filter(l => l.ref && Number(l.qty) > 0); if (!L.length) return toast('اختار منتج');
+  const cl = f.client.value.trim() ? findClient(f.client.value) : null; if (f.client.value.trim() && !cl) return toast('اختار العميل من القايمة أو سيبه فاضي');
+  // البوكس بيتفك لأصنافه علشان يتخصم من المخزن
+  const need = {}; const lines = L.map(l => { const [t, id] = l.ref.split(':'); const qty = Number(l.qty), price = Number(l.price) || 0;
+    if (t === 'i') { const it = (S.items || []).find(i => i.id === id); need[id] = (need[id] || 0) + qty; return { ref: l.ref, name: it?.name || '', qty, price }; }
+    const b = (S.bundles || []).find(x => x.id === id); (b?.items || []).forEach(x => need[x.itemId] = (need[x.itemId] || 0) + x.qty * qty); return { ref: l.ref, name: '🎁 ' + (b?.name || ''), qty, price }; });
+  for (const [iid, q] of Object.entries(need)) { const it = (S.items || []).find(i => i.id === iid); if (!it) return toast('صنف من البوكس مش في مخزن الفرع ده'); if ((it.qty || 0) < q) return toast(`رصيد ${it.name} مش كفاية (${it.qty || 0})`); }
+  const total = lines.reduce((a, l) => a + l.qty * l.price, 0), today = todayStr(), o = S.slOrder;
+  busy(btn, true, 'جاري الحفظ...');
+  try {
+    const proofId = f.proof?.files?.[0] ? await saveProof(f.proof.files[0], { clientId: cl?.id || '', kind: 'payment', branchId: S.branch }) : (o?.proofId || '');
+    const nos = await takeNos(['rcpt']); const b = writeBatch(db), sref = doc(ccol('psales'));
+    const who = cl ? cl.name : (o?.name || 'عميل');
+    b.set(sref, { clientId: cl?.id || '', clientName: who, phone: cl?.phone || o?.phone || '', lines, total, method: f.method.value, branchId: S.branch, date: today, month: today.slice(0, 7), orderId: o?.id || '', createdAt: serverTimestamp(), createdBy: S.profile.id, createdByName: S.profile.name });
+    if (total > 0) b.set(doc(ccol('payments')), { ...(nos.rcpt ? { no: nos.rcpt } : {}), ...(proofId ? { proofId } : {}), saleId: sref.id, clientId: cl?.id || '', clientName: who, branchId: S.branch, amount: total, method: f.method.value, date: today, month: today.slice(0, 7), note: 'مبيعات منتجات: ' + lines.map(l => l.name + ' × ' + l.qty).join('، ').slice(0, 200), createdAt: serverTimestamp(), createdBy: S.profile.id, createdByName: S.profile.name });
+    Object.entries(need).forEach(([iid, q]) => { const it = (S.items || []).find(i => i.id === iid);
+      b.update(cdoc('items', iid), { qty: increment(-q) });
+      b.set(doc(ccol('stockMoves')), { itemId: iid, itemName: it?.name || '', branchId: S.branch, type: 'sale', qty: q, cost: Number(it?.cost) || 0, saleId: sref.id, note: 'بيع لـ ' + who, date: today, month: today.slice(0, 7), createdAt: serverTimestamp(), createdBy: S.profile.id, createdByName: S.profile.name }); });
+    if (o) b.update(cdoc('orders', o.id), { status: 'done', saleId: sref.id, handledBy: S.profile.id, handledAt: serverTimestamp() });
+    await b.commit(); syncShopPub(); A.closeModal(); toast('اتباع ✓ ' + money(total)); S.invTab = 'shop'; A.go('inventory');
+  } catch (er) { console.error(er); busy(btn, false, 'بيع'); toast('مقدرتش أحفظ: ' + (er.code || er.message)); }
+};
+A.orderDone = async (id, st) => { if (!confirm('تلغي الطلب ده؟')) return; try { await updateDoc(cdoc('orders', id), { status: st, handledBy: S.profile.id, handledAt: serverTimestamp() }); A.go('inventory'); } catch (e) { toast('مقدرتش: ' + (e.code || e.message)); } };
+
+/* ----- التقرير اليومي: بيتجهز لوحده في الميعاد، وبيتبعت صورة على الواتساب بضغطة ----- */
+function dailyDue() {
+  const c = S.cfg?.daily; if (!c?.on || !(isOwner() || can('reports_view'))) return false;
+  const [h, m] = String(c.time || '22:00').split(':').map(Number), t = new Date(); t.setHours(h, m || 0, 0, 0); if (new Date() < t) return false;
+  try { return localStorage.getItem('bc-daily-' + S.clinic.id) !== todayStr(); } catch (e) { return true; }
+}
+A.dailyCfg = () => { const c = S.cfg?.daily || {};
+  openModal(`<h3>⏰ التقرير اليومي</h3><form class="fcol" onsubmit="A.dailyCfgSave(event)"><p class="meta">كل يوم في الميعاد ده، السيستم يجهّز تقرير النهارده ويظهرلك «التقرير جاهز»، وتبعته صورة على الواتساب بضغطة.</p>
+    <label class="chk"><input type="checkbox" name="on" ${c.on ? 'checked' : ''}> شغّال</label>
+    <div class="grid2"><label class="f">الساعة<input type="time" name="time" value="${esc(c.time || '22:00')}"></label><label class="f">التقرير<select name="per"><option value="all" ${c.per !== 'branch' ? 'selected' : ''}>العيادة كلها في تقرير واحد</option><option value="branch" ${c.per === 'branch' ? 'selected' : ''}>تقرير لكل فرع لوحده</option></select></label></div>
+    <label class="f">رقم الواتساب اللي التقرير يروحله<input name="wa" dir="ltr" inputmode="tel" value="${esc(c.wa || S.clinic.contactPhone || '')}" placeholder="01xxxxxxxxx"></label>${formActs()}</form>`); };
+A.dailyCfgSave = async e => { e.preventDefault(); const f = e.target; const daily = { on: f.on.checked, time: f.time.value || '22:00', per: f.per.value, wa: f.wa.value.trim() };
+  try { await setDoc(cdoc('cfg', 'main'), { daily }, { merge: true }); S.cfg = { ...(S.cfg || {}), daily }; A.closeModal(); toast('اتحفظ ✓'); } catch (er) { toast('مقدرتش أحفظ: ' + (er.code || er.message)); } };
+async function dailyData(d) {
+  const q = col => getDocs(query(ccol(col), where('date', '==', d))).then(x => x.docs.map(y => y.data())).catch(() => []);
+  const [pays, exps, sess, bks, pkgs, sales] = await Promise.all([q('payments'), q('expenses'), q('sessions'), q('bookings'), q('cpackages'), q('psales')]);
+  const brs = (S.branches || []).filter(b => b.active !== false);
+  const calc = (bid, name) => { const f = x => !bid || x.branchId === bid; const P = pays.filter(f), E = exps.filter(f), B = bks.filter(f);
+    return { name, inc: P.reduce((a, x) => a + (Number(x.amount) || 0), 0), out: E.reduce((a, x) => a + (Number(x.amount) || 0), 0), sess: sess.filter(f).length, shots: sess.filter(f).reduce((a, x) => a + (Number(x.shots) || 0), 0),
+      bk: B.filter(x => x.status !== 'cancelled').length, done: B.filter(x => x.status === 'done').length, no: B.filter(x => x.status === 'noshow').length, pk: pkgs.filter(f).length, pkV: pkgs.filter(f).reduce((a, x) => a + (Number(x.price) || 0), 0), sl: sales.filter(f).reduce((a, x) => a + (Number(x.total) || 0), 0),
+      cash: P.filter(x => x.method === 'cash').reduce((a, x) => a + (Number(x.amount) || 0), 0) }; };
+  return S.cfg?.daily?.per === 'branch' && brs.length > 1 ? brs.map(b => calc(b.id, b.name)) : [calc('', brandOf(S.clinic).name)];
+}
+function dailyCanvas(r, d) {
+  const css = getComputedStyle(document.documentElement), brand = css.getPropertyValue('--brand').trim() || '#163A6B', gold = css.getPropertyValue('--gold-l').trim() || '#D7AE57';
+  const W = 1080, H = 1350, cv = document.createElement('canvas'); cv.width = W; cv.height = H; const g = cv.getContext('2d'); g.direction = 'rtl';
+  g.fillStyle = '#F7F5F0'; g.fillRect(0, 0, W, H); g.fillStyle = brand; g.fillRect(0, 0, W, 250); g.fillStyle = gold; g.fillRect(0, 250, W, 8);
+  g.fillStyle = '#fff'; g.textAlign = 'right'; g.font = '800 62px Cairo, Tahoma, sans-serif'; g.fillText('تقرير اليوم', W - 70, 120); g.font = '600 34px Cairo, Tahoma, sans-serif'; g.fillText(`${r.name} · ${dayName(d)}`, W - 70, 190);
+  const tiles = [['الإيرادات', money(r.inc), '#1E7B4F'], ['المصروفات', money(r.out), '#B3261E'], ['الصافي', money(r.inc - r.out), r.inc - r.out >= 0 ? '#1E7B4F' : '#B3261E'], ['منهم كاش', money(r.cash), '#14213D'],
+    ['جلسات', r.sess.toLocaleString('ar-EG') + (r.shots ? ` (${r.shots.toLocaleString('ar-EG')} شوت)` : ''), '#14213D'], ['حجوزات', `${r.bk.toLocaleString('ar-EG')} · حضر ${r.done.toLocaleString('ar-EG')} · غاب ${r.no.toLocaleString('ar-EG')}`, '#14213D'],
+    ['باكدجات اتباعت', `${r.pk.toLocaleString('ar-EG')}${r.pkV ? ' بـ ' + money(r.pkV) : ''}`, '#14213D'], ['مبيعات منتجات', money(r.sl), '#14213D']];
+  tiles.forEach(([k, v, c], i) => { const col = i % 2, row = Math.floor(i / 2), x = col ? 60 : 555, y = 310 + row * 230, w = 465, h = 200;
+    g.fillStyle = '#fff'; g.strokeStyle = '#E3DCCB'; g.lineWidth = 3; g.beginPath(); g.roundRect ? g.roundRect(x, y, w, h, 26) : g.rect(x, y, w, h); g.fill(); g.stroke();
+    g.fillStyle = '#5A6475'; g.font = '600 30px Cairo, Tahoma, sans-serif'; g.textAlign = 'right'; g.fillText(k, x + w - 34, y + 62);
+    g.fillStyle = c; g.font = `800 ${String(v).length > 16 ? 34 : 46}px Cairo, Tahoma, sans-serif`; g.fillText(String(v), x + w - 34, y + 140); });
+  g.fillStyle = '#5A6475'; g.textAlign = 'center'; g.font = '500 24px Cairo, Tahoma, sans-serif'; g.globalAlpha = .7; g.fillText('Powered by Beam Care', W / 2, H - 40); g.globalAlpha = 1;
+  return cv;
+}
+A.dailyReport = async (d = todayStr()) => {
+  openModal(`<h3>📊 تقرير ${esc(d)}</h3>${LOADING}`);
+  try { const L = await dailyData(d); S.dailyCv = L.map(r => dailyCanvas(r, d));
+    openModal(`<h3>📊 تقرير ${esc(d)}</h3><p class="meta">ابعته صورة على الواتساب${S.cfg?.daily?.wa ? ' لـ ' + esc(S.cfg.daily.wa) : ''}. على الموبايل هتفتح قايمة المشاركة: اختار واتساب.</p>
+      ${S.dailyCv.map((cv, i) => `<div class="fcol" style="gap:8px;align-items:center"><img src="${cv.toDataURL('image/png')}" alt="التقرير" style="width:100%;max-width:400px;border-radius:12px;border:1px solid var(--line)"><button class="btn" onclick="A.dailySend(${i})">📤 ابعت${S.dailyCv.length > 1 ? ' تقرير ' + esc(L[i].name) : ''}</button></div>`).join('')}
+      <div class="acts">${isOwner() ? '<button class="btn ghost sm" onclick="A.dailyCfg()">⏰ الميعاد والإعدادات</button>' : ''}<button class="btn ghost" onclick="A.closeModal()">قفل</button></div>`);
+    try { localStorage.setItem('bc-daily-' + S.clinic.id, todayStr()); } catch (e) {}
+  } catch (e) { console.error(e); openModal(`<h3>📊 التقرير</h3><div class="notice warn">مقدرتش أجهز التقرير (${esc(e.code || e.message)})</div>`); }
+};
+A.dailySend = async i => {
+  const cv = S.dailyCv?.[i]; if (!cv) return; const blob = await new Promise(r => cv.toBlob(r, 'image/png')); const file = new File([blob], 'daily-report.png', { type: 'image/png' });
+  const wa = S.cfg?.daily?.wa || '';
+  try { if (navigator.canShare && navigator.canShare({ files: [file] })) { if (wa) navigator.clipboard?.writeText(wa).catch(() => {}); await navigator.share({ files: [file], text: 'تقرير اليوم — ' + brandOf(S.clinic).name }); return; } } catch (e) { if (e?.name === 'AbortError') return; }
+  const a = document.createElement('a'); a.href = cv.toDataURL('image/png'); a.download = 'daily-report.png'; a.click(); if (wa) window.open(`https://wa.me/${waNum(wa)}`, '_blank', 'noopener');
+};
+
 /* ----- رأي العميل بعد الجلسة ----- */
 const FB_R = { ok: ['👍', 'كله تمام'], pain: ['😣', 'ألم'], red: ['🔴', 'احمرار'], burn: ['🔥', 'حرق'], other: ['📝', 'ملاحظة'] };
 const fbLink = id => location.origin + location.pathname.replace(/[^/]*$/, '') + '?fb=' + S.clinic.id + '.' + id;
@@ -3780,7 +4119,7 @@ async function renderAttend() {
   await loadCfg().catch(() => {});
   clinicShell('attend', `<div class="head"><h2>⏱️ الحضور والانصراف</h2>${isOwner() ? `<button class="btn ghost" onclick="A.attQr()">📱 QR الحضور</button>` : ''}</div>
     <div class="card" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:200px;display:flex;flex-direction:column"><b>${!me?.in ? 'لسه ما سجلتش حضور النهارده' : !me.out ? `حاضر من ${hm(me.in)}` : `حضرت ${hm(me.in)} وانصرفت ${hm(me.out)}`}</b><span class="meta" style="font-size:13px">امسح QR الحضور اللي في العيادة بكاميرا الموبايل، أو دوس هنا.</span></span>
-      ${!me?.out ? `<button class="btn" onclick="A.punchNow()">${!me?.in ? '✅ سجّل حضور' : '👋 سجّل انصراف'}</button>` : ''}</div>
+      ${!me?.out && ownerHr() ? `<button class="btn" onclick="A.punchNow()">${!me?.in ? '✅ سجّل حضور' : '👋 سجّل انصراف'}</button>` : ''}</div>
     ${all ? `<div class="card fcol"><h3>👥 مين شغال دلوقتي <span class="chip mute">${now.length.toLocaleString('ar-EG')}</span></h3>${now.length ? `<div style="display:flex;gap:8px;flex-wrap:wrap">${now.map(x => `<span class="chip ok" style="padding:8px 12px">🟢 ${esc(x.name)} · من ${hm(x.in)}</span>`).join('')}</div>` : '<p class="meta">محدش مسجل حضور دلوقتي.</p>'}
       ${T.length ? `<div class="tbl-wrap"><table><thead><tr><th>الاسم</th><th>حضور</th><th>انصراف</th><th>ساعات</th></tr></thead><tbody>${T.map(x => `<tr><td>${esc(x.name)}</td><td>${hm(x.in)}</td><td>${hm(x.out)}</td><td>${hrs(x) ? hrs(x).toFixed(1) : '—'}</td></tr>`).join('')}</tbody></table></div>` : ''}</div>` : ''}
     <div class="card fcol"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><h3 style="flex:1;margin:0">📊 تقرير الساعات</h3><input type="month" aria-label="الشهر" style="width:auto" value="${mon}" onchange="S.attM=this.value;A.go('attend')"></div>
@@ -3971,7 +4310,7 @@ A.openClient = async id => {
       ${section('الباكدجات', pk.map(p => { const pd = p.paid ?? pay.filter(x => x.packageId === p.id).reduce((a, x) => a + (Number(x.amount) || 0), 0), q = { ...p, paid: pd }; return `<tr><td><b>${esc(p.name)}</b>${p.no ? ` <span class="meta" style="display:inline" dir="ltr">#${String(p.no).padStart(4, '0')}</span>` : ''}${p.imported ? ' <span class="chip mute">مستورد</span>' : ''}</td><td>${pkgUse(p)}</td><td>${pkgChip(p)}</td><td>${money(p.price)}<div>${p.imported ? '' : payChip(q)}</div></td><td>${esc(p.date) || '—'}</td><td>${esc(branchName(p.branchId))}</td>
         <td><div style="display:flex;gap:6px;flex-wrap:wrap">${!p.cancelled && !p.imported && pDue(q) > 0 && can('payments_edit') ? `<button class="btn gold sm" onclick="A.payModal('${c.id}','${p.id}')">💵 دفع الباقي</button>` : ''}${!p.cancelled && (can('packages_del') || isOwner()) ? `<button class="btn ghost sm" onclick="A.pkgCancel('${p.id}')">إلغاء</button>` : ''}${!p.cancelled && pd > 0 && (can('refund_req') || can('refund_ok') || isOwner()) ? `<button class="btn ghost sm" onclick="A.refundModal('${c.id}','${p.id}')">↩ استرداد</button>` : ''}</div></td></tr>`; }), ['الباكدج', 'الاستهلاك', 'الحالة', 'السعر والدفع', 'التاريخ', 'الفرع', ''], 'مفيش باكدجات.')}
       ${section('الجلسات', ss.map(s => `<tr><td>${esc(s.date)}</td><td><b>${esc(s.area)}</b></td><td>${s.packageId ? `${esc(s.packageName)} ${s.sessionNo ? `(جلسة ${s.sessionNo})` : s.pulsesDeducted ? `(−${s.pulsesDeducted} نبضة)` : ''}` : money(s.price)}</td><td>${esc(s.doctorName) || '—'}</td><td>${esc(s.device) || '—'}</td><td dir="ltr" style="text-align:right">${[s.fluence != null ? s.fluence + ' J' : '', s.pulse != null ? s.pulse + ' ms' : '', s.spot != null ? s.spot + ' mm' : ''].filter(Boolean).join(' · ') || '—'}</td><td>${s.shots ?? '—'}</td><td>${esc(s.notes)}</td></tr>`), ['التاريخ', 'المنطقة', 'باكدج / سعر', 'الدكتور', 'الجهاز', 'الإعدادات', 'الشوتات', 'ملاحظات'], 'مفيش جلسات.')}
-      ${section('المدفوعات', pay.map(p => `<tr><td>${esc(p.date)}</td><td><b>${money(p.amount)}</b></td><td>${METHODS[p.method] || esc(p.method)}</td><td>${esc(p.note)}</td><td>${esc(branchName(p.branchId))}</td><td>${esc(p.createdByName)}</td></tr>`), ['التاريخ', 'المبلغ', 'الطريقة', 'ملاحظة', 'الفرع', 'استلمه'], 'مفيش مدفوعات.')}
+      ${section('المدفوعات', pay.map(p => `<tr><td>${esc(p.date)}</td><td><b>${money(p.amount)}</b>${p.proofId ? ` <button class="btn ghost sm" onclick="A.proofView('${p.proofId}')" title="صورة التحويل">📎</button>` : ''}</td><td>${METHODS[p.method] || esc(p.method)}</td><td>${esc(p.note)}</td><td>${esc(branchName(p.branchId))}</td><td>${esc(p.createdByName)}</td></tr>`), ['التاريخ', 'المبلغ', 'الطريقة', 'ملاحظة', 'الفرع', 'استلمه'], 'مفيش مدفوعات.')}
       ${cons.length ? section('إقرارات الموافقة', cons.map(x => `<tr><td>${esc(x.date)}</td><td><b>${esc(x.service) || '—'}</b></td><td>${esc(x.createdByName)}</td><td><button class="btn ghost sm" onclick="A.consentView('${x.id}')">عرض / طباعة</button></td></tr>`), ['التاريخ', 'الخدمة', 'سجّله', ''], '') : ''}
       ${can('bookings_view') ? section('الحجوزات', bk.map(b => `<tr><td>${esc(b.date)}</td><td>${esc(b.time)}</td><td>${esc(b.service) || '—'}</td><td>${esc(b.doctorName) || '—'}</td><td>${bChip(b.status)}</td><td>${esc(branchName(b.branchId))}</td></tr>`), ['التاريخ', 'الساعة', 'الخدمة', 'الدكتور', 'الحالة', 'الفرع'], 'مفيش حجوزات.') : ''}
     `);
@@ -3999,6 +4338,7 @@ async function renderBookings() {
     if (feat('reminders') && b.status === 'booked' && b.clientPhone && d >= todayStr()) acts.push(`<a class="btn ghost sm" style="text-decoration:none;display:inline-flex;align-items:center" title="تذكير على الواتساب" aria-label="تذكير على الواتساب" target="_blank" rel="noopener" href="${esc(remindHref(b))}" onclick="A.remindOne('${b.id}')">💬${b.reminded ? ' ✓' : ''}</a>`);
     if (can('bookings_edit') && open) {
       acts.push(`<button class="btn ghost sm" onclick="A.bookingModal({id:'${b.id}'})">تعديل</button>`);
+      if (b.clientPhone && !['cancelled'].includes(b.status)) acts.push(`<button class="btn ghost sm" onclick="A.bkInvoice('${b.id}')" title="فاتورة الحجز للعميل على الواتساب">🧾 الفاتورة</button>`);
       acts.push(`<button class="btn ghost sm" onclick="A.bStatus('${b.id}','noshow')">محضرش</button>`);
       acts.push(`<button class="btn ghost sm" onclick="A.bStatus('${b.id}','cancelled')">إلغاء</button>`);
       if (can('bookings_del') || isOwner()) acts.push(`<button class="btn ghost sm" style="color:var(--red)" onclick="A.bDel('${b.id}')">مسح</button>`);
@@ -4040,6 +4380,8 @@ A.bookingModal = async (o = {}) => {
     </div>
     ${servDatalist()}
     <label class="f">ملاحظات<input name="notes" value="${esc(b?.notes ?? on?.notes)}"></label>
+    ${!b && can('payments_edit') ? `<details class="card" style="padding:10px 14px"><summary style="cursor:pointer;font-weight:700">💵 العميل دفع عربون؟ (اختياري)</summary>
+      <div class="grid3" style="margin-top:10px"><label class="f">المبلغ<input name="dep" type="number" min="0" step="any" placeholder="0"></label><label class="f">طريقة الدفع<select name="depM">${methodOpts('cash')}</select></label><label class="f">صورة التحويل (لو تحويل)<input name="depP" type="file" accept="image/*"></label></div></details>` : ''}
     ${formActs()}
   </form>`);
 };
@@ -4061,6 +4403,11 @@ A.saveBooking = async (e, id) => {
     if (id) await updateDoc(cdoc('bookings', id), data);
     else {
       const nr = await addDoc(ccol('bookings'), { ...data, status: 'booked', createdAt: serverTimestamp(), createdBy: S.profile.id, createdByName: S.profile.name });
+      S.lastBookingId = nr.id;
+      const dep = Number(f.dep?.value) || 0;
+      if (dep > 0) { try { const proofId = f.depP?.files?.[0] ? await saveProof(f.depP.files[0], { clientId: cl.id, kind: 'payment', branchId: data.branchId }) : '';
+        const nos = await takeNos(['rcpt']); await addDoc(ccol('payments'), { ...(nos.rcpt ? { no: nos.rcpt } : {}), ...(proofId ? { proofId } : {}), bookingId: nr.id, clientId: cl.id, clientName: cl.name, branchId: data.branchId, amount: dep, method: f.depM.value, date: todayStr(), month: todayStr().slice(0, 7), note: 'عربون حجز ' + (data.service || ''), createdAt: serverTimestamp(), createdBy: S.profile.id, createdByName: S.profile.name }); }
+        catch (er) { console.error(er); toast('الحجز اتحفظ، بس العربون ما اتسجلش: ' + (er.code || er.message)); } }
       if (S.onlineArm && S.onlineFill) {
         const of = S.onlineFill;
         await updateDoc(cdoc('online', of.id), { status: 'done', bookingId: nr.id, handledBy: S.profile.id, handledAt: serverTimestamp() }).catch(er => console.error(er));
@@ -4073,6 +4420,7 @@ A.saveBooking = async (e, id) => {
     A.closeModal(); toast('اتحفظ الحجز');
     S.bDate = data.date;
     afterSave('bookings');
+    if (!id && data.clientPhone) setTimeout(() => A.bkInvoice(S.lastBookingId), 400);
   } catch (err) { console.error(err); busy(btn, false, 'حفظ'); toast('مقدرتش أحفظ: ' + err.code); }
 };
 
@@ -4682,6 +5030,7 @@ A.payModal = async (clientId, pkgId) => {
       <label class="f">التاريخ<input name="date" type="date" required value="${todayStr()}"></label>
       <label class="f">ملاحظة<input name="note" placeholder="مثلاً: قسط باكدج، جلسة..."></label>
     </div>
+    <label class="f">صورة التحويل (إنستاباي / فودافون كاش — اختياري)<input name="proof" type="file" accept="image/*"></label>
     ${formActs('تسجيل التحصيل')}
   </form>`);
 };
@@ -4696,8 +5045,9 @@ A.savePay = async e => {
   try {
     const nos = await takeNos(['rcpt']);
     const pk = S.payPkg && S.payPkg.clientId === cl.id ? S.payPkg : null;
+    const proofId = f.proof?.files?.[0] ? await saveProof(f.proof.files[0], { clientId: cl.id, kind: 'payment', branchId: S.branch }).catch(er => { console.error(er); toast('صورة التحويل ما اترفعتش'); return ''; }) : '';
     const pb = writeBatch(db), pref = doc(ccol('payments'));
-    pb.set(pref, { ...(nos.rcpt ? { no: nos.rcpt } : {}), ...(pk ? { packageId: pk.id } : {}), clientId: cl.id, clientName: cl.name, branchId: S.branch, amount, method: f.method.value, date: f.date.value, month: f.date.value.slice(0, 7), note: f.note.value.trim(), createdAt: serverTimestamp(), createdBy: S.profile.id, createdByName: S.profile.name });
+    pb.set(pref, { ...(nos.rcpt ? { no: nos.rcpt } : {}), ...(proofId ? { proofId } : {}), ...(pk ? { packageId: pk.id } : {}), clientId: cl.id, clientName: cl.name, branchId: S.branch, amount, method: f.method.value, date: f.date.value, month: f.date.value.slice(0, 7), note: f.note.value.trim(), createdAt: serverTimestamp(), createdBy: S.profile.id, createdByName: S.profile.name });
     if (pk) {
       // باكدج قديم مالوش رصيد مدفوع متسجل: بنحسبه من التحصيلات اللي عليه الأول
       if (pk.paid == null) { const old = await getDocs(query(ccol('payments'), where('packageId', '==', pk.id))).then(x => x.docs.reduce((a, d) => a + (Number(d.data().amount) || 0), 0)).catch(() => 0); pb.update(cdoc('cpackages', pk.id), { paid: old + amount }); }
@@ -4752,7 +5102,7 @@ async function renderTeam() {
     <div class="notice info">تقدر تحدد كل موظف يشوف ويعدّل إيه. لإضافة يوزر جديد أو إيقافه كلّم Beam Care.</div>
     ${S.team.length ? `<div class="card tbl-wrap" style="padding:0"><table>
       <thead><tr><th>الاسم</th><th>الدور</th><th>الفروع</th><th>الحالة</th><th></th></tr></thead>
-      <tbody>${S.team.map(u => `<tr><td><b>${esc(u.name)}</b></td><td>${esc(ROLES[u.role]?.label)}</td><td>${esc(branchNames(u, S.branches))}</td>
+      <tbody>${S.team.map(u => `<tr><td><b>${esc(u.name)}</b></td><td>${esc(roleTitle(u))}</td><td>${esc(branchNames(u, S.branches))}</td>
         <td>${u.active === false ? '<span class="chip bad">موقوف</span>' : '<span class="chip ok">شغال</span>'}</td>
         <td><button class="btn ghost sm" onclick="A.teamPerms('${u.id}')">الصلاحيات</button></td></tr>`).join('')}</tbody></table></div>`
       : `<div class="card empty">مفيش موظفين لسه.</div>`}`);
@@ -4760,9 +5110,10 @@ async function renderTeam() {
 A.teamPerms = id => {
   const u = S.team.find(x => x.id === id);
   openModal(`<h3>صلاحيات ${esc(u.name)}</h3>
-  <div class="meta"><span>${esc(ROLES[u.role]?.label)}</span><span>${esc(branchNames(u, S.branches))}</span></div>
+  <div class="meta"><span>${esc(roleTitle(u))}</span><span>${esc(branchNames(u, S.branches))}</span></div>
   <form onsubmit="A.saveTeamPerms(event,'${id}')" class="fcol">
     <input type="hidden" name="role" value="${u.role}">
+    <label class="f">المسمى اللي بيظهر جنب اسمه (اختياري)<input name="title" value="${esc(u.title || '')}" placeholder="${esc(ROLES[u.role]?.label || '')}"></label>
     <div class="head"><div class="section-t" style="flex:1">الصلاحيات</div><button type="button" class="btn ghost sm" onclick="A.resetPerms(this.form)">رجّع الافتراضي</button></div>
     ${permsGrid({ ...ROLE_PERMS[u.role], ...(u.perms || {}) })}
     ${formActs()}
@@ -4770,7 +5121,7 @@ A.teamPerms = id => {
 };
 A.saveTeamPerms = async (e, id) => {
   e.preventDefault();
-  try { await updateDoc(doc(db, 'users', id), { perms: readPerms(e.target) }); A.closeModal(); toast('اتحفظت الصلاحيات'); renderTeam(); }
+  try { await updateDoc(doc(db, 'users', id), { perms: readPerms(e.target), title: (e.target.title?.value || '').trim() }); A.closeModal(); toast('اتحفظت الصلاحيات'); renderTeam(); }
   catch (err) { console.error(err); toast('مقدرتش أحفظ: ' + err.code); }
 };
 
@@ -4778,6 +5129,10 @@ A.saveTeamPerms = async (e, id) => {
    المرحلة التالتة
    ========================================================= */
 const monthStr = () => todayStr().slice(0, 7);
+// المسمى اللي بيظهر جنب الاسم: اللي اتكتب للموظف، وصاحب العيادة من غير مسمى ما بيظهرش جنبه حاجة
+const roleTitle = p => (p?.title || '').trim() || (p?.role === 'owner' ? '' : (ROLES[p?.role]?.label || ''));
+// صاحب العيادة ملوش بصمة ولا مرتب ولا طلبات، إلا لو اتفعّل له
+const ownerHr = () => S.profile?.role !== 'owner' || !!S.profile?.hr || !!S.cfg?.hr?.ownerHr;
 const sumAmt = l => l.reduce((a, x) => a + (Number(x.amount) || 0), 0);
 const qBranch = (col, f, v) => getDocs(query(ccol(col), where('branchId', '==', S.branch), where(f, '==', v))).then(s => s.docs.map(x => ({ id: x.id, ...x.data() })));
 const qAll = (col, f, v) => getDocs(query(ccol(col), where(f, '==', v))).then(s => s.docs.map(x => ({ id: x.id, ...x.data() })));
@@ -4863,6 +5218,7 @@ A.delExpense = async id => {
 async function renderInventory() {
   clinicShell('inventory', LOADING);
   if (S.invTab === 'sup') return renderSuppliers();
+  if (S.invTab === 'shop' && feat('shop')) return renderShop();
   const items = (await qAll('items', 'branchId', S.branch)).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ar'));
   S.items = items;
   const low = items.filter(i => (i.qty || 0) <= (i.minQty || 0));
@@ -4896,16 +5252,20 @@ A.itemModal = id => {
       <label class="f">الحد الأدنى (للتنبيه)<input name="minQty" type="number" min="0" step="any" value="${i?.minQty ?? 0}"></label>
       <label class="f">تكلفة الوحدة<input name="cost" type="number" min="0" step="any" value="${i?.cost ?? 0}"></label>
     </div>
+    ${feat('shop') ? `<div class="grid2"><label class="f">سعر البيع للعميل (لو بيتباع)<input name="sell" type="number" min="0" step="any" value="${i?.sell ?? ''}"></label>
+      <div class="fcol" style="gap:6px;justify-content:flex-end"><label class="chk"><input type="checkbox" name="forSale" ${i?.forSale ? 'checked' : ''}> بيتباع للعملاء</label><label class="chk"><input type="checkbox" name="online" ${i?.online ? 'checked' : ''}> يظهر في صفحة الحجز أونلاين</label></div></div>` : ''}
     ${formActs()}
   </form>`);
 };
 A.saveItem = async (e, id) => {
   e.preventDefault();
   const f = e.target;
-  const data = { name: f.name.value.trim(), unit: f.unit.value.trim(), minQty: Number(f.minQty.value) || 0, cost: Number(f.cost.value) || 0, branchId: S.branch };
+  const data = { name: f.name.value.trim(), unit: f.unit.value.trim(), minQty: Number(f.minQty.value) || 0, cost: Number(f.cost.value) || 0, branchId: S.branch,
+    ...(f.sell ? { sell: Number(f.sell.value) || 0, forSale: f.forSale.checked, online: f.online.checked } : {}) };
   try {
     if (id) await updateDoc(cdoc('items', id), data);
     else await addDoc(ccol('items'), { ...data, qty: Number(f.qty.value) || 0, createdAt: serverTimestamp() });
+    if (f.sell) syncShopPub();
     A.closeModal(); toast('اتحفظ'); A.go('inventory');
   } catch (err) { console.error(err); toast('مقدرتش أحفظ: ' + err.code); }
 };
@@ -4918,7 +5278,10 @@ A.moveModal = (id, type) => {
       <label class="f">الكمية<input name="qty" type="number" min="0.01" step="any" required></label>
       <label class="f">التاريخ<input name="date" type="date" required value="${todayStr()}"></label>
     </div>
-    <label class="f">${type === 'in' ? 'من (المورد)' : 'لـ (السبب / الجهاز / الغرفة)'}<input name="note"></label>
+    ${type === 'out' ? `<div class="pick" role="radiogroup" aria-label="نوع الصرف"><label><input type="radio" name="kind" value="use" checked><span>🧴 مستهلك تشغيلي</span></label><label><input type="radio" name="kind" value="waste"><span>🗑️ هالك (باظ / انتهى)</span></label></div>
+      <p class="meta">المستهلك التشغيلي (مناديل، مباعد، جوانتي…) تمنه بيتخصم من أرباح الشهر. الهالك بيتسجل لوحده علشان تعرف بتخسر كام في الحاجات اللي بتضيع.</p>
+      <label class="f">اتصرف على (جهاز / أوضة — اختياري)<input name="on" list="devOnList" placeholder="مثلاً: الكانديلا، أوضة 2"></label><datalist id="devOnList">${(S.devices || []).map(d => `<option value="${esc(d.name)}">`).join('')}</datalist>` : ''}
+    <label class="f">${type === 'in' ? 'من (المورد)' : 'ملاحظة'}<input name="note"></label>
     ${formActs()}
   </form>`);
 };
@@ -4930,7 +5293,8 @@ A.saveMove = async (e, id, type) => {
   if (type === 'out' && qty > (i.qty || 0)) return toast('الكمية أكبر من الرصيد');
   try {
     const batch = writeBatch(db);
-    batch.set(doc(ccol('stockMoves')), { itemId: id, itemName: i.name, branchId: S.branch, type, qty, note: f.note.value.trim(), date: f.date.value, month: f.date.value.slice(0, 7), createdAt: serverTimestamp(), createdBy: S.profile.id, createdByName: S.profile.name });
+    const mtype = type === 'out' ? (f.kind?.value === 'waste' ? 'waste' : 'use') : type;
+    batch.set(doc(ccol('stockMoves')), { itemId: id, itemName: i.name, branchId: S.branch, type: mtype, qty, cost: Number(i.cost) || 0, ...(f.on?.value?.trim() ? { on: f.on.value.trim() } : {}), note: f.note.value.trim(), date: f.date.value, month: f.date.value.slice(0, 7), createdAt: serverTimestamp(), createdBy: S.profile.id, createdByName: S.profile.name });
     batch.update(cdoc('items', id), { qty: increment(type === 'in' ? qty : -qty) });
     await batch.commit();
     A.closeModal(); toast('اتسجلت الحركة'); A.go('inventory');
@@ -4957,19 +5321,29 @@ const devT = d => DEV_TYPES.find(t => t[0] === (d?.type || 'laser')) || DEV_TYPE
 const devCounter = d => d?.counter || devT(d)[2];
 const DEV_TYPES_C = Object.fromEntries(DEV_TYPES.map(t => [t[0], t[2]]));
 window.DEV_TYPES_C = DEV_TYPES_C;
+// حالة صيانة الجهاز: «محتاج صيانة» أو «قربت الصيانة» (بالعدد أو بالتاريخ)
+function devDue(d) {
+  const sh = devCounter(d) === 'shots', cnt = sh ? (d.shots || 0) : (d.uses || 0), since = cnt - (sh ? (d.lastServiceShots || 0) : (d.lastServiceUses || 0));
+  let due = !!(d.serviceEvery && since >= d.serviceEvery), soon = !!(d.serviceEvery && d.warnN && since >= d.serviceEvery - d.warnN), txt = '';
+  if (d.everyDays) { const last = d.lastServiceDate || toInput(toDate(d.createdAt) || new Date()); const nx = new Date(last + 'T12:00:00'); nx.setDate(nx.getDate() + Number(d.everyDays)); const left = Math.ceil((nx - new Date()) / 864e5);
+    if (left <= 0) { due = true; txt = 'ميعاد الصيانة الدورية عدّى'; } else if (left <= (Number(d.warnDays) || 0)) { soon = true; txt = `الصيانة الدورية بعد ${left.toLocaleString('ar-EG')} يوم (${toInput(nx)})`; } }
+  if (!txt && due) txt = 'وصل لعدد الصيانة'; if (!txt && soon) txt = `فاضل ${Math.max(0, d.serviceEvery - since).toLocaleString('ar-EG')} ${sh ? 'شوت' : 'جلسة'} على الصيانة`;
+  return { due, soon: soon && !due, txt };
+}
 async function renderDevices() {
   clinicShell('devices', LOADING);
   const list = (await qAll('devices', 'branchId', S.branch)).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ar'));
   S.devList = list;
   const ed = can('devices_edit');
   clinicShell('devices', `
-    <div class="head"><h2>الأجهزة</h2>${ed ? `<button class="btn gold" onclick="A.deviceModal()">+ جهاز</button>` : ''}</div>
+    <div class="head"><h2>الأجهزة</h2><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ghost" onclick="A.partsAll()">🔩 قطع الغيار اللي اتركبت</button>${ed ? `<button class="btn gold" onclick="A.deviceModal()">+ جهاز</button>` : ''}</div></div>
     ${list.length ? `<div class="cards">${list.map(d => {
       const sh = devCounter(d) === 'shots', cnt = sh ? (d.shots || 0) : (d.uses || 0);
       const since = cnt - (sh ? (d.lastServiceShots || 0) : (d.lastServiceUses || 0));
-      const due = d.serviceEvery && since >= d.serviceEvery;
+      const dd = devDue(d), due = dd.due;
       return `<div class="card clinic-card">
-        <div class="row"><h3>${esc(d.name)}</h3>${d.active === false ? '<span class="chip mute">موقوف</span>' : due ? '<span class="chip bad">محتاج صيانة</span>' : '<span class="chip ok">شغال</span>'}</div>
+        <div class="row"><h3>${esc(d.name)}</h3>${d.active === false ? '<span class="chip mute">موقوف</span>' : due ? '<span class="chip bad">محتاج صيانة</span>' : dd.soon ? '<span class="chip warn">قربت الصيانة</span>' : '<span class="chip ok">شغال</span>'}</div>
+        ${dd.txt && d.active !== false ? `<div class="meta" style="color:${due ? 'var(--red)' : 'var(--warn)'}">🔔 ${esc(dd.txt)}</div>` : ''}
         <div class="meta"><span class="chip mute">${esc(devT(d)[1])}</span><span>${esc(d.model) || '—'}</span>${d.serial ? `<span dir="ltr">S/N ${esc(d.serial)}</span>` : ''}</div>
         <div class="stat"><b>${cnt.toLocaleString('ar-EG')}</b><span>${sh ? 'إجمالي الشوتات' : 'عدد الجلسات عليه'}</span></div>
         <div class="meta"><span>من آخر صيانة: ${since.toLocaleString('ar-EG')} ${sh ? 'شوت' : 'جلسة'}</span>${d.serviceEvery ? `<span>الصيانة كل ${Number(d.serviceEvery).toLocaleString('ar-EG')}</span>` : ''}<span>آخر صيانة: ${esc(d.lastServiceDate) || '—'}</span></div>
@@ -4995,6 +5369,11 @@ A.deviceModal = id => {
       <label class="f">العدّاد الحالي<input name="shots" type="number" min="0" value="${devCounter(d) === 'shots' ? (d?.shots ?? 0) : (d?.uses ?? 0)}"></label>
       <label class="f">الصيانة كل (شوت أو جلسة)<input name="every" type="number" min="0" placeholder="مثلاً 100000" value="${d?.serviceEvery || ''}"></label>
     </div>
+    <div class="grid3">
+      <label class="f">نبّهني قبل الصيانة بـ (شوت/جلسة)<input name="warnN" type="number" min="0" placeholder="مثلاً 5000" value="${d?.warnN || ''}"></label>
+      <label class="f">أو صيانة دورية كل (يوم)<input name="everyDays" type="number" min="0" placeholder="مثلاً 90" value="${d?.everyDays || ''}"></label>
+      <label class="f">نبّهني قبلها بـ (يوم)<input name="warnDays" type="number" min="0" placeholder="مثلاً 7" value="${d?.warnDays ?? ''}"></label>
+    </div>
     <label class="chk"><input type="checkbox" name="act" ${d?.active === false ? '' : 'checked'}> الجهاز شغال</label>
     ${formActs()}
   </form>`);
@@ -5003,7 +5382,7 @@ A.saveDevice = async (e, id) => {
   e.preventDefault();
   const f = e.target;
   const counter = f.counter.value === 'shots' ? 'shots' : 'uses', cv = Number(f.shots.value) || 0;
-  const data = { name: f.name.value.trim(), model: f.model.value.trim(), serial: f.serial.value.trim(), type: f.type.value, counter, [counter]: cv, serviceEvery: Number(f.every.value) || 0, active: f.act.checked, branchId: S.branch };
+  const data = { name: f.name.value.trim(), model: f.model.value.trim(), serial: f.serial.value.trim(), type: f.type.value, counter, [counter]: cv, serviceEvery: Number(f.every.value) || 0, warnN: Number(f.warnN?.value) || 0, everyDays: Number(f.everyDays?.value) || 0, warnDays: Number(f.warnDays?.value) || 0, active: f.act.checked, branchId: S.branch };
   try {
     if (id) await updateDoc(cdoc('devices', id), data);
     else await addDoc(ccol('devices'), { shots: 0, uses: 0, ...data, lastServiceShots: data.shots || 0, lastServiceUses: data.uses || 0, lastServiceDate: '', createdAt: serverTimestamp() });
@@ -5015,24 +5394,30 @@ A.logModal = id => {
   openModal(`<h3>تسجيل صيانة: ${esc(d.name)}</h3>
   <form onsubmit="A.saveLog(event,'${id}')" class="fcol">
     <div class="grid2">
-      <label class="f">النوع<select name="type"><option>صيانة دورية</option><option>عطل وإصلاح</option><option>تغيير قطعة</option><option>معايرة</option></select></label>
+      <label class="f">النوع<select name="type" onchange="document.getElementById('lgParts').style.display=this.value==='تغيير قطعة'?'':'none';if(this.value==='تغيير قطعة'&&!document.querySelector('#lgPartRows [data-pr]'))A.lgPartAdd()"><option>صيانة دورية</option><option>عطل وإصلاح</option><option>تغيير قطعة</option><option>معايرة</option></select></label>
       <label class="f">التاريخ<input name="date" type="date" required value="${todayStr()}"></label>
     </div>
     <div class="grid2">
-      <label class="f">التكلفة<input name="cost" type="number" min="0" step="any" value="0"></label>
-      <label class="f">القائم بالصيانة<input name="by" placeholder="مثلاً: Beam Care"></label>
+      <label class="f">شركة الصيانة<input name="by" placeholder="مثلاً: Beam Care"></label>
+      <label class="f">المهندس اللي عمل الصيانة<input name="eng" placeholder="اسم المهندس"></label>
     </div>
+    <label class="f">تكلفة الصيانة (المصنعية)<input name="cost" type="number" min="0" step="any" value="0"></label>
+    <div id="lgParts" class="fcol" style="gap:8px;display:none"><div class="section-t">القطع اللي اتغيرت</div><div id="lgPartRows" class="fcol" style="gap:6px"></div><button type="button" class="btn ghost sm" style="align-self:flex-start" onclick="A.lgPartAdd()">+ قطعة</button></div>
     <label class="f">التفاصيل<input name="note"></label>
     <label class="chk"><input type="checkbox" name="reset" checked> صفّر عداد الصيانة (يبدأ يعد من دلوقتي)</label>
     ${formActs()}
   </form>`);
 };
+A.lgPartAdd = () => { const box = document.getElementById('lgPartRows'); if (!box) return; const k = box.children.length;
+  box.insertAdjacentHTML('beforeend', `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center" data-pr><input aria-label="اسم القطعة" placeholder="اسم القطعة" style="flex:3 1 160px" data-k="n"><input aria-label="تكلفة القطعة" type="number" min="0" step="any" placeholder="التكلفة" style="flex:1 1 90px" data-k="c"><label class="f" style="flex:1 1 150px;font-size:12px">ضمان لحد (اختياري)<input type="date" data-k="w"></label></div>`); };
 A.saveLog = async (e, id) => {
   e.preventDefault();
   const f = e.target, d = S.devList.find(x => x.id === id);
+  const parts = f.type.value === 'تغيير قطعة' ? [...f.querySelectorAll('[data-pr]')].map(r => ({ name: r.querySelector('[data-k=n]').value.trim(), cost: Number(r.querySelector('[data-k=c]').value) || 0, warranty: r.querySelector('[data-k=w]').value || '' })).filter(x => x.name) : [];
+  const labor = Number(f.cost.value) || 0, pc = parts.reduce((a, x) => a + x.cost, 0);
   try {
     const batch = writeBatch(db);
-    batch.set(doc(ccol('deviceLogs')), { deviceId: id, deviceName: d.name, branchId: S.branch, type: f.type.value, date: f.date.value, cost: Number(f.cost.value) || 0, by: f.by.value.trim(), note: f.note.value.trim(), shotsAt: d.shots || 0, createdAt: serverTimestamp(), createdByName: S.profile.name });
+    batch.set(doc(ccol('deviceLogs')), { deviceId: id, deviceName: d.name, branchId: S.branch, type: f.type.value, date: f.date.value, cost: labor + pc, labor, parts, eng: (f.eng?.value || '').trim(), by: f.by.value.trim(), note: f.note.value.trim(), shotsAt: d.shots || 0, createdAt: serverTimestamp(), createdByName: S.profile.name });
     if (f.reset.checked) batch.update(cdoc('devices', id), { lastServiceShots: d.shots || 0, lastServiceUses: d.uses || 0, lastServiceDate: f.date.value });
     await batch.commit();
     A.closeModal(); toast('اتسجلت الصيانة'); A.go('devices');
@@ -5043,8 +5428,19 @@ A.deviceLogs = async id => {
   openModal(`<h3>سجل صيانة: ${esc(d.name)}</h3>${LOADING}`);
   const l = (await qAll('deviceLogs', 'deviceId', id)).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   openModal(`<h3>سجل صيانة: ${esc(d.name)}</h3>
-    ${l.length ? `<div class="tbl-wrap"><table><thead><tr><th>التاريخ</th><th>النوع</th><th>عند شوت</th><th>التكلفة</th><th>بواسطة</th><th>التفاصيل</th></tr></thead><tbody>
-      ${l.map(x => `<tr><td>${esc(x.date)}</td><td>${esc(x.type)}</td><td>${(x.shotsAt || 0).toLocaleString('ar-EG')}</td><td>${money(x.cost)}</td><td>${esc(x.by)}</td><td>${esc(x.note)}</td></tr>`).join('')}</tbody></table></div>` : `<p class="meta">مفيش صيانات مسجلة.</p>`}
+    ${l.length ? `<div class="tbl-wrap"><table><thead><tr><th>التاريخ</th><th>النوع</th><th>عند شوت</th><th>التكلفة</th><th>الشركة / المهندس</th><th>التفاصيل</th></tr></thead><tbody>
+      ${l.map(x => `<tr><td>${esc(x.date)}</td><td>${esc(x.type)}</td><td>${(x.shotsAt || 0).toLocaleString('ar-EG')}</td><td>${money(x.cost)}</td><td>${esc(x.by || '—')}${x.eng ? `<div class="meta">م. ${esc(x.eng)}</div>` : ''}</td><td>${esc(x.note)}${(x.parts || []).map(pt => `<div class="meta">🔩 ${esc(pt.name)} · ${money(pt.cost)}${pt.warranty ? ` · ضمان لحد ${esc(pt.warranty)}` : ''}</div>`).join('')}</td></tr>`).join('')}</tbody></table></div>` : `<p class="meta">مفيش صيانات مسجلة.</p>`}
+    <div class="acts"><button class="btn ghost" onclick="A.closeModal()">قفل</button></div>`);
+};
+
+// كل قطع الغيار اللي اتركبت على أجهزة العيادة: تكلفتها وضمانها
+A.partsAll = async () => {
+  openModal(`<h3>🔩 قطع الغيار اللي اتركبت</h3>${LOADING}`);
+  let L = []; try { L = (await getDocs(ccol('deviceLogs'))).docs.map(d => d.data()).filter(x => (x.parts || []).length); } catch (e) { return openModal(`<h3>🔩 قطع الغيار</h3><div class="notice warn">مقدرتش أجيب السجل (${esc(e.code || e.message)})</div>`); }
+  const rows = []; L.forEach(x => x.parts.forEach(p => rows.push({ ...p, date: x.date, dev: x.deviceName, by: x.by, eng: x.eng }))); rows.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const t = todayStr(), tot = rows.reduce((a, r) => a + (Number(r.cost) || 0), 0);
+  openModal(`<h3>🔩 قطع الغيار اللي اتركبت</h3>${rows.length ? `<p class="meta">${rows.length.toLocaleString('ar-EG')} قطعة · الإجمالي ${money(tot)}</p><div class="tbl-wrap"><table><thead><tr><th>التاريخ</th><th>الجهاز</th><th>القطعة</th><th>التكلفة</th><th>الضمان</th><th>ركّبها</th></tr></thead><tbody>
+    ${rows.map(r => `<tr><td>${esc(r.date)}</td><td>${esc(r.dev)}</td><td><b>${esc(r.name)}</b></td><td>${money(r.cost)}</td><td>${r.warranty ? (r.warranty >= t ? `<span class="chip ok">ساري لحد ${esc(r.warranty)}</span>` : `<span class="chip mute">خلص ${esc(r.warranty)}</span>`) : '—'}</td><td>${esc(r.by || '')}${r.eng ? ' · م. ' + esc(r.eng) : ''}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">لسه مفيش قطع غيار متسجلة. لما تسجّل صيانة نوعها «تغيير قطعة» اكتب القطع اللي اتغيرت.</div>'}
     <div class="acts"><button class="btn ghost" onclick="A.closeModal()">قفل</button></div>`);
 };
 
@@ -5095,7 +5491,7 @@ A.empModal = id => {
       <label class="f">نسبة من سعر الجلسة ٪ (اختياري)<input name="pct" type="number" min="0" max="100" step="any" value="${x?.pct ?? 0}"></label>
     </div>
     <p class="meta" id="ptHelp" style="margin:0"></p>
-    <label class="f">مربوط بيوزر في السيستم (علشان تتحسب جلساته)<select name="user"><option value="">مش مربوط</option>${users.map(u => `<option value="${u.id}" ${x?.userId === u.id ? 'selected' : ''}>${esc(u.name)} (${esc(ROLES[u.role]?.label)})</option>`).join('')}</select></label>
+    <label class="f">مربوط بيوزر في السيستم (علشان تتحسب جلساته)<select name="user"><option value="">مش مربوط</option>${users.map(u => `<option value="${u.id}" ${x?.userId === u.id ? 'selected' : ''}>${esc(u.name)}${roleTitle(u) ? ' (' + esc(roleTitle(u)) + ')' : ''}</option>`).join('')}</select></label>
     <label class="chk sw"><input type="checkbox" name="act" ${x?.active === false ? '' : 'checked'}> شغال</label>
     ${formActs()}
   </form>`);
@@ -5166,21 +5562,31 @@ A.savePayroll = async (e, id) => {
    بصمة بالموقع، جزاءات وإضافي، مسير مرتبات بموافقة صاحب العيادة، وكشف مرتب لكل موظف
    ===================================================================== */
 const REQ_T = { leave: ['🌴', 'إجازة'], advance: ['💵', 'سلفة'], refund: ['↩️', 'استرداد فلوس عميل'] };
-const FLOW_ROLES = { branch_manager: 'مدير الفرع', accounts: 'الحسابات', owner: 'صاحب العيادة' };
-const FLOW_DEF = { leave: ['branch_manager', 'owner'], advance: ['branch_manager', 'owner'], refund: ['accounts', 'owner'] };
+const FLOW_ROLES = { direct: 'المدير المباشر', branch_manager: 'مدير الفرع', accounts: 'الحسابات', owner: 'صاحب العيادة' };
+const FLOW_ALL = ['direct', 'branch_manager', 'accounts', 'owner'];
+const DEPTS = { reception: 'الريسبشن', doctors: 'الدكاترة', nursing: 'التمريض', accounts: 'الحسابات', callcenter: 'الكول سنتر', admin: 'الإدارة', other: 'تاني' };
+const orgOf = uid => (S.cfg?.org || {})[uid] || {};
+const isDirMgr = () => Object.values(S.cfg?.org || {}).some(o => o.mgr && o.mgr === myUid());
+// اسم الخطوة: دور (مدير الفرع/الحسابات/…) أو مدير مباشر بالاسم (u:<id>)
+const stepName = st => String(st || '').startsWith('u:') ? 'المدير المباشر' + (S.cfg?.orgNames?.[st.slice(2)] ? ' (' + S.cfg.orgNames[st.slice(2)] + ')' : '') : (FLOW_ROLES[st] || st);
+const FLOW_DEF = { leave: ['direct', 'branch_manager', 'owner'], advance: ['direct', 'branch_manager', 'owner'], refund: ['accounts', 'owner'] };
 const LEAVE_K = { annual: 'اعتيادي', casual: 'عارضة', sick: 'مرضي', unpaid: 'بدون مرتب' };
 const flowOf = t => { const f = S.cfg?.flow?.[t]; return Array.isArray(f) && f.length ? f : FLOW_DEF[t]; };
 const isMgr = r => ['branch_manager', 'branches_manager'].includes(r);
-const stepMine = (x, st) => { const r = S.profile.role; if (r === 'owner') return true; if (st === 'accounts') return r === 'accounts'; if (st === 'branch_manager') return isMgr(r) && (S.profile.branchIds || []).includes(x.branchId); return false; };
+const stepMine = (x, st) => { const r = S.profile.role; if (r === 'owner') return true; if (String(st || '').startsWith('u:')) return st === 'u:' + myUid(); if (st === 'accounts') return r === 'accounts'; if (st === 'branch_manager') return isMgr(r) && (S.profile.branchIds || []).includes(x.branchId); return false; };
 const reqTitle = x => { const d = x.data || {}; return x.type === 'leave' ? `${LEAVE_K[d.kind] || 'إجازة'} ${(+d.days || 0).toLocaleString('ar-EG')} يوم (${esc(d.from)}${d.to && d.to !== d.from ? ' ← ' + esc(d.to) : ''})` : x.type === 'advance' ? `سلفة ${money(d.amount)}${+d.inst > 1 ? ` على ${(+d.inst).toLocaleString('ar-EG')} شهور` : ''}` : `استرداد ${money(d.amount)} لـ ${esc(d.clientName || '')}${d.packageName ? ' — ' + esc(d.packageName) : ''}`; };
 const reqStat = x => x.status === 'approved' ? '<span class="chip ok">اتوافق عليه ✓</span>' : x.status === 'rejected' ? '<span class="chip bad">اترفض</span>' : x.status === 'cancelled' ? '<span class="chip mute">اتلغى</span>' : `<span class="chip warn">مستني ${esc(FLOW_ROLES[x.steps?.[x.stepIdx]] || '')}</span>`;
 const daysBetween = (a, b) => { const x = new Date(a + 'T00:00:00'), y = new Date((b || a) + 'T00:00:00'); return Math.max(1, Math.round((y - x) / 864e5) + 1); };
+const myUid = () => S.viewAs ? S.profile.id : S.user.uid;
 async function newRequest(type, data, extra = {}) {
   await loadCfg();
   const me = S.profile.role;
-  let steps = flowOf(type).filter(st => !(st === me || (st === 'branch_manager' && isMgr(me))));
+  const mgr = orgOf(myUid()).mgr;
+  let steps = flowOf(type).map(st => st === 'direct' ? (mgr && mgr !== myUid() ? 'u:' + mgr : null) : st).filter(Boolean)
+    .filter(st => !(st === me || (st === 'branch_manager' && isMgr(me))));
+  steps = steps.filter((st, i) => steps.indexOf(st) === i);
   if (me === 'owner') steps = [];
-  const base = { type, data, branchId: extra.branchId || S.branch, createdBy: S.user.uid, createdByName: S.profile.name, createdRole: me, empId: extra.empId || '', status: steps.length ? 'pending' : 'approved', steps, stepIdx: 0, history: [], month: todayStr().slice(0, 7), createdAt: serverTimestamp() };
+  const base = { type, data, branchId: extra.branchId || S.branch, createdBy: myUid(), createdByName: S.profile.name, createdRole: me, empId: extra.empId || '', status: steps.length ? 'pending' : 'approved', steps, stepIdx: 0, history: [], month: todayStr().slice(0, 7), createdAt: serverTimestamp() };
   const ref = await addDoc(ccol('approvals'), base);
   if (!steps.length) await execApproved({ id: ref.id, ...base });
   return steps.length ? 'pending' : 'approved';
@@ -5211,7 +5617,7 @@ A.reqAct = async (id, ok) => {
   try {
     if (ok && last) await execApproved(x);
     await updateDoc(cdoc('approvals', id), upd);
-    toast(ok ? (last ? 'اتوافق عليه نهائي ✓' : `اتوافق — راح لـ ${FLOW_ROLES[x.steps[x.stepIdx + 1]]}`) : 'اترفض');
+    toast(ok ? (last ? 'اتوافق عليه نهائي ✓' : `اتوافق — راح لـ ${stepName(x.steps[x.stepIdx + 1])}`) : 'اترفض');
   } catch (e) { console.error(e); toast(e.code === 'permission-denied' ? 'مالكش صلاحية تنفّذ ده' : 'مقدرتش أحفظ'); }
   A.go('approvals');
 };
@@ -5223,15 +5629,21 @@ function aprCard(x, act) {
     <div class="meta"><span>${esc(x.createdByName)} · ${esc(ROLES[x.createdRole]?.label || '')}</span><span>${esc(branchName(x.branchId))}</span><span>${fmt(x.createdAt)}</span></div>
     ${d.reason ? `<div style="white-space:pre-line">${esc(d.reason)}</div>` : ''}
     ${x.type === 'refund' ? `<div class="notice info" style="font-weight:600">العميل: <a href="#" onclick="event.preventDefault();A.closeModal&&A.closeModal();A.openClient('${d.clientId}')">${esc(d.clientName)}</a>${d.phone ? ` · <span dir="ltr">${esc(d.phone)}</span>` : ''}${d.packageName ? ` · باكدج «${esc(d.packageName)}» (سعره ${money(d.pkgPrice)}، اتدفع ${money(d.pkgPaid)}، الاستهلاك: ${esc(d.pkgUse || '')})` : ''}${d.cancelPkg ? ' · <b>الباكدج هيتلغي</b>' : ''}</div>` : ''}
-    ${(x.history || []).length ? `<div class="meta">${x.history.map(h => `<span>${h.act === 'ok' ? '✅' : '❌'} ${esc(h.name)} (${esc(FLOW_ROLES[h.step] || '')})${h.note ? ': ' + esc(h.note) : ''}</span>`).join('')}</div>` : ''}
-    ${x.status === 'pending' && (x.steps || []).length > 1 ? `<div class="meta"><span>المراحل: ${x.steps.map((st, i) => `${i < x.stepIdx ? '✓ ' : i === x.stepIdx ? '◀ ' : ''}${FLOW_ROLES[st]}`).join(' ← ')}</span></div>` : ''}
+    ${(x.history || []).length ? `<div class="meta">${x.history.map(h => `<span>${h.act === 'ok' ? '✅' : '❌'} ${esc(h.name)} (${esc(stepName(h.step))})${h.note ? ': ' + esc(h.note) : ''}</span>`).join('')}</div>` : ''}
+    ${x.status === 'pending' && (x.steps || []).length > 1 ? `<div class="meta"><span>المراحل: ${x.steps.map((st, i) => `${i < x.stepIdx ? '✓ ' : i === x.stepIdx ? '◀ ' : ''}${stepName(st)}`).join(' ← ')}</span></div>` : ''}
     ${act ? `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input id="apN_${x.id}" placeholder="ملاحظة (لازم في الرفض)" style="flex:1;min-width:160px"><button class="btn sm" onclick="A.reqAct('${x.id}',true)">✓ موافقة</button><button class="btn danger sm" onclick="A.reqAct('${x.id}',false)">✕ رفض</button></div>` : ''}
     ${x.status === 'pending' && x.createdBy === S.user?.uid && !act ? `<div><button class="btn ghost sm" onclick="A.reqCancel('${x.id}')">إلغاء الطلب</button></div>` : ''}
   </div>`;
 }
-const isApprover = () => ['owner', 'accounts', 'branch_manager', 'branches_manager'].includes(S.profile?.role);
+const isRoleApprover = () => ['owner', 'accounts', 'branch_manager', 'branches_manager'].includes(S.profile?.role);
+const isApprover = () => isRoleApprover() || isDirMgr();
 async function loadApprovals() {
-  const L = (await getDocs(query(ccol('approvals'), where('status', '==', 'pending'))).catch(() => ({ docs: [] }))).docs.map(d => ({ id: d.id, ...d.data() }));
+  await loadCfg();
+  const [a, b] = await Promise.all([
+    isRoleApprover() ? getDocs(query(ccol('approvals'), where('status', '==', 'pending'))).catch(() => ({ docs: [] })) : { docs: [] },
+    isDirMgr() ? getDocs(query(ccol('approvals'), where('steps', 'array-contains', 'u:' + myUid()))).catch(() => ({ docs: [] })) : { docs: [] }]);
+  const seen = new Set(), L = [];
+  [...a.docs, ...b.docs].forEach(d => { if (seen.has(d.id)) return; seen.add(d.id); const x = { id: d.id, ...d.data() }; if (x.status === 'pending') L.push(x); });
   S.apprPending = L.filter(x => stepMine(x, x.steps?.[x.stepIdx])).length;
   return L;
 }
@@ -5241,26 +5653,48 @@ async function renderApprovals() {
   let L = [];
   try {
     if (tab === 'mine') L = (await loadApprovals()).filter(x => stepMine(x, x.steps?.[x.stepIdx]));
+    else if (!isRoleApprover()) L = (await getDocs(query(ccol('approvals'), where('steps', 'array-contains', 'u:' + myUid())))).docs.map(d => ({ id: d.id, ...d.data() })).filter(x => x.month === (S.apM || monthStr()));
     else L = (await getDocs(query(ccol('approvals'), where('month', '==', S.apM || monthStr())))).docs.map(d => ({ id: d.id, ...d.data() })).filter(x => S.profile.role === 'owner' || S.profile.role === 'accounts' || (S.profile.branchIds || []).includes(x.branchId));
   } catch (e) { console.error(e); }
   L.sort((a, b) => (toDate(b.createdAt) || 0) - (toDate(a.createdAt) || 0));
   S.apprL = L;
-  clinicShell('approvals', `<div class="head"><h2>✅ الطلبات والموافقات</h2>${isOwner() ? '<button class="btn ghost" onclick="A.flowModal()">⚙️ ترتيب الموافقات</button>' : ''}</div>
+  clinicShell('approvals', `<div class="head"><h2>✅ الطلبات والموافقات</h2>${isOwner() ? '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ghost" onclick="A.orgModal()">🧭 الأقسام والمديرين</button><button class="btn ghost" onclick="A.flowModal()">⚙️ ترتيب الموافقات</button></div>' : ''}</div>
     <div class="tabs">${[['mine', `محتاجة موافقتي${S.apprPending ? ` (${S.apprPending.toLocaleString('ar-EG')})` : ''}`], ['all', 'كل الطلبات']].map(([k, l]) => `<button class="${tab === k ? 'on' : ''}" onclick="S.apTab='${k}';A.go('approvals')">${l}</button>`).join('')}</div>
     ${tab === 'all' ? monthBar('apM', S.apM || monthStr()) : ''}
     ${L.length ? `<div class="fcol" style="gap:10px">${L.map(x => aprCard(x, tab === 'mine')).join('')}</div>` : `<div class="card empty">${tab === 'mine' ? 'مفيش طلبات مستنية موافقتك 👌' : 'مفيش طلبات في الشهر ده.'}</div>`}`);
 }
 A.flowModal = async () => {
   await loadCfg(true);
-  const row = t => { const cur = flowOf(t); return `<div class="card fcol" style="gap:8px"><b>${REQ_T[t][0]} ${REQ_T[t][1]}</b><div class="meta"><span>الطلب بيعدّي على دول بالترتيب:</span></div>
-    ${['branch_manager', 'accounts', 'owner'].map(r => `<label class="chk"><input type="checkbox" name="fl_${t}_${r}" ${cur.includes(r) ? 'checked' : ''}> ${FLOW_ROLES[r]}</label>`).join('')}</div>`; };
+  const row = t => { const cur = flowOf(t); const ord = r => cur.includes(r) ? cur.indexOf(r) + 1 : FLOW_ALL.indexOf(r) + 1; return `<div class="card fcol" style="gap:8px"><b>${REQ_T[t][0]} ${REQ_T[t][1]}</b><div class="meta"><span>علّم مين يوافق، واكتب رقم ترتيبه (1 = أول واحد):</span></div>
+    ${FLOW_ALL.map(r => `<div style="display:flex;gap:10px;align-items:center"><label class="chk" style="flex:1"><input type="checkbox" name="fl_${t}_${r}" ${cur.includes(r) ? 'checked' : ''}> ${FLOW_ROLES[r]}</label><input aria-label="ترتيب ${FLOW_ROLES[r]}" type="number" min="1" max="4" name="fo_${t}_${r}" value="${ord(r)}" style="width:70px"></div>`).join('')}
+    ${t !== 'refund' ? '' : '<p class="meta">«المدير المباشر» بيتحدد لكل موظف من «الأقسام والمديرين». لو الموظف ملوش مدير مباشر الخطوة دي بتتشال لوحدها.</p>'}</div>`; };
   openModal(`<h3>⚙️ ترتيب الموافقات</h3><p class="meta">علّم مين لازم يوافق على كل نوع طلب. الترتيب دايماً: مدير الفرع ← الحسابات ← صاحب العيادة. لو شلت «صاحب العيادة»، الطلب بيتقفل عند اللي قبله ومش بيوصلك. الاسترداد لازم يعدّي على الحسابات أو عليك علشان الفلوس تتصرف.</p>
     <form onsubmit="A.flowSave(event)" class="fcol">${['leave', 'advance', 'refund'].map(row).join('')}${formActs()}</form>`);
 };
 A.flowSave = async e => {
   e.preventDefault(); const f = e.target, flow = {};
-  for (const t of ['leave', 'advance', 'refund']) { flow[t] = ['branch_manager', 'accounts', 'owner'].filter(r => f[`fl_${t}_${r}`].checked); if (!flow[t].length) return toast(`لازم حد يوافق على ${REQ_T[t][1]}`); if (t !== 'leave' && !flow[t].some(r => r !== 'branch_manager')) return toast(`${REQ_T[t][1]}: لازم الحسابات أو صاحب العيادة يبقوا في الترتيب علشان الفلوس تتصرف`); }
+  for (const t of ['leave', 'advance', 'refund']) { flow[t] = FLOW_ALL.filter(r => f[`fl_${t}_${r}`].checked).sort((a, b) => (Number(f[`fo_${t}_${a}`].value) || 9) - (Number(f[`fo_${t}_${b}`].value) || 9)); if (!flow[t].length) return toast(`لازم حد يوافق على ${REQ_T[t][1]}`); if (t !== 'leave' && !flow[t].some(r => r !== 'branch_manager')) return toast(`${REQ_T[t][1]}: لازم الحسابات أو صاحب العيادة يبقوا في الترتيب علشان الفلوس تتصرف`); }
   try { await setDoc(cdoc('cfg', 'main'), { flow }, { merge: true }); S.cfg = { ...(S.cfg || {}), flow }; A.closeModal(); toast('اتحفظ ✓'); } catch (er) { toast('مقدرتش أحفظ'); }
+};
+/* ----- الأقسام والمديرين: كل موظف له قسم ومدير مباشر (الطلب بيروحله الأول) ----- */
+A.orgModal = async () => {
+  await loadCfg(true);
+  let us = []; try { us = (await getDocs(query(collection(db, 'users'), where('clinicId', '==', S.clinic.id)))).docs.map(d => ({ id: d.id, ...d.data() })).filter(u => u.role !== 'client' && u.active !== false); } catch (e) { return toast('مقدرتش أجيب الموظفين: ' + (e.code || e.message)); }
+  us.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ar')); S.orgUsers = us;
+  const O = S.cfg?.org || {};
+  openModal(`<h3>🧭 الأقسام والمديرين</h3><p class="meta">لكل موظف: قسمه، ومديره المباشر. طلب الإجازة أو السلفة بيروح لمديره المباشر الأول، وبعدين يكمّل حسب «ترتيب الموافقات». مثلاً مدير الحسابات اللي بيلف على الفروع: اختاره مدير مباشر لمسؤولي الحسابات في كل فرع.</p>
+    <form onsubmit="A.orgSave(event)" class="fcol" style="gap:8px">${us.filter(u => u.role !== 'owner' || u.hr).map(u => `<div class="card" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 12px">
+      <b style="flex:1;min-width:140px">${esc(u.name)}<span class="meta" style="display:block;font-weight:400">${esc(roleTitle(u))}</span></b>
+      <select aria-label="القسم" name="dp_${u.id}" style="flex:1;min-width:120px"><option value="">القسم…</option>${Object.entries(DEPTS).map(([k, l]) => `<option value="${k}" ${O[u.id]?.dept === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
+      <select aria-label="المدير المباشر" name="mg_${u.id}" style="flex:1;min-width:150px"><option value="">من غير مدير مباشر</option>${us.filter(m => m.id !== u.id).map(m => `<option value="${m.id}" ${O[u.id]?.mgr === m.id ? 'selected' : ''}>${esc(m.name)}</option>`).join('')}</select></div>`).join('')}
+    ${formActs()}</form>`);
+};
+A.orgSave = async e => {
+  e.preventDefault(); const f = e.target, org = {}, orgNames = {};
+  (S.orgUsers || []).forEach(u => { const d = f['dp_' + u.id]?.value || '', m = f['mg_' + u.id]?.value || ''; if (d || m) org[u.id] = { dept: d, mgr: m }; orgNames[u.id] = u.name; });
+  // ما ينفعش حد يبقى مدير لمديره (دايرة)
+  for (const [k, v] of Object.entries(org)) { let x = v.mgr, n = 0; while (x && n < 20) { if (x === k) return toast('فيه دايرة في المديرين: موظف مدير لمديره'); x = org[x]?.mgr; n++; } }
+  try { await setDoc(cdoc('cfg', 'main'), { org, orgNames }, { merge: true }); S.cfg = { ...(S.cfg || {}), org, orgNames }; A.closeModal(); toast('اتحفظ ✓'); A.go('approvals'); } catch (er) { toast('مقدرتش أحفظ: ' + (er.code || er.message)); }
 };
 /* ----- طلب استرداد فلوس عميل ----- */
 A.refundModal = async (clientId, pkgId) => {
@@ -5275,7 +5709,7 @@ A.refundModal = async (clientId, pkgId) => {
       <div class="grid2"><label class="f">المبلغ اللي هيرجع للعميل<input name="amount" type="number" min="1" step="any" required ${p ? `max="${p.paid}"` : ''}></label><label class="f">هيرجع إزاي<select name="method">${methodOpts('cash')}</select></label></div>
       ${p ? `<label class="chk"><input type="checkbox" name="cancelPkg" checked> إلغاء الباكدج (الجلسات اللي اتاخدت بتفضل محسوبة)</label>` : ''}
       <label class="f">السبب<textarea name="reason" rows="2" required></textarea></label>
-      <p class="meta">الطلب هيروح ${flowOf('refund').map(r => FLOW_ROLES[r]).join(' ← ')}، والفلوس بتطلع من الخزنة بعد آخر موافقة.</p>
+      <p class="meta">الطلب هيروح ${flowOf('refund').filter(r => r !== 'direct' || orgOf(myUid()).mgr).map(r => FLOW_ROLES[r]).join(' ← ')}، والفلوس بتطلع من الخزنة بعد آخر موافقة.</p>
       ${formActs('ابعت الطلب')}
     </form>`);
 };
@@ -5316,21 +5750,22 @@ async function renderMe() {
   let mine = [], slips = [], pun = null;
   try {
     [mine, slips, pun] = await Promise.all([
-      getDocs(query(ccol('approvals'), where('createdBy', '==', S.user.uid))).then(x => x.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-      getDocs(query(ccol('payslips'), where('uid', '==', S.user.uid))).then(x => x.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-      getDoc(cdoc('punches', S.user.uid + '_' + today)).then(d => d.exists() ? d.data() : null).catch(() => null)]);
+      getDocs(query(ccol('approvals'), where('createdBy', '==', myUid()))).then(x => x.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+      getDocs(query(ccol('payslips'), where('uid', '==', myUid()))).then(x => x.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+      getDoc(cdoc('punches', myUid() + '_' + today)).then(d => d.exists() ? d.data() : null).catch(() => null)]);
   } catch (e) {}
   mine.sort((a, b) => (toDate(b.createdAt) || 0) - (toDate(a.createdAt) || 0)); slips.sort((a, b) => (b.month || '').localeCompare(a.month || ''));
   S.mySlips = slips;
   const fresh = slips.find(x => !x.seen);
   if (fresh) updateDoc(cdoc('payslips', fresh.id), { seen: true }).catch(() => {});
-  const att = feat('attendance');
-  clinicShell('me', `<div class="head"><div style="display:flex;gap:12px;align-items:center;flex:1">${avHTML(S.profile, 52)}<div><h2 style="margin:0">${esc(S.profile.name)}</h2><div class="meta"><span>${esc(ROLES[S.profile.role]?.label || '')}</span></div></div></div></div>
+  const att = feat('attendance') && ownerHr(), oh = ownerHr();
+  clinicShell('me', `<div class="head"><div style="display:flex;gap:12px;align-items:center;flex:1">${avHTML(S.profile, 52)}<div><h2 style="margin:0">${esc(S.profile.name)}</h2><div class="meta"><span>${esc(roleTitle(S.profile))}</span></div></div></div></div>
     ${att ? `<div class="card" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="font-size:28px" aria-hidden="true">⏱️</span><span style="flex:1;min-width:200px;display:flex;flex-direction:column"><b>${!pun?.in ? 'لسه ما بصمتش حضور النهارده' : !pun.out ? `حاضر من ${hm(pun.in)}` : `حضرت ${hm(pun.in)} وانصرفت ${hm(pun.out)}`}</b><span class="meta">${S.cfg?.hr?.gps && S.cfg?.hr?.geo?.[S.branch] ? `البصمة بالموقع — لازم تكون في حدود ${(Number(S.cfg.hr.geo[S.branch].r) || 100).toLocaleString('ar-EG')} متر من العيادة` : 'سجّل حضورك وانصرافك من هنا'}</span></span>
       ${!pun?.out ? `<button class="btn" onclick="A.punchNow('me')">${!pun?.in ? '✅ بصمة حضور' : '👋 بصمة انصراف'}</button>` : ''}</div>` : ''}
-    <div class="card fcol"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><h3 style="flex:1;margin:0">📝 طلباتي</h3><button class="btn ghost sm" onclick="A.leaveModal()">🌴 طلب إجازة</button><button class="btn ghost sm" onclick="A.advModal()">💵 طلب سلفة</button></div>
+    ${!oh ? `<div class="card meta">إنت صاحب العيادة: ملكش بصمة ولا مرتب ولا طلبات إجازة. لو عايز تتعامل كموظف، فعّلها من إعدادات الحضور.</div>` : ''}
+    ${oh ? `<div class="card fcol"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><h3 style="flex:1;margin:0">📝 طلباتي</h3><button class="btn ghost sm" onclick="A.leaveModal()">🌴 طلب إجازة</button><button class="btn ghost sm" onclick="A.advModal()">💵 طلب سلفة</button></div>
       ${mine.length ? mine.slice(0, 12).map(x => aprCard(x, false)).join('') : '<p class="meta">مفيش طلبات.</p>'}</div>
-    <div class="card fcol"><h3>💰 مرتبي</h3>${slips.length ? slips.map(x => slipHTML(x)).join('') : '<p class="meta">لسه مفيش مرتبات نزلت.</p>'}</div>`);
+    <div class="card fcol"><h3>💰 مرتبي</h3>${slips.length ? slips.map(x => slipHTML(x)).join('') : '<p class="meta">لسه مفيش مرتبات نزلت.</p>'}</div>` : ''}`);
 }
 function slipHTML(x) {
   const L = [['الأساسي', x.base], ['العمولة', x.comm], ['إضافي', x.ot], ['مكافآت', x.bonus], ['خصم التأخير', -x.late], ['خصم الغياب', -x.absent], ['جزاءات', -x.penalty], ['قسط السلفة', -x.adv], ['تعديلات', x.manual]].filter(([, v]) => Number(v));
@@ -5342,21 +5777,21 @@ A.leaveModal = () => openModal(`<h3>🌴 طلب إجازة</h3><form onsubmit="A
   <div class="pick" role="radiogroup" aria-label="نوع الإجازة">${Object.entries(LEAVE_K).map(([k, l], i) => `<label><input type="radio" name="kind" value="${k}" ${i === 0 ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div>
   <div class="grid2"><label class="f">من يوم<input name="from" type="date" required value="${todayStr()}"></label><label class="f">لحد يوم<input name="to" type="date" required value="${todayStr()}"></label></div>
   <label class="f">السبب<textarea name="reason" rows="2"></textarea></label>
-  <p class="meta">الطلب هيروح ${flowOf('leave').map(r => FLOW_ROLES[r]).join(' ← ')}.</p>${formActs('ابعت الطلب')}</form>`);
+  <p class="meta">الطلب هيروح ${flowOf('leave').filter(r => r !== 'direct' || orgOf(myUid()).mgr).map(r => FLOW_ROLES[r]).join(' ← ')}.</p>${formActs('ابعت الطلب')}</form>`);
 A.leaveSave = async e => {
   e.preventDefault(); const f = e.target; if (f.to.value < f.from.value) return toast('تاريخ النهاية قبل البداية');
   try { const r = await newRequest('leave', { kind: f.kind.value, from: f.from.value, to: f.to.value, days: daysBetween(f.from.value, f.to.value), reason: f.reason.value.trim() }); A.closeModal(); toast(r === 'approved' ? 'اتسجلت ✓' : 'الطلب اتبعت ✓'); A.go('me'); }
-  catch (er) { console.error(er); toast('مقدرتش أبعت الطلب'); }
+  catch (er) { console.error(er); toast('مقدرتش أبعت الطلب: ' + (er.code || er.message)); }
 };
 A.advModal = () => openModal(`<h3>💵 طلب سلفة</h3><form onsubmit="A.advSave(event)" class="fcol">
   <div class="grid2"><label class="f">المبلغ<input name="amount" type="number" min="1" step="any" required></label><label class="f">تتخصم على كام شهر<input name="inst" type="number" min="1" max="24" value="1" required></label></div>
   <label class="f">السبب<textarea name="reason" rows="2"></textarea></label>
-  <p class="meta">الطلب هيروح ${flowOf('advance').map(r => FLOW_ROLES[r]).join(' ← ')}، وبعد الموافقة بتتخصم من مرتبك على الشهور اللي اخترتها بداية من الشهر الجاي.</p>${formActs('ابعت الطلب')}</form>`);
+  <p class="meta">الطلب هيروح ${flowOf('advance').filter(r => r !== 'direct' || orgOf(myUid()).mgr).map(r => FLOW_ROLES[r]).join(' ← ')}، وبعد الموافقة بتتخصم من مرتبك على الشهور اللي اخترتها بداية من الشهر الجاي.</p>${formActs('ابعت الطلب')}</form>`);
 A.advSave = async e => {
   e.preventDefault(); const f = e.target, amount = Number(f.amount.value) || 0, inst = Math.max(1, Math.round(Number(f.inst.value) || 1));
   const n = new Date(); n.setDate(1); n.setMonth(n.getMonth() + 1); const start = toInput(n).slice(0, 7);
   try { const r = await newRequest('advance', { amount, inst, start, reason: f.reason.value.trim() }); A.closeModal(); toast(r === 'approved' ? 'اتسجلت ✓' : 'الطلب اتبعت ✓'); A.go('me'); }
-  catch (er) { console.error(er); toast('مقدرتش أبعت الطلب'); }
+  catch (er) { console.error(er); toast('مقدرتش أبعت الطلب: ' + (er.code || er.message)); }
 };
 
 /* ----- إعدادات الدوام والبصمة (صاحب العيادة) ----- */
@@ -5371,6 +5806,7 @@ A.hrCfgModal = async () => {
     <label class="f">الإضافي: الساعة تتحسب بكام ساعة عادية<input name="ot" type="number" min="1" max="3" step="0.25" value="${h.ot}"></label>
     <div class="section-t">📍 البصمة بالموقع</div>
     <label class="chk"><input type="checkbox" name="gps" ${h.gps ? 'checked' : ''}> الموظف لازم يكون جوه العيادة علشان يبصم</label>
+    <label class="chk"><input type="checkbox" name="ownerHr" ${h.ownerHr ? 'checked' : ''}> صاحب العيادة يتعامل كموظف (له بصمة ومرتب وطلبات إجازة وسلف)</label>
     <div class="grid3"><label class="f">خط العرض<input name="lat" dir="ltr" value="${g?.lat ?? ''}"></label><label class="f">خط الطول<input name="lng" dir="ltr" value="${g?.lng ?? ''}"></label><label class="f">المسافة المسموحة (متر)<input name="r" type="number" min="20" max="2000" value="${g?.r ?? 100}"></label></div>
     <div><button type="button" class="btn ghost sm" onclick="A.hrHere(this.form)">📍 خد موقعي دلوقتي (وإنت جوه العيادة)</button></div>
     ${formActs()}</form>`);
@@ -5381,7 +5817,7 @@ A.hrCfgSave = async e => {
   const geo = { ...(h.geo || {}) }; const lat = parseFloat(f.lat.value), lng = parseFloat(f.lng.value);
   if (isFinite(lat) && isFinite(lng)) geo[S.branch] = { lat, lng, r: Math.max(20, Number(f.r.value) || 100) }; else delete geo[S.branch];
   if (f.gps.checked && !geo[S.branch]) return toast('حدد موقع العيادة الأول');
-  const hr = { since: h.since || todayStr(), start: f.start.value || '10:00', end: f.end.value || '18:00', grace: Math.max(0, Number(f.grace.value) || 0), off: [...f.querySelectorAll('input[name=off]:checked')].map(x => +x.value), late: f.late.checked ? 'minute' : 'none', absent: f.absent.checked, ot: Number(f.ot.value) || 1.5, gps: f.gps.checked, geo };
+  const hr = { since: h.since || todayStr(), start: f.start.value || '10:00', end: f.end.value || '18:00', grace: Math.max(0, Number(f.grace.value) || 0), off: [...f.querySelectorAll('input[name=off]:checked')].map(x => +x.value), late: f.late.checked ? 'minute' : 'none', absent: f.absent.checked, ot: Number(f.ot.value) || 1.5, gps: f.gps.checked, geo , ownerHr: !!f.ownerHr?.checked };
   try { await setDoc(cdoc('cfg', 'main'), { hr }, { merge: true }); S.cfg = { ...(S.cfg || {}), hr }; A.closeModal(); toast('اتحفظ ✓'); } catch (er) { toast('مقدرتش أحفظ'); }
 };
 
@@ -5512,7 +5948,7 @@ A.prApprove = async () => {
 };
 
 /* ----- الموردين والمشتريات (كاش أو آجل) ----- */
-const invTabs = () => `<div class="tabs">${[['items', 'الأصناف'], ['sup', 'الموردين والمشتريات']].map(([k, l]) => `<button class="${(S.invTab || 'items') === k ? 'on' : ''}" onclick="S.invTab='${k}';A.go('inventory')">${l}</button>`).join('')}</div>`;
+const invTabs = () => `<div class="tabs">${[['items', 'الأصناف'], ...(feat('shop') ? [['shop', '🛍️ المنتجات والبوكسات']] : []), ['sup', 'الموردين والمشتريات']].map(([k, l]) => `<button class="${(S.invTab || 'items') === k ? 'on' : ''}" onclick="S.invTab='${k}';A.go('inventory')">${l}</button>`).join('')}</div>`;
 async function renderSuppliers() {
   const [sups, pur, pays, items] = await Promise.all([getDocs(ccol('suppliers')).then(x => x.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
     qAll('purchases', 'branchId', S.branch).catch(() => []), qAll('supPays', 'branchId', S.branch).catch(() => []), qAll('items', 'branchId', S.branch).catch(() => [])]);
@@ -5540,7 +5976,7 @@ A.supSave = async (e, id) => {
 };
 A.purModal = supId => {
   if (!S.sups.length) return A.supModal();
-  S.purLines = [{ itemId: '', name: '', qty: 1, cost: '' }];
+  S.purLines = [{ itemId: '', name: '', qty: 1, cost: '', bu: '', per: 1, unit: '' }];
   openModal(`<h3>🧾 فاتورة شراء</h3><form onsubmit="A.purSave(event)" class="fcol" oninput="A.purTot(this)">
     <div class="grid2"><label class="f">المورد<select name="sup">${S.sups.map(x => `<option value="${x.id}" ${x.id === supId ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label><label class="f">التاريخ<input name="date" type="date" required value="${todayStr()}"></label></div>
     <div id="purLines"></div>
@@ -5555,28 +5991,39 @@ function purDraw() {
   const box = document.getElementById('purLines'); if (!box) return;
   box.innerHTML = `<div class="section-t">الأصناف</div>${S.purLines.map((l, k) => `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
     <select aria-label="الصنف" style="flex:3 1 180px" onchange="A.purSet(${k},'itemId',this.value)"><option value="">صنف مش في المخزن</option>${(S.items || []).map(i => `<option value="${i.id}" ${l.itemId === i.id ? 'selected' : ''}>${esc(i.name)}</option>`).join('')}</select>
-    ${l.itemId ? '' : `<input aria-label="اسم الصنف" placeholder="اسم الصنف" value="${esc(l.name)}" style="flex:2 1 140px" oninput="A.purSet(${k},'name',this.value)">`}
-    <input aria-label="الكمية" type="number" min="0" step="any" value="${l.qty}" style="flex:0 0 80px" oninput="A.purSet(${k},'qty',this.value)">
-    <input aria-label="سعر الوحدة" type="number" min="0" step="any" placeholder="سعر الوحدة" value="${l.cost}" style="flex:0 0 110px" oninput="A.purSet(${k},'cost',this.value)">
-    ${S.purLines.length > 1 ? `<button type="button" class="btn ghost sm" onclick="A.purDel(${k})">✕</button>` : ''}</div>`).join('')}<div><button type="button" class="btn ghost sm" onclick="A.purAdd()">+ صنف</button></div>`;
+    ${l.itemId ? '' : `<input aria-label="اسم الصنف" placeholder="اسم الصنف (جديد هيتضاف للمخزن)" value="${esc(l.name)}" style="flex:2 1 140px" oninput="A.purSet(${k},'name',this.value)">`}
+    <input aria-label="العدد" title="العدد (بوحدة الشراء)" type="number" min="0" step="any" value="${l.qty}" style="flex:0 0 72px" oninput="A.purSet(${k},'qty',this.value)">
+    <input aria-label="وحدة الشراء" title="وحدة الشراء: بالة، كرتونة، باكو…" placeholder="بالة/كرتونة" value="${esc(l.bu || '')}" style="flex:1 1 100px" oninput="A.purSet(${k},'bu',this.value)">
+    <input aria-label="فيها كام" title="الوحدة دي فيها كام (علبة/قطعة)" type="number" min="1" step="any" placeholder="فيها كام" value="${l.per || 1}" style="flex:0 0 80px" oninput="A.purSet(${k},'per',this.value)">
+    ${l.itemId ? '' : `<input aria-label="وحدة الصرف" title="وحدة الصرف من المخزن: علبة، قطعة…" placeholder="علبة/قطعة" value="${esc(l.unit || '')}" style="flex:1 1 90px" oninput="A.purSet(${k},'unit',this.value)">`}
+    <input aria-label="سعر وحدة الشراء" title="سعر وحدة الشراء (البالة/الكرتونة)" type="number" min="0" step="any" placeholder="السعر" value="${l.cost}" style="flex:0 0 100px" oninput="A.purSet(${k},'cost',this.value)">
+    ${S.purLines.length > 1 ? `<button type="button" class="btn ghost sm" onclick="A.purDel(${k})">✕</button>` : ''}
+    ${Number(l.per) > 1 && Number(l.qty) > 0 ? `<span class="meta" style="flex-basis:100%">= ${(Number(l.qty) * Number(l.per)).toLocaleString('ar-EG')} ${esc(l.unit || (S.items || []).find(i => i.id === l.itemId)?.unit || 'وحدة')} في المخزن${Number(l.cost) ? ' · الوحدة بـ ' + money(Math.round(Number(l.cost) / Number(l.per) * 100) / 100) : ''}</span>` : ''}</div>`).join('')}<div><button type="button" class="btn ghost sm" onclick="A.purAdd()">+ صنف</button></div>`;
   A.purTot($modal.querySelector('form'));
 }
-A.purAdd = () => { S.purLines.push({ itemId: '', name: '', qty: 1, cost: '' }); purDraw(); };
+A.purAdd = () => { S.purLines.push({ itemId: '', name: '', qty: 1, cost: '', bu: '', per: 1, unit: '' }); purDraw(); };
 A.purDel = k => { S.purLines.splice(k, 1); purDraw(); };
-A.purSet = (k, key, v) => { const l = S.purLines[k]; if (!l) return; l[key] = v; if (key === 'itemId') { const it = (S.items || []).find(i => i.id === v); l.name = it?.name || ''; if (it && !l.cost) l.cost = it.cost || ''; purDraw(); } };
+A.purSet = (k, key, v) => { const l = S.purLines[k]; if (!l) return; l[key] = v;
+  if (key === 'itemId') { const it = (S.items || []).find(i => i.id === v); l.name = it?.name || ''; l.bu = it?.buyUnit || ''; l.per = it?.per || 1; if (it && !l.cost) l.cost = it.cost ? Math.round(it.cost * (it.per || 1) * 100) / 100 : ''; purDraw(); }
+};
 A.purTot = f => { if (f?.total) f.total.value = S.purLines.reduce((a, l) => a + (Number(l.qty) || 0) * (Number(l.cost) || 0), 0); };
 A.purSave = async e => {
   e.preventDefault(); const f = e.target, btn = f.querySelector('[type=submit]'), sup = S.sups.find(x => x.id === f.sup.value);
-  const lines = S.purLines.filter(l => (l.itemId || l.name.trim()) && Number(l.qty) > 0).map(l => ({ itemId: l.itemId || '', name: l.itemId ? ((S.items || []).find(i => i.id === l.itemId)?.name || '') : l.name.trim(), qty: Number(l.qty) || 0, cost: Number(l.cost) || 0 }));
+  const lines = S.purLines.filter(l => (l.itemId || l.name.trim()) && Number(l.qty) > 0).map(l => ({ itemId: l.itemId || '', per: Math.max(1, Number(l.per) || 1), bu: String(l.bu || '').trim(), unit: String(l.unit || '').trim(), name: l.itemId ? ((S.items || []).find(i => i.id === l.itemId)?.name || '') : l.name.trim(), qty: Number(l.qty) || 0, cost: Number(l.cost) || 0 }));
   if (!lines.length) return toast('ضيف صنف واحد على الأقل');
   const total = lines.reduce((a, l) => a + l.qty * l.cost, 0), paid = Math.min(total, Number(f.paid.value) || 0), d = f.date.value;
   busy(btn, true, 'جاري الحفظ...');
   try {
     const b = writeBatch(db), pref = doc(ccol('purchases'));
     b.set(pref, { supplierId: sup.id, supplierName: sup.name, branchId: S.branch, date: d, month: d.slice(0, 7), lines, total, paid, method: f.method?.value || '', note: f.note.value.trim(), createdAt: serverTimestamp(), createdBy: S.profile.id, createdByName: S.profile.name });
-    lines.filter(l => l.itemId).forEach(l => {
-      b.update(cdoc('items', l.itemId), { qty: increment(l.qty), ...(l.cost ? { cost: l.cost } : {}) });
-      b.set(doc(ccol('stockMoves')), { itemId: l.itemId, itemName: l.name, branchId: S.branch, type: 'in', qty: l.qty, note: 'شراء من ' + sup.name, date: d, month: d.slice(0, 7), createdAt: serverTimestamp(), createdBy: S.profile.id, createdByName: S.profile.name });
+    // صنف جديد مش في المخزن: بيتضاف لوحده بالعدد والسعر
+    lines.filter(l => !l.itemId).forEach(l => { const same = (S.items || []).find(i => (i.name || '').trim() === l.name); if (same) { l.itemId = same.id; return; }
+      const ir = doc(ccol('items')); l.itemId = ir.id; l.isNew = true;
+      b.set(ir, { name: l.name, unit: l.unit || 'قطعة', qty: 0, minQty: 0, cost: 0, branchId: S.branch, buyUnit: l.bu, per: l.per, createdAt: serverTimestamp(), createdBy: S.profile.id }); });
+    lines.forEach(l => {
+      const units = l.qty * l.per, uc = l.cost ? Math.round(l.cost / l.per * 100) / 100 : 0;
+      b.update(cdoc('items', l.itemId), { qty: increment(units), ...(uc ? { cost: uc } : {}), ...(l.bu ? { buyUnit: l.bu } : {}), per: l.per });
+      b.set(doc(ccol('stockMoves')), { itemId: l.itemId, itemName: l.name, branchId: S.branch, type: 'in', qty: units, note: 'شراء من ' + sup.name, date: d, month: d.slice(0, 7), createdAt: serverTimestamp(), createdBy: S.profile.id, createdByName: S.profile.name });
     });
     if (paid > 0) b.set(doc(ccol('expenses')), { branchId: S.branch, category: 'مشتريات', amount: paid, method: f.method?.value || 'cash', date: d, month: d.slice(0, 7), note: 'فاتورة شراء من ' + sup.name, purchaseId: pref.id, createdAt: serverTimestamp(), createdBy: S.profile.id, createdByName: S.profile.name });
     await b.commit(); A.closeModal(); toast(paid < total ? `اتسجلت — ${money(total - paid)} آجل على حساب ${sup.name}` : 'اتسجلت الفاتورة'); A.go('inventory');
@@ -5618,6 +6065,12 @@ async function renderReports() {
   const PK = {}; pkgs.forEach(p => PK[p.id] = p);
   await Promise.all(pkIds.filter(i => !PK[i]).map(i => getDoc(cdoc('cpackages', i)).then(d => { if (d.exists()) PK[i] = { id: i, ...d.data() }; }).catch(() => {})));
   const sVal = x => { if (!x.packageId) return Number(x.price) || 0; const p = PK[x.packageId]; if (!p || !pTot(p)) return 0; const per = (Number(p.price) || 0) / pTot(p); return per * (x.pulsesDeducted || 1); };
+  // المستهلكات التشغيلية والهالك وتكلفة المنتجات المباعة (بسعر التكلفة)
+  let IC = {}; if (mv.length) { try { (await getDocs(ccol('items'))).forEach(d => IC[d.id] = Number(d.data().cost) || 0); } catch (e) {} }
+  const mvCost = x => (Number(x.qty) || 0) * (x.cost != null ? Number(x.cost) || 0 : IC[x.itemId] || 0);
+  const useC = mv.filter(m => ['use', 'session', 'out'].includes(m.type)).reduce((a, m) => a + mvCost(m), 0), wasteC = mv.filter(m => m.type === 'waste').reduce((a, m) => a + mvCost(m), 0), saleC = mv.filter(m => m.type === 'sale').reduce((a, m) => a + mvCost(m), 0);
+  const buyPaid = exps.filter(e => e.category === 'مشتريات').reduce((a, e) => a + (Number(e.amount) || 0), 0);
+  const opNet = inc - (out - buyPaid) - useC - wasteC - saleC;
   const bk = bks.filter(b => b.status !== 'cancelled'), bDone = bk.filter(b => b.status === 'done').length, bNo = bk.filter(b => b.status === 'noshow').length;
   const bPast = bk.filter(b => b.date < todayStr()).length;
   const group = (l, key, val = () => 1) => { const o = {}; l.forEach(x => { const k = key(x) || '—'; o[k] = (o[k] || 0) + val(x); }); return Object.entries(o).sort((a, b) => b[1] - a[1]); };
@@ -5627,7 +6080,7 @@ async function renderReports() {
   };
   const cl = newCl.filter(c => all || c.branchId === S.branch);
   clinicShell('reports', `
-    <div class="head"><h2>التقارير</h2><button class="btn ghost sm" onclick="window.print()">طباعة</button></div>
+    <div class="head"><h2>التقارير</h2><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" onclick="A.dailyReport()">📊 تقرير النهارده</button>${isOwner() ? '<button class="btn ghost sm" onclick="A.dailyCfg()">⏰ التقرير اليومي</button>' : ''}<button class="btn ghost sm" onclick="window.print()">طباعة</button></div></div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       ${monthBar('rMonth', M)}
       ${['owner', 'accounts'].includes(S.profile.role) ? `<select style="width:auto" aria-label="النطاق" onchange="A.rScopeSet(this.value)"><option value="all" ${all ? 'selected' : ''}>كل الفروع</option><option value="branch" ${!all ? 'selected' : ''}>الفرع الحالي بس</option></select>` : ''}
@@ -5640,6 +6093,12 @@ async function renderReports() {
       <div class="card stat"><b>${pkgs.length}</b><span>باكدج اتباع بـ ${money(pkgs.reduce((a, p) => a + (p.price || 0), 0))}</span></div>
       <div class="card stat"><b>${cl.length}</b><span>عميل جديد</span></div>
     </div>
+    ${mv.length ? `<div class="cards">
+      <div class="card stat"><b>${money(Math.round(useC))}</b><span>مستهلكات تشغيلية (بالتكلفة)</span></div>
+      <div class="card stat"><b style="color:${wasteC ? 'var(--red)' : 'inherit'}">${money(Math.round(wasteC))}</b><span>الهالك</span></div>
+      ${saleC ? `<div class="card stat"><b>${money(Math.round(saleC))}</b><span>تكلفة المنتجات المباعة</span></div>` : ''}
+      <div class="card stat"><b style="color:${opNet >= 0 ? 'var(--ok)' : 'var(--red)'}">${money(Math.round(opNet))}</b><span>صافي الربح التشغيلي</span></div>
+    </div><p class="meta">«صافي الربح التشغيلي» = الإيرادات − المصروفات (من غير مدفوعات المشتريات) − المستهلكات اللي اتصرفت فعلاً − الهالك − تكلفة المنتجات المباعة. بيوريك ربحك الحقيقي من الشغل بغض النظر إمتى اشتريت البضاعة.</p>` : ''}
     <div class="grid2">
       ${all ? box('الإيرادات حسب الفرع', group(pays, p => branchName(p.branchId), p => p.amount || 0), money) : ''}
       ${box('الإيرادات حسب طريقة الدفع', group(pays, p => METHODS[p.method] || p.method, p => p.amount || 0), money)}
@@ -5650,7 +6109,10 @@ async function renderReports() {
       ${box('قيمة الشغل حسب الدكتور (تقريبي)', group(sess, s => s.doctorName, sVal), v => money(Math.round(v)))}
       ${box('قيمة الشغل حسب الخدمة (تقريبي)', group(sess, s => s.area || s.packageName, sVal), v => money(Math.round(v)))}
       ${pkgs.length ? box('أكتر الباكدجات مبيعاً', group(pkgs.filter(p => !p.cancelled), p => p.name, p => p.price || 0), money) : ''}
-      ${mv.some(m => m.type === 'session') ? box('المستهلكات اللي اتصرفت في الجلسات', group(mv.filter(m => m.type === 'session'), m => m.itemName, m => Number(m.qty) || 0)) : ''}
+      ${mv.some(m => ['session', 'use', 'out'].includes(m.type)) ? box('المستهلكات التشغيلية (بالتكلفة)', group(mv.filter(m => ['session', 'use', 'out'].includes(m.type)), m => m.itemName, mvCost), v => money(Math.round(v))) : ''}
+      ${mv.some(m => m.type === 'waste') ? box('الهالك (بالتكلفة)', group(mv.filter(m => m.type === 'waste'), m => m.itemName, mvCost), v => money(Math.round(v))) : ''}
+      ${mv.some(m => m.on) ? box('المستهلكات حسب الجهاز / الأوضة', group(mv.filter(m => m.on), m => m.on, mvCost), v => money(Math.round(v))) : ''}
+      ${mv.some(m => m.type === 'sale') ? box('المنتجات المباعة (عدد)', group(mv.filter(m => m.type === 'sale'), m => m.itemName, m => Number(m.qty) || 0)) : ''}
     </div>
     ${bks.length ? `<div class="card" style="display:flex;flex-direction:column;gap:10px"><h3>الحجوزات والحضور</h3><div class="cards">
       <div class="card stat"><b>${bk.length.toLocaleString('ar-EG')}</b><span>حجز</span></div>
@@ -6155,13 +6617,14 @@ async function renderCSettings() {
   const c = S.cfg, L = loy();
   const brs = (S.branches || []).filter(b => b.active !== false);
   clinicShell('csettings', `
-    <div class="head"><h2>إعدادات العيادة</h2></div>
+    <div class="head"><h2>إعدادات العيادة</h2>${own && feat('export') ? `<button class="btn ghost" onclick="A.exportAll()">⬇️ تحميل كل بياناتي (Excel)</button>` : ''}</div>
     <form onsubmit="A.saveCSettings(event)" class="fcol">
       ${feat('onlineBooking') ? `<div class="card fcol">
         <h3>📅 الحجز أونلاين</h3>
         <p class="meta">صفحة بلينك و QR بتاعة عيادتك: العميل يختار الخدمة واليوم، ويشوف <b>المواعيد الفاضية بس</b>، ويبعت طلب حجز يظهر عند الريسبشن في "الحجوزات" يأكّدوه.</p>
         <label class="chk"><input type="checkbox" name="bon" ${pub.on ? 'checked' : ''}> تشغيل الحجز أونلاين</label>
         <label class="f">رقم واتساب العيادة (بيظهر للعميل في صفحة الحجز)<input name="bwa" dir="ltr" inputmode="tel" value="${esc(pub.wa || '')}" placeholder="01xxxxxxxxx"></label>
+        <div class="grid2"><label class="f">رقم فودافون كاش (للعربون — اختياري)<input name="bvf" dir="ltr" inputmode="tel" value="${esc(pub.pay?.vf || '')}" placeholder="010xxxxxxxx"></label><label class="f">إنستاباي (رقم أو اسم المستخدم — اختياري)<input name="bin" dir="ltr" value="${esc(pub.pay?.insta || '')}" placeholder="name@instapay"></label></div>
         ${brs.length > 1 ? `<div class="meta">الفروع اللي بتظهر في صفحة الحجز:</div><div class="grid2">${brs.map(b => `<label class="chk"><input type="checkbox" name="bbr_${b.id}" ${!pub.branches || pub.branches.some(x => x.id === b.id) ? 'checked' : ''}> ${esc(b.name)}</label>`).join('')}</div>` : ''}
         <div class="section-t">مواعيد الشغل</div>
         <div class="grid3">
@@ -6185,7 +6648,7 @@ async function renderCSettings() {
         ${team.length ? `<div class="section-t">مواعيد الفريق</div>
         <p class="meta">علّم على اللي بيتحجز معاهم أونلاين، وحدد أيامهم وساعاتهم. لو حد غايب يوم، ضيفه في "إجازة" ومواعيده تختفي من الحجز لوحدها.</p>
         ${team.map(x => { const d = S.staffDraft[x.id]; return `<div class="card fcol" style="padding:12px;gap:8px;background:var(--bg);border:0">
-          <label class="chk"><input type="checkbox" ${d.on ? 'checked' : ''} onchange="A.stSet('${x.id}','on',this.checked)"> <b>${esc(x.name)}</b> <span class="meta" style="display:inline">${esc(ROLES[x.role]?.label || '')}</span></label>
+          <label class="chk"><input type="checkbox" ${d.on ? 'checked' : ''} onchange="A.stSet('${x.id}','on',this.checked)"> <b>${esc(x.name)}</b> <span class="meta" style="display:inline">${esc(roleTitle(x))}</span></label>
           <div style="display:flex;gap:4px 12px;flex-wrap:wrap">${DAYS.map((n, i) => `<label class="chk" style="font-size:13px"><input type="checkbox" ${d.days.includes(i) ? 'checked' : ''} onchange="A.stDay('${x.id}',${i},this.checked)"> ${n}</label>`).join('')}</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="meta">من</span><input type="time" value="${esc(d.from)}" style="width:auto" onchange="A.stSet('${x.id}','from',this.value)"><span class="meta">لحد</span><input type="time" value="${esc(d.to)}" style="width:auto" onchange="A.stSet('${x.id}','to',this.value)">
             <span class="meta" style="margin-inline-start:12px">إجازة يوم</span><input type="date" min="${todayStr()}" style="width:auto" onchange="A.stOff('${x.id}',this.value)"></div>
@@ -6261,8 +6724,8 @@ A.saveCSettings = async e => {
     if ((toMin(f.bclose.value) ?? 0) <= (toMin(f.bopen.value) ?? 0)) return toast('ساعة القفل لازم تكون بعد ساعة الفتح');
     const brIds = (S.branches || []).map(b => b.id);
     const res = (S.resDraft || []).filter(r => r.name.trim()).map(r => ({ id: r.id, name: r.name.trim().slice(0, 40), count: Math.max(1, Math.min(20, Math.round(Number(r.count) || 1))), branchId: r.branchId || brIds[0] || '' }));
-    const staff = (S.staff || []).filter(x => S.staffDraft?.[x.id]?.on).map(x => { const d = S.staffDraft[x.id]; return { id: x.id, name: x.name, branchIds: x.branchIds || [], days: d.days, from: d.from, to: d.to, off: d.off.filter(o => o >= todayStr()).slice(0, 60) }; });
-    pub = { on: f.bon.checked, wa: f.bwa.value.trim(), branches: pickBr.map(b => ({ id: b.id, name: b.name })), open: f.bopen.value, close: f.bclose.value, step: Number(f.bstep.value) || 30, showPrice: f.bprice.checked, res, staff,
+    const staff = (S.staff || []).filter(x => S.staffDraft?.[x.id]?.on).map(x => { const d = S.staffDraft[x.id]; return { id: x.id, name: x.name, role: x.role || '', branchIds: x.branchIds || [], days: d.days, from: d.from, to: d.to, off: d.off.filter(o => o >= todayStr()).slice(0, 60) }; });
+    pub = { on: f.bon.checked, wa: f.bwa.value.trim(), pay: { vf: (f.bvf?.value || '').trim().slice(0, 40), insta: (f.bin?.value || '').trim().slice(0, 60) }, branches: pickBr.map(b => ({ id: b.id, name: b.name })), open: f.bopen.value, close: f.bclose.value, step: Number(f.bstep.value) || 30, showPrice: f.bprice.checked, res, staff,
       cap: Math.max(1, Math.min(20, Math.round(Number(f.bcap.value) || 1))), ahead: Math.max(1, Math.min(120, Math.round(Number(f.bahead.value) || 30))), off: [0, 1, 2, 3, 4, 5, 6].filter(i => f['boff_' + i]?.checked) };
   }
   busy(btn, true, 'جاري الحفظ...');
@@ -6337,7 +6800,8 @@ function onlineCard() {
     ${L.map(r => `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding-top:10px;border-top:1px solid var(--line)">
       <div style="flex:1;min-width:220px"><b>${esc(r.name)}</b> <a dir="ltr" href="https://wa.me/${waNum(r.phone)}" target="_blank" rel="noopener">${esc(r.phone)}</a>
         <div class="meta"><span>${esc(dayName(r.date))}${r.time ? ' · الساعة ' + esc(time12(r.time)) : r.slot ? ' · ' + esc(r.slot) : ''}</span>${r.service ? `<span>${esc(r.service)}</span>` : ''}${r.staffName ? `<span>مع ${esc(r.staffName)}</span>` : ''}${r.branchName ? `<span>${esc(r.branchName)}</span>` : ''}</div>
-        ${r.notes ? `<div class="meta">${esc(r.notes)}</div>` : ''}</div>
+        ${r.notes ? `<div class="meta">${esc(r.notes)}</div>` : ''}
+        ${r.paidClaim || r.proofId ? `<div class="meta" style="color:var(--ok)"><span>💳 بيقول إنه حوّل عربون${r.paidClaim ? ' ' + money(r.paidClaim) : ''}</span>${r.proofId ? `<button class="btn ghost sm" onclick="A.proofView('${r.proofId}')">📎 صورة التحويل</button>` : ''}<span>— اتأكد إن الفلوس وصلت وسجّلها تحصيل</span></div>` : ''}</div>
       ${can('bookings_edit') ? `<button class="btn gold sm" onclick="A.onlineOk('${r.id}')">✓ أكّد واحجز</button><button class="btn ghost sm" onclick="A.onlineNo('${r.id}')">مش هينفع</button>` : ''}</div>`).join('')}
   </div>`;
 }
@@ -6466,6 +6930,25 @@ A.dayReport = async () => {
 };
 
 /* ----- صفحة الحجز أونلاين (للعملاء، من غير دخول) ----- */
+// ألوان صفحة الحجز من لوجو العيادة نفسه: أكتر لونين واضحين في اللوجو
+function logoPalette(url) {
+  return new Promise(ok => { if (!url) return ok(null); const im = new Image(); im.crossOrigin = 'anonymous';
+    im.onload = () => { try {
+      const W = 64, H = Math.max(1, Math.round(64 * im.height / im.width)); const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const g = cv.getContext('2d'); g.drawImage(im, 0, 0, W, H);
+      const d = g.getImageData(0, 0, W, H).data, B = {};
+      for (let i = 0; i < d.length; i += 4) { if (d[i + 3] < 200) continue; const r = d[i], gg = d[i + 1], b = d[i + 2], mx = Math.max(r, gg, b), mn = Math.min(r, gg, b);
+        if (mx - mn < 40 || mx < 50 || mn > 225) continue; const k = (r >> 5) + ',' + (gg >> 5) + ',' + (b >> 5); const o = B[k] = B[k] || { n: 0, r: 0, g: 0, b: 0 }; o.n++; o.r += r; o.g += gg; o.b += b; }
+      const L = Object.values(B).sort((a, b) => b.n - a.n).map(o => [o.r / o.n, o.g / o.n, o.b / o.n]);
+      if (!L.length) return ok(null);
+      const hex = c => '#' + c.map(v => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')).join('');
+      const lum = c => (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) / 255;
+      // اللون الأساسي لازم يبقى غامق كفاية علشان الكلام الأبيض يبان عليه
+      let p = L[0]; while (lum(p) > 0.42) p = p.map(v => v * 0.85);
+      const s2 = L.find(c => Math.abs(c[0] - L[0][0]) + Math.abs(c[1] - L[0][1]) + Math.abs(c[2] - L[0][2]) > 90) || null;
+      ok({ brand: hex(p), dark: hex(p.map(v => v * 0.7)), accent: s2 ? hex(s2) : null, tint: hex(p.map(v => 255 - (255 - v) * 0.1)) });
+    } catch (e) { ok(null); } };
+    im.onerror = () => ok(null); im.src = url; });
+}
 async function renderBookPage() {
   const cid = BOOK_C;
   $app.innerHTML = `<div class="loading">جاري التحميل...</div>`;
@@ -6486,6 +6969,10 @@ async function renderBookPage() {
   const B = brandOf(br ? { ...br, whiteLabel: true } : null);
   if (B.logo) applyAppIcon(cid, B);
   document.title = 'احجز ميعادك — ' + B.name;
+  try { const pal = B.logo ? await logoPalette(B.logo) : null; const R = document.documentElement.style;
+    if (pal) { R.setProperty('--brand', pal.brand); R.setProperty('--brand-d', pal.dark); R.setProperty('--ok-bg', pal.tint); if (pal.accent) { R.setProperty('--gold', pal.accent); R.setProperty('--gold-l', pal.accent); } setHead('meta[name="theme-color"]', () => Object.assign(document.createElement('meta'), { name: 'theme-color' }), 'content', pal.brand); }
+    else if (B.color) R.setProperty('--brand', B.color);
+  } catch (e) {}
   const wa = pub?.wa ? `https://wa.me/${waNum(pub.wa)}` : '';
   if (!br || !pub?.on || br.book === false) { $app.innerHTML = `<div class="locked"><div class="card">${logoHTML(B, 64)}<h2>${esc(B.name)}</h2><p>الحجز أونلاين مش متاح دلوقتي.${wa ? ` <a href="${wa}" target="_blank" rel="noopener">كلّمنا على الواتساب</a>.` : ''}</p></div></div>`; return; }
   // الأقسام اللي فيها خدمات ظاهرة (+ "خدمات تانية" للي من غير قسم)
@@ -6504,7 +6991,10 @@ async function renderBookPage() {
   const btn = (txt, on, dis) => `<button type="button" class="btn" style="width:100%;min-height:50px;font-size:16px" ${dis ? 'disabled' : ''} onclick="${on}">${txt}</button>`;
   let busyNow = {}, slots = [];
   const busyRef = () => doc(db, 'clinics', cid, 'busy', (P.br?.id || 'main') + '_' + P.date);
-  const team = () => { const ids = staffFor(sel(), pub); return ids ? (pub.staff || []).filter(s => ids.includes(s.id) && (!P.br || !s.branchIds?.length || s.branchIds.includes(P.br.id))) : null; };
+  const team = () => { const ids = staffFor(sel(), pub); const inBr = s => !P.br || !s.branchIds?.length || s.branchIds.includes(P.br.id);
+    if (ids) return (pub.staff || []).filter(s => ids.includes(s.id) && inBr(s));
+    // الخدمة مش متحدد لها دكاترة: العميل يقدر يختار أي دكتور من دكاترة الفرع
+    const docs = (pub.staff || []).filter(s => inBr(s) && (!s.role || s.role === 'doctor')); return docs.length ? docs : null; };
   async function loadSlots() {
     slots = null; draw();
     try { const d = await getDoc(busyRef()); busyNow = d.exists() ? d.data() : {}; } catch (e) { busyNow = {}; }
@@ -6567,6 +7057,12 @@ async function renderBookPage() {
         <label class="f">اسمك *<input id="bkName" maxlength="80" autocomplete="name" value="${esc(P.name)}" oninput="BK.f('name',this.value)"></label>
         <label class="f">رقم الموبايل (واتساب) *<input id="bkPhone" dir="ltr" inputmode="tel" maxlength="16" autocomplete="tel" placeholder="01xxxxxxxxx" value="${esc(P.phone)}" oninput="BK.f('phone',this.value)"></label>
         <label class="f">ملاحظات<input maxlength="500" value="${esc(P.notes)}" oninput="BK.f('notes',this.value)"></label>
+        ${pub.pay?.vf || pub.pay?.insta ? `<details class="card" style="padding:12px 14px" ${P.depOpen ? 'open' : ''} ontoggle="BK.f('depOpen',this.open)"><summary style="cursor:pointer;font-weight:700">💳 تحب تدفع عربون وتأكد حجزك؟ (اختياري)</summary>
+          <div class="fcol" style="gap:10px;margin-top:10px">
+            ${[['vf', 'فودافون كاش'], ['insta', 'إنستاباي']].filter(([k]) => pub.pay[k]).map(([k, l]) => `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--ok-bg);border-radius:12px;padding:10px 12px"><span style="flex:1"><span class="meta" style="display:block">${l}</span><b dir="ltr">${esc(pub.pay[k])}</b></span><button type="button" class="btn ghost sm" onclick="navigator.clipboard?.writeText('${esc(pub.pay[k])}').then(()=>this.textContent='اتنسخ ✓').catch(()=>{})">نسخ</button></div>`).join('')}
+            <label class="f">حوّلت كام؟<input type="number" min="0" step="any" inputmode="numeric" value="${P.dep || ''}" oninput="BK.f('dep',this.value)"></label>
+            <label class="f">صورة التحويل<input type="file" accept="image/*" onchange="BK.proof(this.files[0])"></label>${P.proofName ? `<span class="meta">✓ ${esc(P.proofName)}</span>` : ''}
+          </div></details>` : ''}
         <input id="bkHp" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;width:1px;height:1px;padding:0;border:0;overflow:hidden;clip:rect(0 0 0 0);opacity:0;pointer-events:none">
         <div id="bkErr"></div>`;
     }
@@ -6575,7 +7071,24 @@ async function renderBookPage() {
       <p class="meta" style="justify-content:center">هنكلمك على <b dir="ltr">${esc(P.phone)}</b> نأكّد الميعاد.</p>
       ${wa ? `<a class="btn gold" style="text-decoration:none;display:inline-flex;justify-content:center;align-items:center" target="_blank" rel="noopener" href="${wa}?text=${encodeURIComponent(`أهلاً 👋 حجزت أونلاين باسم ${P.name}: ${sel().map(x => x.name).join(' + ')} يوم ${dayName(P.date)} الساعة ${time12(P.time)}`)}">💬 ابعتلنا على الواتساب</a>` : ''}</div>`;
   }
+  // متجر صغير: المنتجات والبوكسات اللي العيادة بتبيعها (الطلب بيوصل العيادة)
+  const SHOP = (pub.shop || []).filter(x => !P.br || !x.br || x.br === P.br.id || brs.length <= 1);
+  P.cart = P.cart || {};
+  function shopView() {
+    const tot = SHOP.reduce((a, x) => a + (P.cart[x.id] || 0) * x.price, 0), any = Object.values(P.cart).some(v => v > 0);
+    if (P.shopDone) return `<div class="card fcol" style="align-items:center;text-align:center;gap:10px;padding:26px"><span style="font-size:44px">🛍️</span><h2 style="margin:0">طلبك وصل ✓</h2><p class="meta">العيادة هتكلمك على ${esc(P.phone)} علشان التسليم.</p><button type="button" class="btn ghost" onclick="BK.shop(false)">رجوع للحجز</button></div>`;
+    return `<div style="display:flex;align-items:center;gap:10px"><button type="button" class="btn ghost sm" onclick="BK.shop(false)">→ رجوع للحجز</button><h2 style="margin:0;font-size:19px;flex:1">🛍️ منتجاتنا</h2></div>
+      <div class="fcol" style="gap:8px">${SHOP.map(x => `<div class="card" style="display:flex;gap:10px;align-items:center;padding:12px 14px"><span style="flex:1;display:flex;flex-direction:column"><b>${x.id.startsWith('b:') ? '🎁 ' : ''}${esc(x.name)}</b>${x.box ? `<span class="meta" style="font-size:12.5px">${esc(x.box)}</span>` : ''}<span style="color:var(--brand);font-weight:700">${money(x.price)}</span></span>
+        <span style="display:flex;align-items:center;gap:6px"><button type="button" class="btn ghost sm" aria-label="أقل" onclick="BK.cart('${x.id}',-1)">−</button><b style="min-width:22px;text-align:center">${(P.cart[x.id] || 0).toLocaleString('ar-EG')}</b><button type="button" class="btn ghost sm" aria-label="أكتر" onclick="BK.cart('${x.id}',1)">+</button></span></div>`).join('')}</div>
+      ${any ? `<div class="card fcol" style="gap:10px"><div style="display:flex;justify-content:space-between"><span class="meta">الإجمالي</span><b>${money(tot)}</b></div>
+        <label class="f">اسمك *<input maxlength="80" value="${esc(P.name)}" oninput="BK.f('name',this.value)"></label>
+        <label class="f">رقم الموبايل (واتساب) *<input dir="ltr" inputmode="tel" maxlength="16" value="${esc(P.phone)}" oninput="BK.f('phone',this.value)"></label>
+        ${pub.pay?.vf || pub.pay?.insta ? `<div class="fcol" style="gap:8px"><b style="font-size:14px">💳 تقدر تحوّل وترفع صورة التحويل (اختياري)</b>${[['vf', 'فودافون كاش'], ['insta', 'إنستاباي']].filter(([k]) => pub.pay[k]).map(([k, l]) => `<div style="display:flex;gap:8px;align-items:center;background:var(--ok-bg);border-radius:12px;padding:8px 12px"><span style="flex:1"><span class="meta" style="display:block">${l}</span><b dir="ltr">${esc(pub.pay[k])}</b></span><button type="button" class="btn ghost sm" onclick="navigator.clipboard?.writeText('${esc(pub.pay[k])}').then(()=>this.textContent='اتنسخ ✓').catch(()=>{})">نسخ</button></div>`).join('')}
+          <label class="f">صورة التحويل<input type="file" accept="image/*" onchange="BK.proof(this.files[0])"></label>${P.proofName ? `<span class="meta">✓ ${esc(P.proofName)}</span>` : ''}</div>` : ''}
+        <div id="shErr"></div><button type="button" class="btn" style="min-height:50px" onclick="BK.order()">ابعت الطلب</button></div>` : '<p class="meta">اختار المنتجات اللي عايزها بـ «+».</p>'}`;
+  }
   function foot() {
+    if (P.shopOn) return '<p class="meta" style="margin:0;text-align:center">الطلب بيوصل العيادة على طول، وهيكلموك للتسليم.</p>';
     if (P.step === 5) return wa ? `<p class="meta" style="justify-content:center;margin:0">محتاج مساعدة؟ <a href="${wa}" target="_blank" rel="noopener">كلّمنا على الواتساب</a></p>` : '';
     if (P.step === 2) return `${P.picked.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;max-height:76px;overflow-y:auto">${sel().map(x => `<span style="display:inline-flex;align-items:center;gap:4px;background:var(--ok-bg);color:var(--brand);border-radius:99px;padding:4px 6px 4px 10px;font-size:13px;font-weight:600">${esc(x.name)}<button type="button" aria-label="شيل ${esc(x.name)}" onclick="BK.pick('${x.id}',false)" style="border:0;background:transparent;color:inherit;cursor:pointer;font-size:15px;line-height:1;padding:0 2px">×</button></span>`).join('')}</div><div style="display:flex;justify-content:space-between;font-size:14px"><span>${n(P.picked.length)} ${P.picked.length === 1 ? 'خدمة' : 'خدمات'} · ${n(totDur())} دقيقة</span>${pub.showPrice ? `<b>${money(totPrice())}</b>` : ''}</div>` : wa ? `<p class="meta" style="justify-content:center;margin:0">محتاج مساعدة؟ <a href="${wa}" target="_blank" rel="noopener">كلّمنا على الواتساب</a></p>` : ''}${btn('كمّل واختار الميعاد ←', 'BK.go(3)', !P.picked.length && !P.offer)}`;
     if (P.step === 3) return btn(P.time ? `${esc(dayName(P.date))} · ${esc(time12(P.time))} ← التالي` : 'اختار ميعاد', 'BK.go(4)', !P.time);
@@ -6583,12 +7096,29 @@ async function renderBookPage() {
   }
   function draw() {
     $app.innerHTML = `<div style="max-width:520px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;background:var(--bg)">${head()}
-      <main style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:14px">${body()}<p style="margin:8px 0 0;text-align:center;color:var(--muted);font-size:11px;opacity:.75">Powered by Beam Care</p></main>
+      <main style="flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:14px">${P.shopOn ? shopView() : (P.step === 2 && SHOP.length ? `<button type="button" onclick="BK.shop(true)" style="font:inherit;cursor:pointer;text-align:right;display:flex;gap:10px;align-items:center;background:#fff;border:1.5px dashed var(--brand);border-radius:16px;padding:12px 14px;color:var(--ink)"><span style="font-size:26px">🛍️</span><span style="flex:1;display:flex;flex-direction:column"><b>اطلب منتجاتنا</b><span class="meta" style="font-size:13px">${SHOP.length.toLocaleString('ar-EG')} منتج وبوكس — من غير حجز</span></span><b style="color:var(--brand)">←</b></button>` : '') + body()}<p style="margin:8px 0 0;text-align:center;color:var(--muted);font-size:11px;opacity:.75">Powered by Beam Care</p></main>
       <footer style="position:sticky;bottom:0;padding:12px 18px calc(16px + env(safe-area-inset-bottom,0px));background:#fff;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:10px">${foot()}</footer></div>`;
   }
   try { history.replaceState({ bk: 2 }, ''); } catch (e) {}
   window.onpopstate = e => { if (P.step === 5) return; const st = e.state?.bk || 2; if (st === 3) return BK.go(3, true); P.step = st; if (st === 2 && groups.length > 1) P.cat = e.state?.cat ? groups.find(g => g.id === e.state.cat) || null : null; draw(); window.scrollTo(0, 0); };
   window.BK = {
+    shop: on => { P.shopOn = !!on; P.shopDone = false; draw(); window.scrollTo(0, 0); },
+    cart: (id, d) => { P.cart[id] = Math.max(0, Math.min(20, (P.cart[id] || 0) + d)); draw(); },
+    order: async () => {
+      const err = m => { const e = document.getElementById('shErr'); if (e) e.innerHTML = `<div class="err" role="alert">${m}</div>`; };
+      const name = P.name.trim(), phone = latinDigits(P.phone).replace(/[^\d+]/g, '');
+      if (name.length < 2) return err('اكتب اسمك'); if (!/^[+]?[0-9]{8,15}$/.test(phone)) return err('اكتب رقم موبايل صحيح');
+      if (Date.now() - t0 < 4000) return err('ثانية واحدة… راجع طلبك ودوس تاني.');
+      const lines = SHOP.filter(x => P.cart[x.id] > 0).map(x => ({ ref: x.id, name: x.name.slice(0, 80), qty: P.cart[x.id], price: x.price })).slice(0, 20);
+      if (!lines.length) return err('اختار منتج');
+      const total = lines.reduce((a, l) => a + l.qty * l.price, 0);
+      try { const bt = writeBatch(db); const data = { name, phone, lines, total, status: 'new', createdAt: serverTimestamp(), ...(P.br ? { branchId: P.br.id } : {}) };
+        if (P.proofImg) { const pr = doc(collection(db, 'clinics', cid, 'proofs')); bt.set(pr, { img: P.proofImg, kind: 'order', clientId: '', branchId: P.br?.id || '', createdAt: serverTimestamp(), createdBy: '', createdByName: name.slice(0, 80) }); data.proofId = pr.id; }
+        bt.set(doc(collection(db, 'clinics', cid, 'orders')), data); await bt.commit(); bcNotify(cid, 'order');
+        P.phone = phone; P.cart = {}; P.proofImg = null; P.proofName = ''; P.shopDone = true; draw(); window.scrollTo(0, 0);
+      } catch (x) { console.error(x); err('مقدرناش نبعت الطلب — جرّب تاني بعد شوية.'); }
+    },
+    proof: async file => { if (!file) return; try { P.proofImg = await shrinkImg(file, 1000); P.proofName = file.name; P.depOpen = true; draw(); } catch (e) { alert('مقدرناش نقرا الصورة، جرّب صورة تانية'); } },
     back: () => { if (P.step > 2 && P.step < 5) history.back(); },
     jump: k => { if (k === P.step) return; if (k < P.step) { history.go(k - P.step); return; } BK.go(k); },
     cat: id => { P.cat = groups.find(g => g.id === id) || P.cat; try { history.pushState({ bk: 2, cat: id }, ''); } catch (e) {} draw(); window.scrollTo(0, 0); },
@@ -6633,9 +7163,13 @@ async function renderBookPage() {
       const b = document.querySelector('footer .btn'); busy(b, true, 'بيتحجز...');
       try {
         const bt = writeBatch(db);
-        bt.set(doc(collection(db, 'clinics', cid, 'online')), data);
+        if (P.proofImg) { const pr = doc(collection(db, 'clinics', cid, 'proofs')); bt.set(pr, { img: P.proofImg, kind: 'online', clientId: '', branchId: data.branchId || '', createdAt: serverTimestamp(), createdBy: '', createdByName: name.slice(0, 80) }); data.proofId = pr.id; }
+        if (Number(P.dep) > 0) data.paidClaim = Math.min(1e6, Number(P.dep));
+        const onRef = doc(collection(db, 'clinics', cid, 'online'));
+        bt.set(onRef, data);
         bt.set(busyRef(), { h: { [P.time]: 1 }, last: P.time }, { merge: true });
         await bt.commit();
+        bcNotify(cid, 'book');
         try { localStorage.setItem('bc-bk-' + cid, JSON.stringify([...sent, Date.now()])); } catch (x) {}
         P.phone = phone; P.step = 5; draw(); window.scrollTo(0, 0);
       } catch (x) {
@@ -6645,7 +7179,8 @@ async function renderBookPage() {
       }
     },
   };
-  if (!groups.length && !offers.length) { $app.innerHTML = `<div class="locked"><div class="card">${logoHTML(B, 64)}<h2>${esc(B.name)}</h2><p>الحجز أونلاين لسه بيتجهز.${wa ? ` <a href="${wa}" target="_blank" rel="noopener">كلّمنا على الواتساب</a>.` : ''}</p></div></div>`; return; }
+  if (!groups.length && !offers.length && SHOP.length) P.shopOn = true;
+  if (!groups.length && !offers.length && !SHOP.length) { $app.innerHTML = `<div class="locked"><div class="card">${logoHTML(B, 64)}<h2>${esc(B.name)}</h2><p>الحجز أونلاين لسه بيتجهز.${wa ? ` <a href="${wa}" target="_blank" rel="noopener">كلّمنا على الواتساب</a>.` : ''}</p></div></div>`; return; }
   draw();
 }
 
@@ -6662,6 +7197,10 @@ async function renderOffers() {
   clinicShell('offers', LOADING);
   await Promise.all([loadServices(true), loadCats(), loadClients(true), feat('onlineBooking') ? loadPubCfg() : null]);
   const offers = (S.services || []).filter(x => !x.hidden && ['combo', 'package', 'session'].includes(x.kind || 'session')).sort((a, b) => (b.kind === 'combo') - (a.kind === 'combo'));
+  // المنتجات والبوكسات كمان ممكن تتعمل عليها حملة (بنفس الصورة والرسالة)
+  if (feat('shop')) { try { const [bd, it] = await Promise.all([getDocs(ccol('bundles')), getDocs(query(ccol('items'), where('forSale', '==', true)))]);
+    bd.docs.forEach(d => { const b = d.data(); if (b.active !== false) offers.push({ id: 'b:' + d.id, kind: 'combo', name: '🎁 ' + b.name, price: b.price, items: (b.items || []).map(x => ({ name: x.name, n: x.qty, unit: 'n' })) }); });
+    it.docs.forEach(d => { const x = d.data(); if (Number(x.sell) > 0) offers.push({ id: 'i:' + d.id, kind: 'session', name: '🛍️ ' + x.name, price: x.sell }); }); } catch (e) {} }
   const C = S.camp = S.camp || { offerId: offers.find(x => x.kind === 'combo')?.id || offers[0]?.id || '', style: 'brand', upload: null, gender: 'all', cat: '', away: 0, bday: false, noPkg: false, branch: '', tpl: '' };
   const o = offers.find(x => x.id === C.offerId);
   if (!C.tpl) C.tpl = 'أهلاً {الاسم} 🌸\nعندنا عرض جديد مخصوص ليكي في {العيادة}:\n*{العرض}*\n{الخدمات}\nبـ {السعر} بس{لحد}\n' + (feat('onlineBooking') && S.pubCfg?.on ? 'احجزي من هنا: {اللينك}' : 'ردّي على الرسالة دي ونحجزلك على طول 💬');
@@ -6691,6 +7230,13 @@ async function renderOffers() {
           <label class="chk"><input type="checkbox" ${C.bday ? 'checked' : ''} onchange="A.campSet('bday',this.checked)"> عيد ميلادهم الشهر ده</label>
           <label class="chk"><input type="checkbox" ${C.noPkg ? 'checked' : ''} onchange="A.campSet('noPkg',this.checked)"> معاهمش باكدج شغال</label>
           <div class="notice info" style="padding:10px 12px">العدد: <b>${list.length.toLocaleString('ar-EG')}</b> عميل</div></div>
+        ${isOwner() || canCampaign() ? `<details class="card" style="padding:12px 14px"><summary style="cursor:pointer;font-weight:700">📅 جدولة الحملة${S.cfg?.campSched?.on ? ' <span class="chip ok">شغالة</span>' : ''}</summary>
+          <form class="fcol" style="gap:8px;margin-top:10px" onsubmit="A.campSchedSave(event)">
+            <p class="meta">في الأيام والساعة اللي تحددها، السيستم يفكّرك إن الحملة جاهزة، وتبعتها بضغطة لكل عميل. ونفس العميل ما ياخدش نفس العرض تاني قبل المدة اللي تحددها.</p>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">${['الأحد', 'الاتنين', 'التلات', 'الأربع', 'الخميس', 'الجمعة', 'السبت'].map((d, i) => `<label class="chk" style="border:1px solid var(--line);border-radius:99px;padding:4px 10px"><input type="checkbox" name="cd" value="${i}" ${(S.cfg?.campSched?.days || []).includes(i) ? 'checked' : ''}> ${d}</label>`).join('')}</div>
+            <div class="grid3"><label class="f">الساعة<input type="time" name="ct" value="${esc(S.cfg?.campSched?.time || '12:00')}"></label><label class="f">مرات في اليوم<select name="cn">${[1, 2, 3].map(n => `<option value="${n}" ${(S.cfg?.campSched?.times || 1) === n ? 'selected' : ''}>${n}</option>`).join('')}</select></label><label class="f">نفس العميل كل (يوم)<input type="number" min="0" name="cg" value="${S.cfg?.campSched?.gap ?? 3}"></label></div>
+            <label class="chk"><input type="checkbox" name="con" ${S.cfg?.campSched?.on ? 'checked' : ''}> الجدولة شغالة للعرض ده</label>
+            <div class="acts" style="margin:0"><button class="btn sm">حفظ الجدولة</button></div></form></details>` : ''}
         <div class="card fcol" style="gap:8px"><b>٤. الرسالة</b>
           <textarea id="campTpl" rows="7" style="width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;font:inherit;line-height:1.7" onchange="A.campSet('tpl',this.value)">${esc(C.tpl)}</textarea>
           <p class="meta">الكلمات اللي بين { } بتتغير لكل عميل لوحدها: {الاسم} {العرض} {الخدمات} {السعر} {لحد} {اللينك}</p></div>
@@ -6710,8 +7256,25 @@ async function renderOffers() {
     </div>`);
   drawOffer(document.getElementById('offerCv'), o, C.style, C.upload).catch(e => console.error(e));
 }
+A.campSchedSave = async e => {
+  e.preventDefault(); const f = e.target;
+  const campSched = { on: f.con.checked, offerId: S.camp?.offerId || '', days: [...f.querySelectorAll('input[name=cd]:checked')].map(x => +x.value), time: f.ct.value || '12:00', times: Number(f.cn.value) || 1, gap: Math.max(0, Number(f.cg.value) || 0) };
+  if (campSched.on && !campSched.days.length) return toast('اختار يوم واحد على الأقل');
+  try { await setDoc(cdoc('cfg', 'main'), { campSched }, { merge: true }); S.cfg = { ...(S.cfg || {}), campSched }; toast('اتحفظت الجدولة ✓'); renderOffers(); } catch (er) { toast('مقدرتش أحفظ: ' + (er.code || er.message)); }
+};
+// الحملة جه ميعادها؟ (أول ميعاد في اليوم، وكل ٣ ساعات بعده لو أكتر من مرة)
+function campDue() {
+  const c = S.cfg?.campSched; if (!c?.on || !(c.days || []).includes(new Date().getDay())) return 0;
+  const [h, m] = String(c.time || '12:00').split(':').map(Number), now = new Date(), base = new Date(); base.setHours(h, m || 0, 0, 0);
+  let slot = 0; for (let i = 0; i < (c.times || 1); i++) { const t = new Date(base.getTime() + i * 3 * 36e5); if (now >= t) slot = i + 1; }
+  if (!slot) return 0; let done = 0; try { done = Number(localStorage.getItem('bc-campdone-' + S.clinic.id + '-' + todayStr()) || 0); } catch (e) {}
+  return done < slot ? slot : 0;
+}
 async function campAudience(C) {
   let L = (S.clients || []).filter(c => c.phone);
+  // ما يتبعتش نفس العرض لنفس العميل تاني قبل المدة اللي اتحددت (علشان الرقم ما يتقفلش سبام)
+  const gap = Number(S.cfg?.campSched?.gap) || 0;
+  if (gap) { let sent = {}; try { sent = JSON.parse(localStorage.getItem('bc-camp-' + S.clinic.id + '-' + C.offerId) || '{}'); } catch (e) {} L = L.filter(c => !sent[c.id] || Date.now() - sent[c.id] >= gap * 864e5); }
   if (C.gender !== 'all') L = L.filter(c => (c.gender || 'f') === C.gender);
   if (C.branch) L = L.filter(c => c.branchId === C.branch);
   if (C.bday) { const m = todayStr().slice(5, 7); L = L.filter(c => (c.birth || '').slice(5, 7) === m); }
@@ -6750,13 +7313,17 @@ function campMsg(c) {
 A.campSend = async id => {
   const c = (S.campList || []).find(x => x.id === id); if (!c) return;
   const cv = document.getElementById('offerCv');
-  // نحاول ننسخ الصورة علشان تتلزق في المحادثة
-  try {
-    const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
-    if (blob && navigator.clipboard && window.ClipboardItem) await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-    toast('الصورة اتنسخت — اعمل لصق في المحادثة قبل ما تبعت');
-  } catch (e) { toast('نزّل الصورة وابعتها مع الرسالة'); }
-  window.open(`https://wa.me/${waNum(c.phone)}?text=${encodeURIComponent(campMsg(c))}`, '_blank', 'noopener');
+  // العرض بيروح صورة + الكلام: على الموبايل بتفتح قايمة المشاركة (اختار واتساب ثم العميل)
+  let blob = null; try { blob = await new Promise(r => cv.toBlob(r, 'image/png')); } catch (e) {}
+  let shared = false;
+  if (blob) { const file = new File([blob], 'offer.png', { type: 'image/png' });
+    try { if (navigator.canShare && navigator.canShare({ files: [file] })) { navigator.clipboard?.writeText(c.phone || '').catch(() => {}); toast(`اختار واتساب وبعدين ${c.name || 'العميل'} — رقمه اتنسخ لو محتاجه`); await navigator.share({ files: [file], text: campMsg(c) }); shared = true; } }
+    catch (e) { if (e?.name === 'AbortError') return; } }
+  if (!shared) {
+    try { if (blob && navigator.clipboard && window.ClipboardItem) { await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]); toast('الصورة اتنسخت — اعمل لصق في المحادثة قبل ما تبعت'); } else { A.campDownload(); toast('الصورة نزلت — ابعتها مع الرسالة'); } }
+    catch (e) { A.campDownload(); toast('الصورة نزلت — ابعتها مع الرسالة'); }
+    window.open(`https://wa.me/${waNum(c.phone)}?text=${encodeURIComponent(campMsg(c))}`, '_blank', 'noopener');
+  }
   const key = 'bc-camp-' + S.clinic.id + '-' + S.camp.offerId;
   try { const s = JSON.parse(localStorage.getItem(key) || '{}'); s[id] = Date.now(); localStorage.setItem(key, JSON.stringify(s)); } catch (e) {}
   const el = document.getElementById('cs_' + id); if (el) el.innerHTML = '<span class="chip ok">اتبعت ✓</span>';
