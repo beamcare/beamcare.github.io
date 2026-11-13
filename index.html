@@ -2372,19 +2372,24 @@ const MK_POSTS = [
   { id: 'trial', t: 'ابدأ تجربتك', html: c => mkWrap('#0B1A33', `${mkSvgImg('<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="300" viewBox="0 0 1080 300"><path d="M0 0 H1080 V150 C 760 260, 380 60, 0 190 Z" fill="#102A5C"/><path d="M0 206 C 380 76, 760 276, 1080 166" stroke="#D9A93F" stroke-width="5" fill="none"/><path d="M0 230 C 400 110, 740 296, 1080 196" stroke="#2F6FE0" stroke-width="3" fill="none" opacity=".7"/></svg>', 'position:absolute;top:0;left:0;width:1080px;height:300px')}
     <div style="position:relative;display:flex;flex-direction:column;align-items:center;gap:28px;padding:66px 72px 60px;height:100%;box-sizing:border-box"><img src="${BC_FILE('bc-mark.webp')}" alt="Beam Care" style="width:360px;height:auto">
     <div style="text-align:center"><div style="font-size:76px;font-weight:900;line-height:1.15;color:#F2F5FB">جرّب النظام<br><span style="color:#E2B54E">على عيادتك مجانًا</span></div><div style="font-size:28px;color:#C3CFE6;margin-top:8px">ابدأ النهارده، من غير ما تدفع أي حاجة</div></div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-self:stretch">${[['١', 'افتح اللينك', 'أو ابعتلنا وهنبعتهولك'], ['٢', 'سجّل بيانات عيادتك', 'الاسم والموبايل في دقيقة'], ['٣', 'ابدأ شغلك على طول', 'من الموبايل أو الكمبيوتر']].map(([n, t, d]) => `<div style="background:#12264D;border:1.5px solid #24407F;border-radius:26px;padding:24px 18px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center"><div style="width:56px;height:56px;border-radius:50%;background:#E2B54E;color:#0B1A33;font-size:30px;font-weight:900;display:flex;align-items:center;justify-content:center">${n}</div><span style="font-size:27px;font-weight:800;color:#F2F5FB">${t}</span><span style="font-size:20px;font-weight:600;color:#C3CFE6">${d}</span></div>`).join('')}</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-self:stretch">${[['١', 'امسح الكود', 'أو ابعتلنا ونساعدك'], ['٢', 'سجّل بيانات عيادتك', 'الاسم والموبايل في دقيقة'], ['٣', 'ابدأ شغلك على طول', 'من الموبايل أو الكمبيوتر']].map(([n, t, d]) => `<div style="background:#12264D;border:1.5px solid #24407F;border-radius:26px;padding:24px 18px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center"><div style="width:56px;height:56px;border-radius:50%;background:#E2B54E;color:#0B1A33;font-size:30px;font-weight:900;display:flex;align-items:center;justify-content:center">${n}</div><span style="font-size:27px;font-weight:800;color:#F2F5FB">${t}</span><span style="font-size:20px;font-weight:600;color:#C3CFE6">${d}</span></div>`).join('')}</div>
     <div style="flex:1"></div>
-    <div style="align-self:stretch;background:#E2B54E;border-radius:26px;padding:20px 30px;display:flex;justify-content:space-between;align-items:center;gap:16px"><div style="display:flex;flex-direction:column"><span style="font-size:22px;font-weight:700;color:#3A3320">لينك التسجيل</span><span style="font-size:28px;font-weight:900;color:#0B1A33;direction:ltr;text-align:right">beamcare.github.io/join</span></div>${c.phone ? `<div style="display:flex;flex-direction:column;align-items:flex-end"><span style="font-size:22px;font-weight:700;color:#3A3320">للتواصل</span><span style="font-size:30px;font-weight:900;color:#0B1A33;direction:ltr">${esc(c.phone)}</span></div>` : ''}</div></div>`, '#F2F5FB') },
+    <div style="align-self:stretch;background:#E2B54E;border-radius:28px;padding:22px 26px;display:flex;align-items:center;gap:24px">${c.joinQr ? `<div style="background:#fff;border-radius:18px;padding:10px;flex-shrink:0"><img src="${c.joinQr}" alt="كود التسجيل" style="width:170px;height:170px;display:block"></div>` : ''}<div style="flex:1;display:flex;flex-direction:column;gap:6px"><span style="font-size:34px;font-weight:900;color:#0B1A33;line-height:1.25">امسح الكود وسجّل عيادتك</span><span style="font-size:22px;font-weight:700;color:#3A3320">بكاميرا الموبايل، في أقل من دقيقة</span>${c.phone ? `<span style="font-size:22px;font-weight:700;color:#3A3320;margin-top:6px">للتواصل: <b style="font-size:28px;color:#0B1A33;direction:ltr;unicode-bidi:isolate">${esc(c.phone)}</b></span>` : ''}</div></div></div>`, '#F2F5FB') },
 ];
-const mkCtx = () => ({ phone: (PUBINFO?.wa || '').trim(), plans: mkPlansData() });
+async function mkQr(text, size = 360) {
+  try { await loadQrLib(); const tmp = document.createElement('div'); new window.QRCode(tmp, { text, width: size, height: size, colorDark: '#0B1A33', colorLight: '#ffffff', correctLevel: window.QRCode.CorrectLevel.M }); const cv = tmp.querySelector('canvas'); return cv ? cv.toDataURL('image/png') : ''; } catch (e) { return ''; }
+}
+let MK_JOINQR = '';
+const mkCtx = async () => { if (!MK_JOINQR) MK_JOINQR = await mkQr(JOIN_URL + '?t=clinic'); return { phone: (PUBINFO?.wa || '').trim(), plans: mkPlansData(), joinQr: MK_JOINQR }; };
 
 async function devMkt() {
   await Promise.all([loadPub(), loadPlans()]);
-  const tab = S.mkTab || 'posts', c = mkCtx();
+  const tab = S.mkTab || 'posts', c = await mkCtx();
   const tabs = `<div class="tabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px"><button class="btn ${tab === 'posts' ? '' : 'ghost'} sm" onclick="S.mkTab='posts';A.dev('mkt')">🖼️ الصور الدعائية</button><button class="btn ${tab === 'preso' ? '' : 'ghost'} sm" onclick="S.mkTab='preso';A.dev('mkt')">🎞️ العرض التقديمي</button></div>`;
   if (tab === 'preso') return devShell('mkt', `<div class="head"><h2>التسويق</h2></div>${tabs}
     <div class="card" style="display:flex;flex-direction:column;gap:12px"><b style="font-size:17px">عرض نظام العيادات على العميل</b><p class="meta">${PRESO.length} شريحة تشرح النظام لصاحب العيادة. افتحه من الهاتف أو اللابتوب، وتنقّل بالسحب أو بالأسهم. زر «الملاحظات» يُظهر لك ما تقوله في كل شريحة.</p>
-    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn gold" onclick="A.preso(0)">▶️ ابدأ العرض</button></div></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn gold" onclick="A.preso(0)">▶️ ابدأ العرض</button>${navigator.canShare ? '<button class="btn" onclick="A.pzShare(true)">📤 ابعته PDF</button>' : ''}<button class="btn ghost" onclick="A.pzShare(false)">⬇️ تحميل PDF</button></div>
+    <p class="meta">ملف الـ PDF تبعته لأي حد على واتساب أو إيميل، وفيه كل الشرايح، وفي آخره رقمك وكود التسجيل.</p></div>
     <div class="cards">${PRESO.map((s, i) => `<button class="card" style="text-align:right;cursor:pointer;display:flex;gap:10px;align-items:center" onclick="A.preso(${i})"><span class="chip mute">${(i + 1).toLocaleString('ar-EG')}</span><span style="flex:1">${esc(s.title.replace(/<\/?g>/g, ''))}</span></button>`).join('')}</div>`);
   devShell('mkt', `<div class="head"><h2 style="flex:1">التسويق</h2><button class="btn gold sm" onclick="A.mkAll()">⬇️ تحميل الكل</button>${navigator.canShare ? '<button class="btn sm" onclick="A.mkAll(true)">📤 مشاركة الكل</button>' : ''}</div>${tabs}
     ${c.phone ? `<p class="meta">رقم التواصل على الصور: <b dir="ltr">${esc(c.phone)}</b> — يتغير من الإعدادات ← صفحة طلب الاشتراك. والأسعار تُسحب من «باكدجات الاشتراك».</p>` : `<div class="notice warn">أضف رقم الواتساب من الإعدادات ← صفحة طلب الاشتراك ليظهر على الصور. <button class="btn sm" onclick="A.payInfoModal()">إضافة الرقم</button></div>`}
@@ -2397,7 +2402,7 @@ function mkFit() { document.querySelectorAll('.mk-frame').forEach(f => { const s
 async function mkRender(i) {
   await loadH2C(); try { await document.fonts?.load('900 40px Cairo'); await document.fonts?.load('700 20px Cairo'); } catch (e) {}
   const st = document.createElement('div'); st.style.cssText = 'position:fixed;top:0;left:-20000px;width:1080px;height:1350px;z-index:-1';
-  st.innerHTML = MK_POSTS[i].html(mkCtx()); document.body.appendChild(st);
+  st.innerHTML = MK_POSTS[i].html(await mkCtx()); document.body.appendChild(st);
   try {
     await Promise.all([...st.querySelectorAll('img')].map(im => im.complete ? 0 : new Promise(ok => { im.onload = im.onerror = ok; })));
     const cv = await window.html2canvas(st.firstElementChild, { scale: 1, width: 1080, height: 1350, backgroundColor: null, useCORS: true, logging: false });
@@ -2428,13 +2433,13 @@ const PZI = { Star: 'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-
   Activity: 'M22 12h-4l-3 9L9 3l-3 9H2', Warning: 'M12 3l10 18H2zM12 10v4M12 17.5v.5', Wrench: 'M14.7 6.3a4 4 0 0 0 5 5L21 13l-8 8-3-3 8-8-1.3-1.3a4 4 0 0 0-5-5L14 5.5z', Lock: 'M5 11h14v10H5zM8 11V7a4 4 0 0 1 8 0v4' };
 const pzT = s => esc(s).replace(/&lt;g&gt;/g, '<span class="pz-gold">').replace(/&lt;\/g&gt;/g, '</span>');
 const pzIco = n => n ? `<svg class="pz-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${PZI[n] || PZI.Star}"/></svg>` : '';
-function pzSlide(s, i) {
+function pzSlide(s, i, c = S.pzCtx || {}) {
   let n = 0; for (let j = 0; j <= i; j++) if (!['cover', 'statement', 'closing'].includes(PRESO[j].kind)) n++;
   const eb = `${n.toLocaleString('ar-EG')} · ${esc(s.eyebrow || '')}`;
   const cards = (L, two) => `<div class="pz-cards${two ? ' two' : ''}">${L.map(([ic, h, d, hot]) => `<div class="pz-card${hot ? ' hot' : ''}">${pzIco(ic)}<h3>${esc(h)}</h3><p>${esc(d)}</p></div>`).join('')}</div>`;
   const head = `<div class="pz-head"><p class="pz-eb">${eb}</p><h2>${pzT(s.title)}</h2>${s.lead ? `<p class="pz-lead">${esc(s.lead)}</p>` : ''}</div>`;
   const foot = `<div class="pz-foot"><span>Beam Care</span><span>${(i + 1).toLocaleString('ar-EG')} / ${PRESO.length.toLocaleString('ar-EG')}</span></div>`;
-  if (s.kind === 'cover' || s.kind === 'closing') return `<div class="pz-s pz-cover"><img src="${BC_FILE('bc-logo-dark.webp')}" alt="Beam Care" style="height:${s.kind === 'cover' ? 170 : 120}px;width:auto"><h1 style="font-size:${s.kind === 'cover' ? 120 : 96}px">${pzT(s.title)}</h1><p class="pz-sub">${esc(s.lead)}</p>${s.tag ? `<p class="pz-sub" style="color:#E2BE62;font-weight:800;font-size:34px">${esc(s.tag)}</p>` : ''}</div>`;
+  if (s.kind === 'cover' || s.kind === 'closing') return `<div class="pz-s pz-cover"><img src="${BC_FILE('bc-logo-dark.webp')}" alt="Beam Care" style="height:${s.kind === 'cover' ? 170 : 120}px;width:auto"><h1 style="font-size:${s.kind === 'cover' ? 120 : 96}px">${pzT(s.title)}</h1><p class="pz-sub">${esc(s.lead)}</p>${s.tag ? `<p class="pz-sub" style="color:#E2BE62;font-weight:800;font-size:34px">${esc(s.tag)}</p>` : ''}${s.kind === 'closing' && (c.joinQr || c.phone) ? `<div style="display:flex;gap:30px;align-items:center;margin-top:8px">${c.joinQr ? `<div style="background:#fff;border-radius:20px;padding:12px"><img src="${c.joinQr}" alt="كود التسجيل" style="width:190px;height:190px;display:block"></div>` : ''}<div style="display:flex;flex-direction:column;gap:6px"><p class="pz-sub" style="font-size:32px;color:#F6F3EC;font-weight:700">${c.joinQr ? 'امسح الكود وجرّب النظام على عيادتك مجانًا' : 'جرّب النظام على عيادتك مجانًا'}</p>${c.phone ? `<p class="pz-sub" style="font-size:36px;color:#E2BE62;font-weight:800">للتواصل: <span style="direction:ltr;unicode-bidi:isolate">${esc(c.phone)}</span></p>` : ''}</div></div>` : ''}</div>`;
   if (s.kind === 'statement') return `<div class="pz-s pz-stmt"><p class="pz-eb">${esc(s.eyebrow)}</p><h2>${pzT(s.title)}</h2><p class="pz-lead">${esc(s.lead)}</p>${foot}</div>`;
   if (s.kind === 'dark') return `<div class="pz-s pz-dark">${head}${cards(s.cards)}${foot}</div>`;
   if (s.kind === 'roles') return `<div class="pz-s">${head}<div class="pz-chips">${s.chips.map((c, j) => `<span class="${j ? 'g' : ''}">${esc(c)}</span>`).join('')}</div>${cards(s.cards, true)}${foot}</div>`;
@@ -2459,7 +2464,8 @@ const PZ_CSS = `#pz{position:fixed;inset:0;z-index:9999;background:#05101F;displ
 #pz .pz-bar{position:absolute;bottom:max(12px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);display:flex;gap:8px;align-items:center;background:rgba(10,20,40,.78);padding:8px 10px;border-radius:999px;z-index:2}
 #pz .pz-bar button{background:#1C2F55;color:#fff;border:0;border-radius:999px;min-width:44px;height:44px;padding:0 14px;font:inherit;font-weight:700;cursor:pointer}#pz .pz-bar span{color:#C9D3E3;font-weight:700;padding:0 6px}
 #pz .pz-note{position:absolute;top:max(12px,env(safe-area-inset-top));left:12px;right:12px;background:rgba(255,255,255,.95);color:#14213D;border-radius:14px;padding:12px 16px;font-size:16px;line-height:1.6;z-index:2;max-height:30vh;overflow:auto}`;
-A.preso = i => {
+A.preso = async i => {
+  try { S.pzCtx = await mkCtx(); } catch (e) { S.pzCtx = {}; }
   S.pzI = Math.max(0, Math.min(PRESO.length - 1, i || 0)); S.pzNote = !!S.pzNote;
   if (!document.getElementById('pzCss')) { const st = document.createElement('style'); st.id = 'pzCss'; st.textContent = PZ_CSS; document.head.appendChild(st); }
   let el = document.getElementById('pz'); if (!el) { el = document.createElement('div'); el.id = 'pz'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'العرض التقديمي'); document.body.appendChild(el);
@@ -2476,6 +2482,40 @@ function pzDraw() {
   pzFit();
 }
 window.pzDrawRef = () => pzDraw();
+let JSPDF_LIB = null;
+function loadJsPdf() {
+  if (window.jspdf) return Promise.resolve();
+  if (JSPDF_LIB) return JSPDF_LIB;
+  JSPDF_LIB = new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'; sc.onload = () => res(); sc.onerror = () => { JSPDF_LIB = null; rej(new Error('pdf')); }; document.head.appendChild(sc); });
+  return JSPDF_LIB;
+}
+async function pzPdf() {
+  await Promise.all([loadH2C(), loadJsPdf()]);
+  if (!document.getElementById('pzCss')) { const st = document.createElement('style'); st.id = 'pzCss'; st.textContent = PZ_CSS; document.head.appendChild(st); }
+  try { await document.fonts?.load('800 72px Cairo'); await document.fonts?.load('400 28px Cairo'); } catch (e) {}
+  const c = await mkCtx(), W = 1440, H = 810;
+  const pdf = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'pt', format: [W, H], compress: true });
+  const st = document.createElement('div'); st.style.cssText = 'position:fixed;top:0;left:-30000px;width:1920px;height:1080px;z-index:-1;direction:rtl'; document.body.appendChild(st);
+  try {
+    for (let i = 0; i < PRESO.length; i++) {
+      st.innerHTML = pzSlide(PRESO[i], i, c);
+      await Promise.all([...st.querySelectorAll('img')].map(im => im.complete ? 0 : new Promise(ok => { im.onload = im.onerror = ok; })));
+      const cv = await window.html2canvas(st.firstElementChild, { scale: 0.75, width: 1920, height: 1080, backgroundColor: '#ffffff', useCORS: true, logging: false });
+      if (i) pdf.addPage([W, H], 'landscape');
+      pdf.addImage(cv.toDataURL('image/jpeg', 0.86), 'JPEG', 0, 0, W, H);
+    }
+  } finally { st.remove(); }
+  return pdf.output('blob');
+}
+A.pzBlob = () => pzPdf();
+A.pzShare = async share => {
+  toast('جاري تجهيز ملف العرض… ممكن ياخد نص دقيقة');
+  try {
+    const b = await pzPdf(), f = new File([b], 'Beam Care - نظام إدارة العيادات.pdf', { type: 'application/pdf' });
+    if (share && navigator.canShare?.({ files: [f] })) await navigator.share({ files: [f], title: 'نظام Beam Care لإدارة العيادات' }); else mkDownload(b, f.name);
+  } catch (e) { if (e?.name !== 'AbortError') toast('تعذّر تجهيز الملف: ' + (e.message || e)); }
+};
+
 A.pzGo = d => { S.pzI = Math.max(0, Math.min(PRESO.length - 1, S.pzI + d)); pzDraw(); };
 A.pzFull = () => { const el = document.getElementById('pz'); try { if (document.fullscreenElement) document.exitFullscreen(); else el.requestFullscreen(); } catch (e) {} };
 A.pzClose = () => { try { if (document.fullscreenElement) document.exitFullscreen(); } catch (e) {} document.getElementById('pz')?.remove(); document.removeEventListener('keydown', pzKey); window.removeEventListener('resize', pzFit); };
