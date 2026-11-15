@@ -709,6 +709,7 @@ const PRODUCTS = {
       { key: 'whiteLabel', top: true, label: 'النظام يظهر باسم الشركة وشعارها' },
       { key: 'ownerManagesPerms', label: 'صاحب الشركة يستطيع تعديل صلاحيات مستخدميه' },
       { key: 'webReq', label: 'طلب الخدمة أونلاين للعملاء (رابط و QR)' },
+      { key: 'aiScan', label: 'قراءة شاشة الجهاز بالذكاء الاصطناعي (أدق، وليها تكلفة)' },
     ],
   },
 };
@@ -733,7 +734,7 @@ const PIONEER_ROLES = {
   admin: { label: 'مدير عام' }, exec: { label: 'مدير تنفيذي' }, manager: { label: 'مدير إدارة' }, engineer: { label: 'مهندس صيانة' },
   accountant: { label: 'موظف حسابات' }, cons_staff: { label: 'موظف المستهلكات' }, courier: { label: 'مندوب شحن' }, staff: { label: 'موظف' }, clinic: { label: 'عيادة (عميل)' },
 };
-const PIONEER_PARTS = [['freon', 'الفريون'], ['sales', 'المبيعات والمستهلكات والعروض'], ['quotes', 'عروض الأسعار'], ['export', 'تحميل كل البيانات Excel'], ['devices', 'بيع وإيجار الأجهزة'], ['contracts', 'عقود الصيانة'], ['suppliers', 'الموردين والمشتريات'], ['finance', 'الحسابات والخزينة ورأس المال والآجل'], ['hr', 'الحضور والإجازات'], ['payroll', 'المرتبات والمكافآت'], ['staff', 'إدارة الموظفين (العهدة، الاجتماعات، التقييم، الاختبارات، الملفات)'], ['weekly', 'التقارير الدورية'], ['analytics', 'التحليلات'], ['gs', 'النسخ إلى Google Sheets']];
+const PIONEER_PARTS = [['freon', 'الفريون'], ['sales', 'المبيعات والمستهلكات والعروض'], ['quotes', 'عروض الأسعار'], ['pricelists', 'قوائم الأسعار وطلباتها أونلاين'], ['devscan', 'قراءة شاشة الجهاز بالصورة وتنبيهات القراءات'], ['export', 'تحميل كل البيانات Excel'], ['devices', 'بيع وإيجار الأجهزة'], ['contracts', 'عقود الصيانة'], ['suppliers', 'الموردين والمشتريات'], ['finance', 'الحسابات والخزينة ورأس المال والآجل'], ['hr', 'الحضور والإجازات'], ['payroll', 'المرتبات والمكافآت'], ['staff', 'إدارة الموظفين (العهدة، الاجتماعات، التقييم، الاختبارات، الملفات)'], ['weekly', 'التقارير الدورية'], ['analytics', 'التحليلات'], ['gs', 'النسخ إلى Google Sheets']];
 Object.assign(PRODUCTS.maint, {
   ready: true, remote: true, viewAs: false, importer: false,
   roles: PIONEER_ROLES, linkedRole: 'clinic', rolePerms: {},
@@ -817,7 +818,7 @@ function subDocOf(t) {
   return {
     on: true, until, grace, warn: Number(t.warn ?? 7), mode: t.trial ? 'full' : (t.mode || 'read'), stop: t.active === false, trial: !!t.trial,
     maxUsers: Number(t.plan?.maxUsers) || 0, maxClients: Number(t.plan?.maxCustomers) || 0,
-    mods: t.mods || {}, whiteLabel: !!t.whiteLabel, ownerPerms: !!t.features?.ownerManagesPerms, webReq: !!t.features?.webReq,
+    mods: t.mods || {}, whiteLabel: !!t.whiteLabel, ownerPerms: !!t.features?.ownerManagesPerms, webReq: !!t.features?.webReq, aiScan: !!t.features?.aiScan,
     contact: t.renewPhone || '', vendor: 'Beam Care', product: PRODUCTS.maint.name, planName: t.planName || '',
     upd: !!t.upd, updMsg: t.updMsg || '', updUntil: t.updUntil || '', theme: t.theme || '', layout: t.layout || '', icons: t.icons || '', look: t.look || '', lookName: (typeof LOOKS !== 'undefined' && LOOKS[t.look]?.name) || '',
     lockAt: Timestamp.fromDate(lock), updatedAt: new Date().toISOString(), by: 'panel', tid: t.id,
