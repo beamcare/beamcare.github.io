@@ -709,7 +709,7 @@ const PRODUCTS = {
       { key: 'whiteLabel', top: true, label: 'النظام يظهر باسم الشركة وشعارها' },
       { key: 'ownerManagesPerms', label: 'صاحب الشركة يستطيع تعديل صلاحيات مستخدميه' },
       { key: 'webReq', label: 'طلب الخدمة أونلاين للعملاء (رابط و QR)' },
-      { key: 'aiScan', label: 'قراءة شاشة الجهاز بالذكاء الاصطناعي (أدق، وليها تكلفة)' },
+      { key: 'aiScan', internal: true, label: '🔒 قراءة الشاشة بالذكاء الاصطناعي (أدق — ليها تكلفة، بتظهر ليك إنت بس)' },
     ],
   },
 };
@@ -734,7 +734,7 @@ const PIONEER_ROLES = {
   admin: { label: 'مدير عام' }, exec: { label: 'مدير تنفيذي' }, manager: { label: 'مدير إدارة' }, engineer: { label: 'مهندس صيانة' },
   accountant: { label: 'موظف حسابات' }, cons_staff: { label: 'موظف المستهلكات' }, courier: { label: 'مندوب شحن' }, staff: { label: 'موظف' }, clinic: { label: 'عيادة (عميل)' },
 };
-const PIONEER_PARTS = [['freon', 'الفريون'], ['sales', 'المبيعات والمستهلكات والعروض'], ['quotes', 'عروض الأسعار'], ['pricelists', 'قوائم الأسعار وطلباتها أونلاين'], ['devscan', 'قراءة شاشة الجهاز بالصورة وتنبيهات القراءات'], ['export', 'تحميل كل البيانات Excel'], ['devices', 'بيع وإيجار الأجهزة'], ['contracts', 'عقود الصيانة'], ['suppliers', 'الموردين والمشتريات'], ['finance', 'الحسابات والخزينة ورأس المال والآجل'], ['hr', 'الحضور والإجازات'], ['payroll', 'المرتبات والمكافآت'], ['staff', 'إدارة الموظفين (العهدة، الاجتماعات، التقييم، الاختبارات، الملفات)'], ['weekly', 'التقارير الدورية'], ['analytics', 'التحليلات'], ['gs', 'النسخ إلى Google Sheets']];
+const PIONEER_PARTS = [['freon', 'الفريون'], ['sales', 'المبيعات والمستهلكات والعروض'], ['quotes', 'عروض الأسعار'], ['pricelists', 'قوائم الأسعار وطلباتها أونلاين'], ['devscan', 'قراءة شاشة الجهاز وتحليل بيانات الجهاز'], ['pricetiers', 'أسعار خاصة لكل عميل (فئات أسعار)'], ['export', 'تحميل كل البيانات Excel'], ['devices', 'بيع وإيجار الأجهزة'], ['contracts', 'عقود الصيانة'], ['suppliers', 'الموردين والمشتريات'], ['finance', 'الحسابات والخزينة ورأس المال والآجل'], ['hr', 'الحضور والإجازات'], ['payroll', 'المرتبات والمكافآت'], ['staff', 'إدارة الموظفين (العهدة، الاجتماعات، التقييم، الاختبارات، الملفات)'], ['weekly', 'التقارير الدورية'], ['analytics', 'التحليلات'], ['gs', 'النسخ إلى Google Sheets']];
 Object.assign(PRODUCTS.maint, {
   ready: true, remote: true, viewAs: false, importer: false,
   roles: PIONEER_ROLES, linkedRole: 'clinic', rolePerms: {},
@@ -2334,7 +2334,7 @@ function mkPlansDataM() {
     const lim = [L.maxUsers ? (+L.maxUsers === 1 ? 'مستخدم واحد' : `${L.maxUsers} مستخدم`) : '', L.maxCustomers ? `حتى ${Number(L.maxCustomers).toLocaleString('en')} عيادة` : 'عيادات بدون حد'].filter(Boolean).join(' · ');
     const pn = parts(p), pp = prev ? parts(prev) : [];
     const fon = (x, f) => !!(x?.features?.[f.key] ?? (f.top ? x?.[f.key] : false));
-    const fe = [...P.features.filter(f => fon(p, f) && !(prev && fon(prev, f))).map(f => MK_FEAT_M[f.key] || f.label), ...PIONEER_PARTS.filter(([k]) => pn.includes(k) && !pp.includes(k)).map(([, l]) => l)];
+    const fe = [...P.features.filter(f => !f.internal && fon(p, f) && !(prev && fon(prev, f))).map(f => MK_FEAT_M[f.key] || f.label), ...PIONEER_PARTS.filter(([k]) => pn.includes(k) && !pp.includes(k)).map(([, l]) => l)];
     const all = pn.length === PIONEER_PARTS.length;
     const feats = (i === 0 ? [...MK_CORE_M.slice(0, Math.max(2, 6 - fe.length)), ...fe] : fe).slice(0, 6);
     return { name: p.name, price: Number(p.price) || 0, per: p.months ? (Number(p.months) === 1 ? 'شهريًا' : `كل ${reqMonths(p.months)}`) : '', lim, lead: i === 0 ? (all ? 'كل أجزاء النظام:' : 'أساسيات إدارة الشركة:') : `كل مزايا «${prev.name}»، وكمان:`, feats: feats.length ? feats : ['كل أجزاء النظام'], hot: i === 1 };
@@ -5780,7 +5780,7 @@ function shiftsTab(emps, ed) {
   const SH = shiftsOf(), own = isOwner();
   const cell = (x, d) => { const sh = shiftFor(x, toInput(nextDow(d))); return sh ? `<span class="chip" style="background:${sh.color || 'var(--ok-bg)'};color:var(--ink);font-size:12px">${esc(sh.name)}<br><span style="font-size:11px;opacity:.8">${time12(sh.start)}–${time12(sh.end)}</span></span>` : '<span class="meta" style="font-size:12px">إجازة</span>'; };
   return `<div class="card fcol"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><h3 style="flex:1;margin:0">🕒 أنواع الورديات</h3>${own ? `<button class="btn ghost sm" onclick="A.shiftsModal()">تعديل الورديات</button>` : ''}</div>
-    ${SH.length ? `<div style="display:flex;gap:8px;flex-wrap:wrap">${SH.map(z => `<span class="chip" style="background:${z.color || 'var(--ok-bg)'};color:var(--ink)">${esc(z.name)} · ${time12(z.start)} – ${time12(z.end)}</span>`).join('')}</div>` : `<p class="meta">لا توجد ورديات بعد. ${own ? 'اضغط «تعديل الورديات» وأنشئ مثلًا: صباحية ٩ص–٥م، مسائية ٢م–١٠م.' : ''}</p>`}
+    ${SH.length ? `<div style="display:flex;gap:8px;flex-wrap:wrap">${SH.map(z => `<span class="chip" style="background:${z.color || 'var(--ok-bg)'};color:var(--ink)">${esc(z.name)} · ${time12(z.start)} – ${time12(z.end)}</span>`).join('')}</div>` : `<p class="meta">لا توجد ورديات بعد. ${own ? 'اضغط «تعديل الورديات» وأنشئ مثلًا: صباحية ٨ص–٤م، مسائية ٤م–١٢ص، ليلية ١٢ص–٨ص.' : ''}</p>`}
     <p class="meta">الموظف الذي ليس له جدول يتبع الدوام العادي (${time12(hrCfg().start)} – ${time12(hrCfg().end)}). يُحسب التأخير والغياب في الراتب على وردية الموظف في ذلك اليوم.</p></div>
     <div class="card tbl-wrap" style="padding:0"><table><thead><tr><th>الموظف</th>${WDAYS.map(d => `<th>${d}</th>`).join('')}<th></th></tr></thead>
     <tbody>${emps.filter(x => x.active !== false).map(x => `<tr><td><b>${esc(x.name)}</b><div class="meta" style="font-size:12px">${esc(x.job || '')}</div></td>${WDAYS.map((_, d) => `<td style="text-align:center">${cell(x, d)}</td>`).join('')}<td>${ed ? `<button class="btn ghost sm" onclick="A.weekModal('${x.id}')">تعديل</button>` : ''}</td></tr>`).join('')}</tbody></table></div>`;
@@ -5788,8 +5788,8 @@ function shiftsTab(emps, ed) {
 function nextDow(d) { const t = new Date(); t.setHours(12, 0, 0, 0); t.setDate(t.getDate() + ((d - t.getDay() + 7) % 7)); return t; }
 const SH_COLORS = ['#DCEFE4', '#E3E8F7', '#F7E7D4', '#F2DDE9', '#E6E1F5', '#DDF0F2'];
 A.shiftsModal = () => {
-  S.shDraft = shiftsOf().map(z => ({ ...z })); if (!S.shDraft.length) S.shDraft.push({ id: 'sh1', name: 'صباحية', start: '09:00', end: '17:00' }, { id: 'sh2', name: 'مسائية', start: '14:00', end: '22:00' });
-  openModal(`<h3>🕒 أنواع الورديات</h3><form class="fcol" onsubmit="A.shiftsSave(event)"><p class="meta">اسم الوردية ومواعيدها. بعد ذلك تحدد من «الورديات» وردية كل موظف في كل يوم.</p><div id="shRows" class="fcol" style="gap:6px"></div>
+  S.shDraft = shiftsOf().map(z => ({ ...z })); if (!S.shDraft.length) S.shDraft.push({ id: 'sh1', name: 'صباحية', start: '08:00', end: '16:00' }, { id: 'sh2', name: 'مسائية', start: '16:00', end: '00:00' }, { id: 'sh3', name: 'ليلية', start: '00:00', end: '08:00' });
+  openModal(`<h3>🕒 أنواع الورديات</h3><form class="fcol" onsubmit="A.shiftsSave(event)"><p class="meta">اسم الوردية ومواعيدها — تقدر تعمل وردية واحدة أو اتنين أو ٣ ورديات على مدار اليوم أو أكتر. لو الوردية بتخلص بعد نص الليل (مثلًا من ١٠م لـ ٦ص) اكتبها عادي. بعد ذلك تحدد من «الورديات» وردية كل موظف في كل يوم.</p><div id="shRows" class="fcol" style="gap:6px"></div>
     <button type="button" class="btn ghost sm" style="align-self:flex-start" onclick="S.shDraft.push({id:'sh'+Date.now().toString(36),name:'',start:'10:00',end:'18:00'});shDraw()">+ وردية</button>${formActs()}</form>`);
   window.shDraw = () => { document.getElementById('shRows').innerHTML = S.shDraft.map((z, k) => `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><input aria-label="اسم الوردية" placeholder="مثال: صباحية" value="${esc(z.name)}" style="flex:2 1 120px" oninput="S.shDraft[${k}].name=this.value"><label class="f" style="flex:1 1 110px;font-size:12px">من<input type="time" value="${z.start}" oninput="S.shDraft[${k}].start=this.value"></label><label class="f" style="flex:1 1 110px;font-size:12px">حتى<input type="time" value="${z.end}" oninput="S.shDraft[${k}].end=this.value"></label><button type="button" class="btn ghost sm" onclick="S.shDraft.splice(${k},1);shDraw()">✕</button></div>`).join(''); };
   shDraw();
@@ -6254,7 +6254,7 @@ async function payCalc(M) {
     const monthly = t === 'monthly' && x.userId;
     if (monthly) {
       // التأخير على شيفت الموظف في اليوم ده (ولو ملوش جدول = الدوام العادي)
-      pp.forEach(p => { if (!p.in || leaveDays.has(p.date)) return; const sh = shiftFor(x, p.date); if (!sh) return; const st0 = tMin(x.start || sh.start) + Number(h.grace || 0); const d = toDate(p.in); const mm = d.getHours() * 60 + d.getMinutes(); if (mm > st0) lateMin += mm - st0; });
+      pp.forEach(p => { if (!p.in || leaveDays.has(p.date)) return; const sh = shiftFor(x, p.date); if (!sh) return; const st0 = tMin(x.start || sh.start) + Number(h.grace || 0); const d = toDate(p.in); let mm = d.getHours() * 60 + d.getMinutes(); if (st0 - mm > 720) mm += 1440; else if (mm - st0 > 720) mm -= 1440; if (mm > st0) lateMin += mm - st0; });
       const work = x.week && Object.keys(x.week).length ? allDays.filter(ds => shiftFor(x, ds)) : workAll;
       // الغياب بيتحسب بس من يوم ما البصمة اتفعّلت ومن يوم ما الموظف اتضاف
       const from = [h.since || '', toInput(x.createdAt || new Date(0)), pp.map(p => p.date).sort()[0] || ''].filter(Boolean).sort().pop() || '';
