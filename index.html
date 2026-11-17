@@ -2132,7 +2132,7 @@ function applyLook(key) {
   const L = LOOKS[key];
   let st = document.getElementById('lookCss');
   document.body.classList.remove('lk-3d', 'lk-dark', 'nav-top', 'nav-rail', 'nav-bottom', 'ico-filled', 'ico-duotone', 'ico-circle', 'ico-square', 'lk-on');
-  if (S.clinic?.d3) document.body.classList.add('lk-3d');
+  if (S.clinic ? S.clinic.d3 : (S.isDev && DEV_D3)) document.body.classList.add('lk-3d');
   if (!L) { st?.remove(); return; }
   if (!st) { st = document.createElement('style'); st.id = 'lookCss'; document.head.appendChild(st); }
   const c = L.c;
@@ -2261,17 +2261,20 @@ const TAB_LOAD = { backups: loadBackups, audit: () => loadAudit(false), ann: loa
 // شكل لوحتك: نفس الأشكال العشرة (ألوان + أيقونات + قايمة)
 let DEV_THEME = (() => { try { return localStorage.getItem('bc-dev-look') || 'classic'; } catch (e) { return 'classic'; } })();
 let DEV_THEME_SYNC = false;
+let DEV_D3 = (() => { try { return localStorage.getItem('bc-dev-3d') === '1'; } catch (e) { return false; } })();
 function applyDevTheme() {
   applyLook(LOOKS[DEV_THEME] ? DEV_THEME : 'classic');
   if (!DEV_THEME_SYNC && S.isDev && devBoss()) {
     DEV_THEME_SYNC = true;
-    getDoc(doc(db, 'devcfg', 'ui')).then(d => { const k = d.exists() && d.data().look; if (k && LOOKS[k] && k !== DEV_THEME) { DEV_THEME = k; try { localStorage.setItem('bc-dev-look', k); } catch (e) {} if (S.devView) A.dev(S.devView === 'tenant' ? 'home' : S.devView); } }).catch(() => {});
+    getDoc(doc(db, 'devcfg', 'ui')).then(d => { const hasD3 = d.exists() && 'd3' in d.data(), d3 = hasD3 && !!d.data().d3; if (hasD3 && d3 !== DEV_D3) { DEV_D3 = d3; try { localStorage.setItem('bc-dev-3d', d3 ? '1' : '0'); } catch (e) {} applyLook(LOOKS[DEV_THEME] ? DEV_THEME : 'classic'); } const k = d.exists() && d.data().look; if (k && LOOKS[k] && k !== DEV_THEME) { DEV_THEME = k; try { localStorage.setItem('bc-dev-look', k); } catch (e) {} if (S.devView) A.dev(S.devView === 'tenant' ? 'home' : S.devView); } }).catch(() => {});
   }
 }
 function clearDevTheme() { applyLook(null); }
+A.devD3 = on => { DEV_D3 = !!on; try { localStorage.setItem('bc-dev-3d', on ? '1' : '0'); } catch (e) {} applyLook(LOOKS[DEV_THEME] ? DEV_THEME : 'classic'); if (devBoss()) setDoc(doc(db, 'devcfg', 'ui'), { d3: !!on }, { merge: true }).catch(() => {}); };
 A.devThemeModal = () => {
   openModal(`<h3>شكل لوحة Beam Care</h3>
   <p class="meta">نفس أشكال النظام — هذا يغيّر شكل لوحتك أنت فقط، ولا يؤثر على أي شركة أو عيادة.</p>
+  <label class="chk" style="margin:4px 0 10px;font-weight:700"><input type="checkbox" ${DEV_D3 ? 'checked' : ''} onchange="A.devD3(this.checked)"> 🧊 طريقة العرض 3D للوحة (مع أي ألوان)</label>
   <div class="cards" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))">${Object.entries(LOOKS).map(([k, L]) => `<button type="button" class="card" style="display:flex;flex-direction:column;gap:8px;text-align:right;cursor:pointer;padding:12px;${DEV_THEME === k ? 'outline:3px solid var(--gold);' : ''}" onclick="A.devThemeSet('${k}')">${lookMini(L)}<b>${esc(L.name)}${DEV_THEME === k ? ' ✓' : ''}</b></button>`).join('')}</div>
   <div class="acts"><button class="btn" type="button" onclick="A.closeModal()">حسنًا</button></div>`);
 };
@@ -2286,8 +2289,9 @@ const DEV_NAV_ICO = { mkt: 'megaphone', errors: 'alert', home: 'home', reqs: 'in
 /* ----- فريق Beam Care: يوزرات الشركة الأساسية وصلاحياتهم ----- */
 const DEV_PERMS = [['reqs', 'طلبات الاشتراك'], ['tenants', 'العيادات وشركات الصيانة (الفتح والتجديد والمستخدمون)'], ['plans', 'باقات الاشتراك والأسعار'], ['billing', 'إيرادات الاشتراكات (الأموال)'], ['looks', 'أشكال النظام'], ['myco', 'شركتي (نظام الصيانة)'], ['mkt', 'التسويق (الصور الدعائية والعرض التقديمي)']];
 const DEV_JOBS = { manager: { l: 'مدير', p: ['reqs', 'tenants', 'plans', 'billing', 'looks', 'myco', 'mkt'] }, sales: { l: 'مبيعات', p: ['reqs', 'tenants', 'mkt'] }, support: { l: 'دعم فني', p: ['tenants', 'looks'] }, accounts: { l: 'حسابات', p: ['billing', 'reqs'] }, custom: { l: 'مخصص (تختار بنفسك)', p: [] } };
-const BC_VER = '2.6.0';
+const BC_VER = '2.6.1';
 const BC_RELEASES = [
+  ['2.6.1', '2026-11-17', ['طريقة العرض 3D للوحة Beam Care نفسها (من «شكل اللوحة»)', 'آلة حاسبة في الشريط اللي فوق في اللوحة']],
   ['2.6.0', '2026-11-17', ['طريقة العرض 3D لسيستم العيادات وشركات الصيانة — منفصلة عن الألوان، بتتشغّل من «أشكال النظام» أو من إعدادات الشركة', 'ألوان «Beam فاتح» الجديدة', 'جزء جديد في باكدج شركات الصيانة: ترتيب الشاشة الرئيسية', 'آلة حاسبة في الشريط اللي فوق', 'نوتة شخصية لكل موظف من الشريط اللي فوق']],
   ['2.5.0', '2026-11-17', ['رقم إصدار لكل تحديث وصفحة «إيه الجديد»', 'شكل «Beam 3D فاتح» الجديد لشركات الصيانة من شكل النظام']],
   ['2.4.0', '2026-11-16', ['الورديات: ٣ ورديات جاهزة على مدار اليوم، ووردية بتعدّي نص الليل بيتحسب تأخيرها صح']],
@@ -2404,7 +2408,7 @@ function devShell(view, content) {
   const nav = [['home', 'الرئيسية'], ['reqs', 'طلبات الاشتراك'], ...PRODUCT_LIST.map(p => ['t:' + p.key, p.short + (p.ready ? '' : ' · قريبًا')]), ['looks', '🎨 أشكال النظام'], ['plans', 'باقات الاشتراك'], ['billing', 'إيرادات الاشتراكات'], ['mkt', 'التسويق'], ['errors', '🐞 أخطاء العملاء'], ['team', 'فريق Beam Care'], ['settings', 'الإعدادات']].filter(([k]) => devAllowed(k));
   const on = k => view === k || (view === 'tenant' && k === 't:' + S.dp?.key);
   $app.innerHTML = `
-  <div class="top">${ICON(36)}<div><div class="name">Beam Care</div><div class="sub">${devBoss() ? 'لوحة الإدارة' : esc(S.dev?.name || 'لوحة الإدارة')}</div></div><div class="sp"></div><button class="dev-gear${view === 'settings' ? ' on' : ''}" onclick="A.dev('settings')" title="الإعدادات" aria-label="الإعدادات">${navIco('csettings')}</button>
+  <div class="top">${ICON(36)}<div><div class="name">Beam Care</div><div class="sub">${devBoss() ? 'لوحة الإدارة' : esc(S.dev?.name || 'لوحة الإدارة')}</div></div><div class="sp"></div><button class="top-ic calc3b" onclick="A.calc(this)" title="الآلة الحاسبة" aria-label="الآلة الحاسبة"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="5" y="2.5" width="14" height="19" rx="3"/><rect x="8" y="5.5" width="8" height="4" rx="1"/><path d="M8.5 13h.01M12 13h.01M15.5 13h.01M8.5 16.5h.01M12 16.5h.01M15.5 16.5h.01"/></svg></button><button class="dev-gear${view === 'settings' ? ' on' : ''}" onclick="A.dev('settings')" title="الإعدادات" aria-label="الإعدادات">${navIco('csettings')}</button>
 </div>
   <div class="layout"><nav class="side">${devAllowed('myco') ? `<button class="${view === 'myco' ? 'on' : ''}" onclick="A.dev('myco')" title="شركتي"><svg class="nico" viewBox="0 0 24 24" aria-hidden="true" style="${view === 'myco' ? '' : 'stroke:var(--gold);fill:var(--gold-l)'}"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg><span>شركتي</span></button><div class="navsec" style="height:1px;padding:0;margin:6px 10px;background:var(--line);font-size:0" aria-hidden="true"></div>` : ''}${nav.map(([k, l]) => `<button class="${on(k) ? 'on' : ''}" onclick="A.dev('${k}')" title="${esc(l.replace(/^🎨 /, ''))}">${navIco(DEV_NAV_ICO[k] || 'home')}<span>${l.replace(/^🎨 /, '')}</span>${k === 'reqs' ? `<span id="reqBadge" class="chip warn" style="margin-inline-start:auto;padding:0 8px;${REQ_NEW ? '' : 'display:none'}">${REQ_NEW || ''}</span>` : ''}</button>`).join('')}
     <div class="side-end"><button type="button" class="ver-l" onclick="A.whatsNew()" title="إيه الجديد">الإصدار ${BC_VER}</button><button class="out" onclick="A.logout()" title="تسجيل الخروج"><svg class="nico" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10 17l-5-5 5-5M5 12h11"/></svg><span>تسجيل الخروج</span></button></div></nav>
