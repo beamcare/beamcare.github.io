@@ -613,7 +613,9 @@ function watchClinicUpd() {
     if (!S.clinic || S.clinic.id !== id || S.viewAs) return;
     const x = d.data() || {}; const now = !!x.upd;
     const lookChanged = (x.look || '') !== (S.clinic.look || '');
-    S.clinic = { ...S.clinic, upd: x.upd, updMsg: x.updMsg, updUntil: x.updUntil, look: x.look };
+    const d3Changed = !!x.d3 !== !!S.clinic.d3;
+    S.clinic = { ...S.clinic, upd: x.upd, updMsg: x.updMsg, updUntil: x.updUntil, look: x.look, d3: !!x.d3 };
+    if (d3Changed && !lookChanged && !now) { applyLook(x.look); if (S.view) A.go(S.view); }
     if (lookChanged && !now) { applyLook(x.look); lookAnnounce(x.look || ''); if (S.view) A.go(S.view); }
     if (now && !was) renderUpdate();
     else if (!now && was) location.reload();
@@ -734,7 +736,7 @@ const PIONEER_ROLES = {
   admin: { label: 'مدير عام' }, exec: { label: 'مدير تنفيذي' }, manager: { label: 'مدير إدارة' }, engineer: { label: 'مهندس صيانة' },
   accountant: { label: 'موظف حسابات' }, cons_staff: { label: 'موظف المستهلكات' }, courier: { label: 'مندوب شحن' }, staff: { label: 'موظف' }, clinic: { label: 'عيادة (عميل)' },
 };
-const PIONEER_PARTS = [['freon', 'الفريون'], ['sales', 'المبيعات والمستهلكات والعروض'], ['quotes', 'عروض الأسعار'], ['pricelists', 'قوائم الأسعار وطلباتها أونلاين'], ['devscan', 'قراءة شاشة الجهاز وتحليل بيانات الجهاز'], ['pricetiers', 'أسعار خاصة لكل عميل (فئات أسعار)'], ['export', 'تحميل كل البيانات Excel'], ['devices', 'بيع وإيجار الأجهزة'], ['contracts', 'عقود الصيانة'], ['suppliers', 'الموردين والمشتريات'], ['finance', 'الحسابات والخزينة ورأس المال والآجل'], ['hr', 'الحضور والإجازات'], ['payroll', 'المرتبات والمكافآت'], ['staff', 'إدارة الموظفين (العهدة، الاجتماعات، التقييم، الاختبارات، الملفات)'], ['weekly', 'التقارير الدورية'], ['analytics', 'التحليلات'], ['gs', 'النسخ إلى Google Sheets']];
+const PIONEER_PARTS = [['freon', 'الفريون'], ['sales', 'المبيعات والمستهلكات والعروض'], ['quotes', 'عروض الأسعار'], ['pricelists', 'قوائم الأسعار وطلباتها أونلاين'], ['devscan', 'قراءة شاشة الجهاز وتحليل بيانات الجهاز'], ['pricetiers', 'أسعار خاصة لكل عميل (فئات أسعار)'], ['homelayout', 'ترتيب الشاشة الرئيسية للشركة'], ['export', 'تحميل كل البيانات Excel'], ['devices', 'بيع وإيجار الأجهزة'], ['contracts', 'عقود الصيانة'], ['suppliers', 'الموردين والمشتريات'], ['finance', 'الحسابات والخزينة ورأس المال والآجل'], ['hr', 'الحضور والإجازات'], ['payroll', 'المرتبات والمكافآت'], ['staff', 'إدارة الموظفين (العهدة، الاجتماعات، التقييم، الاختبارات، الملفات)'], ['weekly', 'التقارير الدورية'], ['analytics', 'التحليلات'], ['gs', 'النسخ إلى Google Sheets']];
 Object.assign(PRODUCTS.maint, {
   ready: true, remote: true, viewAs: false, importer: false,
   roles: PIONEER_ROLES, linkedRole: 'clinic', rolePerms: {},
@@ -784,6 +786,7 @@ function remoteFieldsRead(f, data) {
   data.renewPhone = f.rphone.value.trim();
   data.theme = f.querySelector('[name=theme]:checked')?.value || '';
   data.layout = f.layout?.value || '';
+  data.d3 = !!f.d3?.checked;
   data.mods = {};
   PIONEER_PARTS.forEach(([k]) => { if (!f['part_' + k].checked) data.mods[k] = false; });
 }
@@ -820,7 +823,7 @@ function subDocOf(t) {
     maxUsers: Number(t.plan?.maxUsers) || 0, maxClients: Number(t.plan?.maxCustomers) || 0,
     mods: t.mods || {}, whiteLabel: !!t.whiteLabel, ownerPerms: !!t.features?.ownerManagesPerms, webReq: !!t.features?.webReq, aiScan: !!t.features?.aiScan,
     contact: t.renewPhone || '', vendor: 'Beam Care', product: PRODUCTS.maint.name, planName: t.planName || '',
-    upd: !!t.upd, updMsg: t.updMsg || '', updUntil: t.updUntil || '', theme: t.theme || '', layout: t.layout || '', icons: t.icons || '', look: t.look || '', lookName: (typeof LOOKS !== 'undefined' && LOOKS[t.look]?.name) || '',
+    upd: !!t.upd, updMsg: t.updMsg || '', updUntil: t.updUntil || '', theme: t.theme || '', layout: t.layout || '', icons: t.icons || '', d3: !!t.d3, look: t.look || '', lookName: (typeof LOOKS !== 'undefined' && LOOKS[t.look]?.name) || '',
     lockAt: Timestamp.fromDate(lock), updatedAt: new Date().toISOString(), by: 'panel', tid: t.id,
   };
 }
@@ -990,12 +993,13 @@ A.pwShow = btn => { const s = btn.parentElement.querySelector('.pwv'); const on 
    أدوات المطوّر لكل شركة صيانة (اتنقلت من جوه سيستم الشركة):
    النسخ الاحتياطية (GitHub) · سجل التعديلات · الأرشيف · الإعلانات · الثيم
    ========================================================= */
-const PM_THEMES = [['beam3d', 'Beam 3D فاتح (جديد)', '#E9EEF6', '#12305E', '#C9A24A'], ['navy', 'كحلي وذهبي', '#eceef2', '#3f4b6e', '#d8b07c'], ['soft', 'رمادي مائل للزرقة', '#454c5c', '#9cb7ff', '#f3a3dc'], ['classic', 'بنفسجي غامق', '#110e33', '#7457ff', '#a347ff'], ['clean', 'أبيض نظيف', '#f5f7fb', '#5b6cff', '#8b5cf6'], ['sky', 'سماوي هادئ', '#eef6fb', '#0ea5c6', '#22c1a8'], ['pastel', 'باستيل مبهج', '#fbf8f4', '#f0627d', '#ff9f6b'], ['brand', 'ألوان الشعار', '#f2f5f8', '#1e9be0', '#36b6f0'], ['emerald', 'زمردي وذهبي', '#eaf0ed', '#1f6b57', '#d9a74a'], ['wine', 'عنابي ونحاسي', '#f1ebeb', '#7b2d3c', '#d39b62'], ['teal', 'بترولي وبرتقالي', '#e8eff1', '#0e6779', '#ee9a4d'], ['lavender', 'بنفسجي لافندر', '#eeedf5', '#5a4a9e', '#f0a48c'], ['sand', 'بيج وبني دافئ', '#f2eee7', '#86562a', '#4f7f6d'], ['night', 'ليلي (داكن)', '#11151d', '#4f6fe0', '#f0c068'], ['gold', 'أسود وذهبي فاخر', '#0e0e10', '#c9a24a', '#8c6d2f'], ['corp', 'أزرق مؤسسي', '#eef2f7', '#1f5fbf', '#13a3a3'], ['rose', 'وردي ناعم', '#f6eef0', '#b5476b', '#7c8fb8'], ['slate', 'رمادي وأخضر ليموني', '#e9ebee', '#2e3640', '#9bc53d'], ['red', 'أبيض وأحمر', '#f4f4f5', '#d0342c', '#27272a'], ['ocean', 'متدرج محيطي', '#eaf0f7', '#4338ca', '#06b6d4']];
+const PM_THEMES = [['beam3d', 'Beam فاتح كحلي ودهبي (جديد)', '#E9EEF6', '#12305E', '#C9A24A'], ['navy', 'كحلي وذهبي', '#eceef2', '#3f4b6e', '#d8b07c'], ['soft', 'رمادي مائل للزرقة', '#454c5c', '#9cb7ff', '#f3a3dc'], ['classic', 'بنفسجي غامق', '#110e33', '#7457ff', '#a347ff'], ['clean', 'أبيض نظيف', '#f5f7fb', '#5b6cff', '#8b5cf6'], ['sky', 'سماوي هادئ', '#eef6fb', '#0ea5c6', '#22c1a8'], ['pastel', 'باستيل مبهج', '#fbf8f4', '#f0627d', '#ff9f6b'], ['brand', 'ألوان الشعار', '#f2f5f8', '#1e9be0', '#36b6f0'], ['emerald', 'زمردي وذهبي', '#eaf0ed', '#1f6b57', '#d9a74a'], ['wine', 'عنابي ونحاسي', '#f1ebeb', '#7b2d3c', '#d39b62'], ['teal', 'بترولي وبرتقالي', '#e8eff1', '#0e6779', '#ee9a4d'], ['lavender', 'بنفسجي لافندر', '#eeedf5', '#5a4a9e', '#f0a48c'], ['sand', 'بيج وبني دافئ', '#f2eee7', '#86562a', '#4f7f6d'], ['night', 'ليلي (داكن)', '#11151d', '#4f6fe0', '#f0c068'], ['gold', 'أسود وذهبي فاخر', '#0e0e10', '#c9a24a', '#8c6d2f'], ['corp', 'أزرق مؤسسي', '#eef2f7', '#1f5fbf', '#13a3a3'], ['rose', 'وردي ناعم', '#f6eef0', '#b5476b', '#7c8fb8'], ['slate', 'رمادي وأخضر ليموني', '#e9ebee', '#2e3640', '#9bc53d'], ['red', 'أبيض وأحمر', '#f4f4f5', '#d0342c', '#27272a'], ['ocean', 'متدرج محيطي', '#eaf0f7', '#4338ca', '#06b6d4']];
 const PM_LAYOUTS = [['side', 'قائمة جانبية'], ['icons', 'أيقونات فقط — وعلى الهاتف شريط سفلي'], ['top', 'قائمة علوية — عرض كامل'], ['app', 'تطبيق هاتف — شريط سفلي على الهاتف'], ['compact', 'مدمج — بيانات أكثر في الشاشة']];
 function themeFieldsHTML(t) {
   const cur = t?.theme || '';
   return `<div class="section-t">شكل النظام لديهم</div>
     <div class="themes">${[['', 'كما هو (اختيار الشركة السابق)', '#fff', '#c8d3d0', '#e6ece9'], ...PM_THEMES].map(([k, l, bg, a1, a2]) => `<label class="theme-o"><input type="radio" name="theme" value="${k}" ${cur === k ? 'checked' : ''}><span class="sw" style="background:${bg}"><i style="background:${a1}"></i><i style="background:${a2}"></i></span><span>${esc(l)}</span></label>`).join('')}</div>
+    <label class="chk" style="margin:6px 0"><input type="checkbox" name="d3" ${t?.d3 ? 'checked' : ''}> 🧊 طريقة العرض 3D (كروت وأزرار بارزة) — بتشتغل مع أي ألوان</label>
     <label class="f">شكل القائمة<select name="layout"><option value="">كما هو (اختيار الشركة السابق)</option>${PM_LAYOUTS.map(([k, l]) => `<option value="${k}" ${t?.layout === k ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>`;
 }
 
@@ -2084,6 +2088,7 @@ A.demoPhoneSave = async e => {
    ========================================================= */
 // c: [brand, brand-d, gold, gold-l, bg, line, muted, ink, mint]
 const LOOKS = {
+  b3d:      { name: 'Beam فاتح (جديد)', desc: 'كحلي ودهبي على خلفية فاتحة · قائمة جانبية · ينفع معاه 3D', c: ['#12305E', '#0B1F3F', '#C9A24A', '#E3BE6A', '#E9EEF6', '#DCE3EE', '#55657F', '#13213A', '#E6EDF8'], icons: 'outline', nav: 'side', pm: ['beam3d', 'side'] },
   classic:  { name: 'كلاسيكي',      desc: 'ألوان Beam Care: كحلي وذهبي · أيقونات بخطوط رفيعة · قائمة جانبية', c: ['#163A6B', '#0E2747', '#B98A35', '#D7AE57', '#F3F5F9', '#DCE2EC', '#5D6B82', '#13233D', '#BFD0EA'], icons: 'outline', nav: 'side', pm: ['navy', 'side'] },
   petrol:   { name: 'بترولي',      desc: 'الأخضر البترولي والنحاسي (الألوان السابقة) · أيقونات رفيعة · قائمة جانبية', c: ['#2F6F68', '#1F4E49', '#C98F4E', '#DDA86E', '#F4F6F5', '#DCE5E2', '#5E7E79', '#1E3B38', '#A9CEC4'], icons: 'outline', nav: 'side', pm: ['emerald', 'side'] },
   modern:   { name: 'عصري',        desc: 'أبيض نظيف وبنفسجي · أيقونات داخل مربعات · قائمة علوية', c: ['#4F46E5', '#3730A3', '#0E7490', '#06B6D4', '#F6F7FB', '#E3E5F0', '#5D6280', '#1B1E3A', '#C7C4F7'], icons: 'square', nav: 'top', pm: ['clean', 'top'] },
@@ -2126,7 +2131,8 @@ const navIco = k => `<svg class="nico" viewBox="0 0 24 24" aria-hidden="true">${
 function applyLook(key) {
   const L = LOOKS[key];
   let st = document.getElementById('lookCss');
-  document.body.classList.remove('lk-dark', 'nav-top', 'nav-rail', 'nav-bottom', 'ico-filled', 'ico-duotone', 'ico-circle', 'ico-square', 'lk-on');
+  document.body.classList.remove('lk-3d', 'lk-dark', 'nav-top', 'nav-rail', 'nav-bottom', 'ico-filled', 'ico-duotone', 'ico-circle', 'ico-square', 'lk-on');
+  if (S.clinic?.d3) document.body.classList.add('lk-3d');
   if (!L) { st?.remove(); return; }
   if (!st) { st = document.createElement('style'); st.id = 'lookCss'; document.head.appendChild(st); }
   const c = L.c;
@@ -2171,6 +2177,9 @@ async function devLooks() {
   const count = k => all.filter(t => (t.look || '') === k).length;
   devShell('looks', `
     <div class="head"><h2>🎨 أشكال النظام</h2></div>
+    <div class="card" style="display:flex;flex-direction:column;gap:10px"><div class="row" style="gap:8px;align-items:center"><h3 style="flex:1">🧊 طريقة العرض 3D</h3><span class="chip ${all.filter(t => t.d3).length ? 'ok' : 'mute'}">شغّال عند ${all.filter(t => t.d3).length}</span></div>
+      <p class="meta" style="margin:0">كروت وأزرار بارزة وقائمة عائمة. ده منفصل عن الألوان: تقدر تشغّله مع أي شكل من الأشكال اللي تحت، ولما تغيّر الألوان الـ3D بيفضل زي ما هو.</p>
+      <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" onclick="A.d3All('clinic',true)">شغّله لكل العيادات</button><button class="btn ghost sm" onclick="A.d3All('maint',true)">لكل شركات الصيانة</button><button class="btn ghost sm" onclick="A.d3OneModal()">لعميل واحد (تشغيل/إيقاف)…</button><button class="btn ghost sm" onclick="A.d3All('clinic',false)">إيقافه للعيادات</button><button class="btn ghost sm" onclick="A.d3All('maint',false)">إيقافه لشركات الصيانة</button></div></div>
     <p class="meta">اختر الشكل وأرسله كتحديث. يجد العميل الشكل الجديد فور فتح النظام، ومعه رسالة قصيرة "🎉 شكل جديد للنظام". (هذا غير شكل لوحتك أنت — فذاك من "🎨 شكل اللوحة" بالأسفل.)</p>
     <div class="cards">${Object.entries(LOOKS).map(([k, L]) => `<div class="card" style="display:flex;flex-direction:column;gap:10px">
       ${lookMini(L)}
@@ -2182,6 +2191,36 @@ async function devLooks() {
         <button class="btn ghost sm" onclick="A.lookOneModal('${k}')">لعميل واحد…</button>
       </div></div>`).join('')}</div>`);
 }
+async function setD3(t, on) {
+  const P = PRODUCTS[t.product];
+  await updateDoc(tdoc(P, t.id), { d3: !!on });
+  if (P.remote) { t.d3 = !!on; if (!(await syncRemote(P, t.id))) return false; }
+  return true;
+}
+A.d3All = async (pk, on) => {
+  const P = PRODUCTS[pk];
+  if (!confirm(`${on ? 'تشغيل' : 'إيقاف'} طريقة العرض 3D لجميع ${P.short}؟`)) return;
+  const ts = (await loadAllTenants()).filter(t => t.product === pk && t.id !== MYCO?.tenantId);
+  let bad = 0; toast('جارٍ الإرسال…');
+  for (const t of ts) { try { if (!(await setD3(t, on))) bad++; } catch (e) { console.error(e); bad++; } }
+  toast(bad ? `تم، لكن ${bad} تعذّر الوصول إليهم` : `تم ✓ (${ts.length})`);
+  A.dev('looks');
+};
+A.d3OneModal = async () => {
+  const all = (await loadAllTenants()).filter(t => PRODUCTS[t.product]?.ready);
+  openModal(`<h3>🧊 طريقة العرض 3D لعميل واحد</h3>
+  <form onsubmit="A.d3OneSave(event)" class="fcol">
+    <label class="f">العميل<select name="t">${all.map(t => `<option value="${esc(t.id)}">${esc(t.name)} — ${esc(prodOf(t).short)}${t.d3 ? ' (3D شغّال)' : ''}</option>`).join('')}</select></label>
+    <label class="f">العرض<select name="on"><option value="1">3D شغّال</option><option value="0">من غير 3D</option></select></label>
+    ${formActs('احفظ')}</form>`);
+};
+A.d3OneSave = async e => {
+  e.preventDefault();
+  const id = e.target.t.value, t = (S.tenants || []).find(x => x.id === id);
+  busy(e.target.querySelector('[type=submit]'), true, '...');
+  try { const ok = await setD3(t, e.target.on.value === '1'); A.closeModal(); toast(ok ? 'تم ✓' : 'تم الحفظ، لكن تعذّر الوصول إلى نظامهم'); A.dev('looks'); }
+  catch (err) { toast(err.message || err.code); }
+};
 async function setLook(t, k) {
   const P = PRODUCTS[t.product];
   const L = LOOKS[k];
@@ -2247,13 +2286,113 @@ const DEV_NAV_ICO = { mkt: 'megaphone', errors: 'alert', home: 'home', reqs: 'in
 /* ----- فريق Beam Care: يوزرات الشركة الأساسية وصلاحياتهم ----- */
 const DEV_PERMS = [['reqs', 'طلبات الاشتراك'], ['tenants', 'العيادات وشركات الصيانة (الفتح والتجديد والمستخدمون)'], ['plans', 'باقات الاشتراك والأسعار'], ['billing', 'إيرادات الاشتراكات (الأموال)'], ['looks', 'أشكال النظام'], ['myco', 'شركتي (نظام الصيانة)'], ['mkt', 'التسويق (الصور الدعائية والعرض التقديمي)']];
 const DEV_JOBS = { manager: { l: 'مدير', p: ['reqs', 'tenants', 'plans', 'billing', 'looks', 'myco', 'mkt'] }, sales: { l: 'مبيعات', p: ['reqs', 'tenants', 'mkt'] }, support: { l: 'دعم فني', p: ['tenants', 'looks'] }, accounts: { l: 'حسابات', p: ['billing', 'reqs'] }, custom: { l: 'مخصص (تختار بنفسك)', p: [] } };
-const BC_VER = '2.5.0';
+const BC_VER = '2.6.0';
 const BC_RELEASES = [
+  ['2.6.0', '2026-11-17', ['طريقة العرض 3D لسيستم العيادات وشركات الصيانة — منفصلة عن الألوان، بتتشغّل من «أشكال النظام» أو من إعدادات الشركة', 'ألوان «Beam فاتح» الجديدة', 'جزء جديد في باكدج شركات الصيانة: ترتيب الشاشة الرئيسية', 'آلة حاسبة في الشريط اللي فوق', 'نوتة شخصية لكل موظف من الشريط اللي فوق']],
   ['2.5.0', '2026-11-17', ['رقم إصدار لكل تحديث وصفحة «إيه الجديد»', 'شكل «Beam 3D فاتح» الجديد لشركات الصيانة من شكل النظام']],
   ['2.4.0', '2026-11-16', ['الورديات: ٣ ورديات جاهزة على مدار اليوم، ووردية بتعدّي نص الليل بيتحسب تأخيرها صح']],
   ['2.3.0', '2026-11-15', ['أجزاء جديدة في باكدجات شركات الصيانة: قوائم الأسعار، قراءة شاشة الجهاز، أسعار خاصة لكل عميل', 'فيديوهات وأدوات تسويق لشركات الصيانة']]];
 A.whatsNew = () => { const bg = document.createElement('div'); bg.className = 'ver-bg'; bg.innerHTML = `<div class="ver-box" role="dialog" aria-label="إيه الجديد"><h3>🆕 إيه الجديد</h3>${BC_RELEASES.map(([v, d, L]) => `<div class="ver-it"><b>الإصدار ${v}</b> <span>${d}</span><ul>${L.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>`).join('')}<button type="button" class="btn">إغلاق</button></div>`; bg.onclick = e => { if (e.target === bg || e.target.tagName === 'BUTTON') bg.remove(); }; document.body.appendChild(bg); };
 (function () { const st = document.createElement('style'); st.textContent = '.ver-l{display:block;width:100%;margin-bottom:6px;background:transparent;border:0;color:inherit;opacity:.6;font:inherit;font-size:.75rem;cursor:pointer;padding:4px}.ver-l:hover{opacity:1}.ver-bg{position:fixed;inset:0;z-index:9999;background:rgba(10,20,40,.45);display:flex;align-items:center;justify-content:center;padding:16px}.ver-box{background:#fff;color:#13213A;border-radius:22px;padding:20px;max-width:460px;width:100%;max-height:80vh;overflow:auto;box-shadow:0 30px 70px rgba(0,0,0,.3)}.ver-box h3{margin:0 0 8px}.ver-it{padding:10px 0;border-top:1px solid #E3E9F2}.ver-it span{color:#55657F;font-size:.8rem}.ver-it ul{margin:6px 0 0;padding-inline-start:20px;line-height:1.9}'; document.head.appendChild(st); })();
+
+/* ===== الآلة الحاسبة والنوتة (كل الأشكال) ===== */
+(function () { const st = document.createElement('style'); st.textContent = `
+.nt-c{position:absolute;top:-6px;left:-6px;min-width:19px;height:19px;padding:0 5px;box-sizing:border-box;border-radius:99px;background:#D2553A;color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px #fff}
+.top-ic.on{background:linear-gradient(180deg,#F3D99A,#C9A24A)!important;border-color:#C9A24A!important;color:#12305E!important}
+#calc3{position:fixed;z-index:9000;width:300px;box-sizing:border-box;padding:16px;border-radius:26px;background:linear-gradient(160deg,color-mix(in srgb,var(--brand) 85%,#fff) 0%,var(--brand) 45%,color-mix(in srgb,var(--brand) 65%,#000) 100%);border:1px solid rgba(255,255,255,.12);box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 30px 60px rgba(11,31,63,.45),0 8px 18px rgba(11,31,63,.3);display:flex;flex-direction:column;gap:14px;direction:ltr;color:#fff;font-family:inherit}
+#calc3 .hd{display:flex;align-items:center;justify-content:space-between;direction:rtl}
+#calc3 .hd span{font-size:.85rem;font-weight:700;color:var(--gold-l,#E3BE6A)}
+#calc3 .hd button{height:32px;min-width:32px;padding:0 10px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#DCE6F5;font:inherit;font-size:.78rem;font-weight:700;cursor:pointer}
+#calc3 .sc{padding:12px 16px;border-radius:18px;background:linear-gradient(180deg,rgba(0,0,0,.30),rgba(0,0,0,.18));box-shadow:inset 0 3px 8px rgba(0,0,0,.35),inset 0 -1px 0 rgba(255,255,255,.08);display:flex;flex-direction:column;align-items:flex-end;min-height:78px;box-sizing:border-box}
+#calc3 .ex{font-size:.9rem;color:#93A6C4;min-height:20px;white-space:nowrap;overflow:hidden;max-width:100%}
+#calc3 .ds{font-size:2.2rem;font-weight:700;line-height:1.15;white-space:nowrap;overflow:hidden;max-width:100%}
+#calc3 .ks{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+#calc3 .k{height:52px;border-radius:16px;border:0;font:inherit;font-size:1.3rem;font-weight:600;cursor:pointer;color:#fff;background:linear-gradient(180deg,#2A4A7C,#1B3763);box-shadow:inset 0 1px 0 rgba(255,255,255,.16),inset 0 -2px 0 rgba(0,0,0,.25),0 5px 10px rgba(0,0,0,.25)}
+#calc3 .k:active{transform:translateY(2px)}
+#calc3 .k.fn{color:#12305E;background:linear-gradient(180deg,#DCE6F5,#B7C7E0);box-shadow:inset 0 1px 0 rgba(255,255,255,.7),inset 0 -2px 0 rgba(18,48,94,.25),0 5px 10px rgba(0,0,0,.25);font-size:1.1rem;font-weight:700}
+#calc3 .k.op{background:linear-gradient(180deg,#3E6DB8,#2C55A0);font-size:1.45rem}
+#calc3 .k.op.on{color:#12305E;background:linear-gradient(180deg,#fff,#DCE6F5);box-shadow:inset 0 1px 0 #fff,0 0 0 2px #E3BE6A,0 5px 10px rgba(0,0,0,.25)}
+#calc3 .k.clr{background:linear-gradient(180deg,#E57A5E,#C24A2E);font-size:1.1rem;font-weight:700}
+#calc3 .k.eq{color:#12305E;background:linear-gradient(180deg,color-mix(in srgb,var(--gold) 45%,#fff),var(--gold));box-shadow:inset 0 1px 0 rgba(255,255,255,.6),inset 0 -3px 0 rgba(122,90,18,.35),0 8px 16px rgba(201,162,74,.35);font-size:1.7rem;font-weight:800}
+#calc3 .k.z{grid-column:span 2}
+#calc3bg{position:fixed;inset:0;z-index:8999;background:transparent}
+@media (max-width:640px){#calc3{left:0!important;right:0!important;top:auto!important;bottom:0!important;width:auto;border-radius:30px 30px 0 0;padding:12px 16px calc(24px + env(safe-area-inset-bottom,0px))}#calc3 .k{height:60px;border-radius:18px}#calc3 .ds{font-size:2.6rem}#calc3bg{background:rgba(11,31,63,.40)}#calc3::before{content:'';align-self:center;width:44px;height:5px;border-radius:99px;background:rgba(255,255,255,.28)}}
+.nt3{display:flex;flex-direction:column;gap:8px}
+.nt3 .add{display:flex;gap:6px}.nt3 .add input[type=text]{flex:1;min-width:0}
+.nt3 .it{display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-top:1px solid var(--line)}
+.nt3 .it span{flex:1;white-space:pre-wrap}.nt3 .it.dn span{text-decoration:line-through;opacity:.6}
+/* ===== شكل Beam 3D ===== */
+body.lk-3d{background:linear-gradient(180deg,var(--bg) 0%,color-mix(in srgb,var(--bg) 85%,var(--line)) 100%) fixed!important}
+body.lk-3d .top{background:linear-gradient(180deg,var(--card,#fff),color-mix(in srgb,var(--card,#fff) 88%,var(--bg)))!important;border:1px solid var(--card,#fff)!important;border-radius:20px;margin:12px 12px 0;box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 14px 34px rgba(20,30,50,.10),0 2px 6px rgba(20,30,50,.06)!important}
+body.lk-3d .top-ic,body.lk-3d .hamb{background:linear-gradient(180deg,var(--card,#fff),color-mix(in srgb,var(--card,#fff) 85%,var(--bg)))!important;border:1px solid var(--line)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 5px 12px rgba(20,30,50,.10);color:var(--brand)!important;width:44px;height:44px;border-radius:14px}
+@media (min-width:900px){body.lk-3d:not(.nav-top) .side{background:linear-gradient(160deg,var(--card,#fff) 0%,color-mix(in srgb,var(--card,#fff) 90%,var(--bg)) 100%)!important;border:1px solid var(--card,#fff)!important;border-radius:24px!important;margin:12px 12px 12px 0;box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 18px 40px rgba(20,30,50,.11),0 3px 8px rgba(20,30,50,.06)!important}}
+body.lk-3d .side button{border-radius:14px!important;min-height:44px;font-weight:600;color:var(--ink)}
+body.lk-3d .side button:hover:not(.on){background:var(--bg)!important}
+body.lk-3d .side button.on{background:linear-gradient(180deg,color-mix(in srgb,var(--brand) 78%,#fff) 0%,var(--brand) 100%)!important;color:#fff!important;font-weight:700;box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 10px 20px rgba(20,30,50,.30)!important}
+body.lk-3d .side button.on .nico{stroke:var(--gold-l)!important;color:var(--gold-l)!important}
+body.lk-3d .side.has-pill .navpill{background:linear-gradient(180deg,color-mix(in srgb,var(--brand) 78%,#fff) 0%,var(--brand) 100%)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 10px 20px rgba(20,30,50,.30)!important;border-radius:14px!important}
+body.lk-3d .side.has-pill button.on{background:transparent!important;box-shadow:none!important}
+body.lk-3d .card,body.lk-3d .clinic-card,body.lk-3d .stat,body.lk-3d .lg-card{background:linear-gradient(160deg,var(--card,#fff) 0%,color-mix(in srgb,var(--card,#fff) 90%,var(--bg)) 100%)!important;border:1px solid var(--card,#fff)!important;border-radius:22px!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 18px 40px rgba(20,30,50,.10),0 3px 8px rgba(20,30,50,.05)!important}
+body.lk-3d .stat b{color:var(--brand)}
+body.lk-3d .btn{border-radius:14px!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 8px 18px rgba(20,30,50,.22);font-weight:700}
+body.lk-3d .btn:not(.ghost):not(.gold):not(.danger){background:linear-gradient(180deg,color-mix(in srgb,var(--brand) 78%,#fff),var(--brand))!important;color:#fff!important;border:0!important}
+body.lk-3d .btn.ghost{background:linear-gradient(180deg,var(--card,#fff),color-mix(in srgb,var(--card,#fff) 85%,var(--bg)))!important;border:1px solid var(--line)!important;color:var(--brand)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 4px 10px rgba(20,30,50,.08)}
+body.lk-3d .btn.gold{background:linear-gradient(180deg,color-mix(in srgb,var(--gold-l) 55%,#fff),var(--gold))!important;color:var(--brand)!important;border:0!important}
+body.lk-3d .btn:active{transform:translateY(1px)}
+body.lk-3d input,body.lk-3d select,body.lk-3d textarea{background:color-mix(in srgb,var(--card,#fff) 85%,var(--bg));border-color:var(--line);border-radius:14px;box-shadow:inset 0 2px 4px rgba(20,30,50,.05)}
+body.lk-3d input:focus,body.lk-3d select:focus,body.lk-3d textarea:focus{border-color:var(--gold);background:var(--card,#fff);box-shadow:0 0 0 3px rgba(150,120,40,.18)}
+body.lk-3d .tabs{background:var(--bg);border-radius:14px;padding:4px;box-shadow:inset 0 2px 4px rgba(20,30,50,.08)}
+body.lk-3d .tabs button.on{background:linear-gradient(180deg,color-mix(in srgb,var(--brand) 78%,#fff),var(--brand))!important;color:#fff!important;border-radius:11px;box-shadow:0 6px 14px rgba(20,30,50,.25)}
+body.lk-3d .modal{border-radius:24px!important;background:linear-gradient(160deg,var(--card,#fff),color-mix(in srgb,var(--card,#fff) 90%,var(--bg)))!important;box-shadow:0 30px 70px rgba(11,31,63,.30)!important}
+body.lk-3d .notice{border-radius:18px;box-shadow:0 6px 16px rgba(20,30,50,.06)}
+body.lk-3d .mbar{background:linear-gradient(180deg,var(--card,#fff),color-mix(in srgb,var(--card,#fff) 90%,var(--bg)))!important;border-top:1px solid var(--card,#fff)!important;box-shadow:0 -10px 30px rgba(20,30,50,.12)!important}
+body.lk-3d .mbar .plus .pl{background:linear-gradient(180deg,color-mix(in srgb,var(--gold-l) 55%,#fff),var(--gold))!important;color:var(--brand)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 8px 16px rgba(150,120,40,.4)!important}
+body.lk-3d .chip{border-radius:99px}
+`; document.head.appendChild(st); })();
+const C3 = { cur: '0', prev: null, op: null, expr: '', fresh: false };
+const c3fix = x => isFinite(x) ? String(Math.round(x * 1e10) / 1e10) : 'خطأ';
+const c3run = (a, op, b) => { a = parseFloat(a); b = parseFloat(b); return op === '+' ? a + b : op === '−' ? a - b : op === '×' ? a * b : op === '÷' ? (b === 0 ? NaN : a / b) : b; };
+const c3fmt = v => { if (v === 'خطأ') return v; const ng = v.startsWith('-'), t = ng ? v.slice(1) : v, [i, d] = t.split('.'); return (ng ? '-' : '') + (i || '0').replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (d !== undefined ? '.' + d : ''); };
+function c3press(k) { let { cur, prev, op, expr, fresh } = C3; if (cur === 'خطأ' && k !== 'C') cur = '0';
+  if (/^[0-9]$/.test(k)) { if (fresh || cur === '0') cur = k; else if (cur.replace(/[-.]/g, '').length < 14) cur += k; fresh = false; }
+  else if (k === '.') { if (fresh) { cur = '0.'; fresh = false; } else if (!cur.includes('.')) cur += '.'; }
+  else if (k === 'C') { cur = '0'; prev = null; op = null; expr = ''; fresh = false; }
+  else if (k === '⌫') { if (!fresh) cur = cur.length > 1 && !(cur.length === 2 && cur.startsWith('-')) ? cur.slice(0, -1) : '0'; }
+  else if (k === '±') { if (cur !== '0') cur = cur.startsWith('-') ? cur.slice(1) : '-' + cur; }
+  else if (k === '%') { cur = c3fix(prev !== null && (op === '+' || op === '−') ? parseFloat(prev) * parseFloat(cur) / 100 : parseFloat(cur) / 100); fresh = true; }
+  else if (['+', '−', '×', '÷'].includes(k)) { if (prev !== null && op && !fresh) cur = c3fix(c3run(prev, op, cur)); prev = cur; op = k; expr = c3fmt(cur) + ' ' + k; fresh = true; }
+  else if (k === '=') { if (op !== null && prev !== null) { const r = c3fix(c3run(prev, op, cur)); expr = c3fmt(prev) + ' ' + op + ' ' + c3fmt(cur) + ' ='; cur = r; prev = null; op = null; fresh = true; } }
+  Object.assign(C3, { cur, prev, op, expr, fresh }); c3draw(); }
+function c3draw() { const el = document.getElementById('calc3'); if (!el) return; el.querySelector('.ex').textContent = C3.expr; el.querySelector('.ds').textContent = c3fmt(C3.cur); el.querySelectorAll('.k.op').forEach(b => b.classList.toggle('on', C3.fresh && C3.op === b.dataset.k)); }
+function calc3Close() { document.getElementById('calc3')?.remove(); document.getElementById('calc3bg')?.remove(); document.querySelectorAll('.calc3b').forEach(b => b.classList.remove('on')); document.removeEventListener('keydown', c3key, true); }
+function c3key(e) { const el = document.getElementById('calc3'); if (!el) return; const ae = document.activeElement; if (ae && /INPUT|TEXTAREA|SELECT/.test(ae.tagName) && !el.contains(ae)) return;
+  const m = { '*': '×', 'x': '×', '/': '÷', '-': '−', '+': '+', 'Enter': '=', '=': '=', 'Backspace': '⌫', 'Escape': 'esc', 'Delete': 'C', '%': '%', '.': '.', ',': '.' }; const k = /^[0-9]$/.test(e.key) ? e.key : m[e.key]; if (!k) return; e.preventDefault(); e.stopPropagation(); if (k === 'esc') { calc3Close(); return; } c3press(k); }
+A.calc = btn => { if (document.getElementById('calc3')) { calc3Close(); return; }
+  const K = [['C', 'clr'], ['±', 'fn'], ['%', 'fn'], ['÷', 'op'], ['7'], ['8'], ['9'], ['×', 'op'], ['4'], ['5'], ['6'], ['−', 'op'], ['1'], ['2'], ['3'], ['+', 'op'], ['0', 'z'], ['.'], ['=', 'eq']];
+  const bg = document.createElement('div'); bg.id = 'calc3bg'; bg.onclick = calc3Close; document.body.appendChild(bg);
+  const el = document.createElement('div'); el.id = 'calc3'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'الآلة الحاسبة');
+  el.innerHTML = `<div class="hd"><span>الآلة الحاسبة</span><div style="display:flex;gap:6px"><button type="button" data-c3="copy">نسخ الناتج</button><button type="button" data-c3="x" aria-label="قفل">✕</button></div></div><div class="sc"><div class="ex"></div><div class="ds"></div></div><div class="ks">${K.map(([l, c]) => `<button type="button" class="k ${c || ''}" data-k="${l}">${l}</button>`).join('')}</div>`;
+  document.body.appendChild(el);
+  el.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.k) { c3press(b.dataset.k); return; }
+    if (b.dataset.c3 === 'x') calc3Close(); else if (b.dataset.c3 === 'copy') { const v = C3.cur; try { navigator.clipboard.writeText(v).then(() => { b.textContent = 'اتنسخ ✓'; setTimeout(() => { b.textContent = 'نسخ الناتج'; }, 1500); }).catch(() => toast(v)); } catch (er) { toast(v); } } });
+  if (btn && innerWidth > 640) { const r = btn.getBoundingClientRect(); el.style.left = Math.min(Math.max(12, r.left + r.width / 2 - 150), innerWidth - 312) + 'px'; el.style.top = Math.min(r.bottom + 10, innerHeight - el.offsetHeight - 12) + 'px'; }
+  document.querySelectorAll('.calc3b').forEach(b => b.classList.add('on')); document.addEventListener('keydown', c3key, true); c3draw(); };
+/* النوتة الشخصية: بتتحفظ في حساب الموظف، ولو مش متاح بتتحفظ على الجهاز */
+const ntKey = () => 'bc-notes:' + (S.profile?.id || '');
+function myNotes() { const a = S.profile?.myNotes; if (Array.isArray(a)) return a; try { return JSON.parse(localStorage.getItem(ntKey()) || '[]'); } catch (e) { return []; } }
+function myNotesOpen() { try { return myNotes().filter(x => !x.done).length; } catch (e) { return 0; } }
+async function ntSave(L) { try { localStorage.setItem(ntKey(), JSON.stringify(L)); } catch (e) {} S.profile.myNotes = L;
+  try { await updateDoc(doc(db, 'users', S.profile.id), { myNotes: L }); } catch (e) { if (!ntSave.warned) { ntSave.warned = 1; toast('النوتة اتحفظت على الجهاز ده'); } } }
+function ntHTML() { const L = myNotes(), td = new Date().toISOString().slice(0, 10); const open = L.filter(x => !x.done), dn = L.filter(x => x.done);
+  const row = x => `<div class="it ${x.done ? 'dn' : ''}"><input type="checkbox" ${x.done ? 'checked' : ''} onchange="A.ntTog('${x.id}')" aria-label="خلصت" style="width:auto;margin-top:4px"><span>${esc(x.text)}</span>${x.remind ? `<span class="chip ${!x.done && x.remind <= td ? 'bad' : 'mute'}" style="flex:none">${x.remind <= td && !x.done ? '⏰ ' : ''}${esc(x.remind)}</span>` : ''}<button type="button" class="btn ghost sm" onclick="A.ntDel('${x.id}')" aria-label="حذف">✕</button></div>`;
+  return `<h3>📝 النوتة</h3><div class="nt3"><form class="add" onsubmit="event.preventDefault();A.ntAdd()"><input type="text" id="nt_t" placeholder="اكتب حاجة مش عايز تنساها…" autocomplete="off"><input type="date" id="nt_d" title="فكّرني يوم" style="width:auto;max-width:150px"><button class="btn" type="submit">+</button></form>
+   <div>${open.map(row).join('') || '<div class="meta">النوتة فاضية — اللي هتكتبه هنا محدش بيشوفه غيرك.</div>'}</div>${dn.length ? `<details><summary class="meta" style="cursor:pointer">المخلّصة (${dn.length})</summary>${dn.map(row).join('')}</details>` : ''}</div>
+   <div class="acts"><button class="btn ghost" onclick="A.closeModal()">إغلاق</button></div>`; }
+A.notes = () => { openModal(ntHTML()); setTimeout(() => document.getElementById('nt_t')?.focus(), 60); };
+const ntRefresh = () => { openModal(ntHTML()); setTimeout(() => document.getElementById('nt_t')?.focus(), 60); const k = myNotesOpen(); document.querySelectorAll('.top-ic .nt-c').forEach(x => { x.textContent = k; x.hidden = !k; }); };
+A.ntAdd = async () => { const t = (document.getElementById('nt_t')?.value || '').trim(); if (!t) return; const L = [...myNotes(), { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), text: t.slice(0, 500), remind: document.getElementById('nt_d')?.value || '', done: false, at: new Date().toISOString() }].slice(-200); await ntSave(L); ntRefresh(); };
+A.ntTog = async id => { const L = myNotes().map(x => x.id === id ? { ...x, done: !x.done } : x); await ntSave(L); ntRefresh(); };
+A.ntDel = async id => { await ntSave(myNotes().filter(x => x.id !== id)); ntRefresh(); };
 const devBoss = () => !!S.isDev && (!S.dev || !S.dev.role || S.dev.role === 'owner');
 const devCan = k => devBoss() || !!S.dev?.perms?.[k];
 const devViewPerm = k => k === 'reqs' ? 'reqs' : (k.startsWith('t:') || k === 'tenant' || k === 'errors') ? 'tenants' : ['plans', 'billing', 'looks', 'myco', 'mkt'].includes(k) ? k : k === 'team' ? '@boss' : null;
@@ -3714,7 +3853,7 @@ function clinicShell(view, content) {
   $app.innerHTML = `
   ${S.viewAs ? `<div style="background:var(--gold);color:#fff;padding:8px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-weight:700"><span style="flex:1">أنت ترى النظام كأنك ${esc(S.profile.name)}${roleTitle(S.profile) ? ' (' + esc(roleTitle(S.profile)) + ')' : ''}. أي إجراء تقوم به سيُسجَّل فعليًا.</span><button class="btn sm" style="background:#fff;color:var(--ink)" onclick="A.exitViewAs()">العودة إلى لوحة المطوّر</button></div>` : ''}
   <div class="top">${S.profile.role === 'client' ? '' : `<button class="hamb" onclick="A.drawer(true)" aria-label="القائمة"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>`}${logoHTML(b, 36)}<div><div class="name">${esc(b.name)}</div><div class="sub">${esc(S.profile.name)}${roleTitle(S.profile) ? ' · ' + esc(roleTitle(S.profile)) : ''}</div></div><div class="sp"></div>
-    ${brSel}${isOwner() || can('staff_view') ? `<button class="top-ic" onclick="A.sysQr()" title="QR النظام للموظفين الجدد" aria-label="QR النظام"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></svg></button>` : ''}${S.profile.role === 'client' ? '' : `<button class="top-ic" onclick="A.gsOpen()" title="ابحث في كل شيء" aria-label="بحث"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></button>`}${S.viewAs ? '' : `<button class="me-av" onclick="A.meMenu()" title="حسابي" aria-label="حسابي">${avHTML(S.profile, 36)}</button>`}
+    ${brSel}${S.profile.role !== 'client' ? `<button class="top-ic calc3b" onclick="A.calc(this)" title="الآلة الحاسبة" aria-label="الآلة الحاسبة"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="5" y="2.5" width="14" height="19" rx="3"/><rect x="8" y="5.5" width="8" height="4" rx="1"/><path d="M8.5 13h.01M12 13h.01M15.5 13h.01M8.5 16.5h.01M12 16.5h.01M15.5 16.5h.01"/></svg></button><button class="top-ic" style="position:relative" onclick="A.notes()" title="النوتة" aria-label="النوتة"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h10l4 4v14H5z"/><path d="M15 3v4h4M8.5 11h7M8.5 15h5"/></svg>${myNotesOpen() ? `<span class="nt-c">${myNotesOpen()}</span>` : ''}</button>` : ''}${isOwner() || can('staff_view') ? `<button class="top-ic" onclick="A.sysQr()" title="QR النظام للموظفين الجدد" aria-label="QR النظام"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></svg></button>` : ''}${S.profile.role === 'client' ? '' : `<button class="top-ic" onclick="A.gsOpen()" title="ابحث في كل شيء" aria-label="بحث"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></button>`}${S.viewAs ? '' : `<button class="me-av" onclick="A.meMenu()" title="حسابي" aria-label="حسابي">${avHTML(S.profile, 36)}</button>`}
     ${S.viewAs ? `<button class="btn ghost sm" onclick="A.logout()">رجوع</button>` : ''}</div>
   <div class="drawer-bg" onclick="A.drawer(false)"></div>
   <div class="layout"><nav class="side"><div class="dr-head">${logoHTML(b, 32)}<b style="flex:1">${esc(b.name)}</b><button onclick="A.drawer(false)" aria-label="إغلاق القائمة" style="width:40px;height:40px;justify-content:center;padding:0">✕</button></div>${nav.map(([k, l]) => k === '§' ? `<div class="navsec">${esc(l)}</div>` : `<button class="${view === k ? 'on' : ''}" onclick="A.go('${k}')" title="${esc(l)}" aria-label="${esc(l)}">${navIco(k)}<span>${l}</span></button>`).join('')}
