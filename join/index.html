@@ -130,8 +130,8 @@ const TYPES = {
   maint: { ic: '🔧', name: 'Beam Care Maintenance', short: 'شركة صيانة', one: 'الشركة', desc: 'نظام إدارة شركات صيانة الأجهزة الطبية: التقارير والطلبات والمخزن والفواتير والموظفون',
     limits: [['maxUsers', 'مستخدم (موظف)', 'مستخدمين (موظفين)', 'مستخدم واحد'], ['maxCustomers', 'عيادة (عميل)', 'عيادات (عملاء)', 'عيادة واحدة']], zeroOpen: true },
 };
-const MAINT_PARTS = [['freon', 'الفريون'], ['sales', 'المبيعات والمستهلكات والعروض'], ['quotes', 'عروض الأسعار'], ['pricelists', 'قوائم الأسعار وطلباتها أونلاين'], ['devscan', 'قراءة شاشة الجهاز وتحليل بيانات الجهاز'], ['pricetiers', 'أسعار خاصة لكل عميل (فئات أسعار)'], ['homelayout', 'ترتيب الشاشة الرئيسية للشركة'], ['export', 'تحميل كل البيانات Excel'], ['devices', 'بيع وإيجار الأجهزة'], ['contracts', 'عقود الصيانة'], ['suppliers', 'الموردين والمشتريات'], ['finance', 'الحسابات والخزينة'], ['hr', 'الحضور والإجازات'], ['payroll', 'المرتبات والمكافآت'], ['staff', 'إدارة الموظفين'], ['weekly', 'التقارير الدورية'], ['analytics', 'التحليلات']];
-const FEATS = { whiteLabel: 'النظام يظهر باسمك وشعارك', ownerManagesPerms: 'تتحكم في صلاحيات موظفيك بنفسك', onlineBooking: 'حجز أونلاين لعملائك بالمواعيد المتاحة (رابط و QR)', reminders: 'تذكير الحجوزات عبر واتساب', consents: 'إقرار موافقة بتوقيع العميل', dayReport: 'تقرير نهاية اليوم عبر واتساب', loyalty: 'نقاط ولاء وترشيح للعملاء', campaigns: 'عروض مجمّعة وحملات واتساب بصور مصممة' };
+const MAINT_PARTS = [['freon', 'الفريون'], ['sales', 'المبيعات والمستهلكات والعروض'], ['quotes', 'عروض الأسعار'], ['pricelists', 'قوائم الأسعار وطلباتها أونلاين'], ['devscan', 'قراءة شاشة الجهاز وتحليل بيانات الجهاز'], ['pricetiers', 'أسعار خاصة لكل عميل (فئات أسعار)'], ['homelayout', 'ترتيب الشاشة الرئيسية للشركة'], ['voice', 'اكتب بصوتك (التقارير والملاحظات بالكلام)'], ['export', 'تحميل كل البيانات Excel'], ['devices', 'بيع وإيجار الأجهزة'], ['contracts', 'عقود الصيانة'], ['suppliers', 'الموردين والمشتريات'], ['finance', 'الحسابات والخزينة'], ['hr', 'الحضور والإجازات'], ['payroll', 'المرتبات والمكافآت'], ['staff', 'إدارة الموظفين'], ['weekly', 'التقارير الدورية'], ['analytics', 'التحليلات']];
+const FEATS = { whiteLabel: 'النظام يظهر باسمك وشعارك', ownerManagesPerms: 'تتحكم في صلاحيات موظفيك بنفسك', onlineBooking: 'حجز أونلاين لعملائك بالمواعيد المتاحة (رابط و QR)', reminders: 'تذكير الحجوزات عبر واتساب', consents: 'إقرار موافقة بتوقيع العميل', dayReport: 'تقرير نهاية اليوم عبر واتساب', shiftClose: 'تقفيل الشيفت في ثواني (العجز والزيادة لكل موظف)', voice: 'اكتب بصوتك 🎙️ — الملاحظات بالكلام بدل الكتابة', sessPay: 'الدفع وقت تسجيل الجلسة', xlImport: 'انقل بياناتك من الإكسل في دقايق', notifs: 'إشعارات فورية على الموبايل لكل حدث يخصّك', actLog: 'سجل نشاط: مين عمل إيه وإمتى', invoices: 'فاتورة لكل عملية دفع تتبعت للعميل واتساب', stockTransfer: 'تحويل بضاعة بين الفروع', shiftLock: 'قفل السيستم على الموظف برّه شيفته', loyalty: 'نقاط ولاء وترشيح للعملاء', campaigns: 'عروض مجمّعة وحملات واتساب بصور مصممة' };
 
 const P = new URLSearchParams(location.search);
 const S = { type: TYPES[P.get('t')] ? P.get('t') : '', plans: {}, planId: '', info: null, kind: P.get('trial') ? 'trial' : 'sub' };
@@ -192,8 +192,69 @@ function render() {
       <div class="types">${Object.entries(TYPES).map(([k, t]) => `<label class="opt"><input type="radio" name="type" value="${k}" ${S.type === k ? 'checked' : ''} onchange="J.pickType(this.value)">
         <span class="ic" aria-hidden="true">${t.ic}</span><b>${esc(t.short)}</b><span>${esc(t.desc)}</span></label>`).join('')}</div>
     </section>
+    <section class="step" id="demoBox" style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;border:2px dashed #E3C67E;background:#FFFBF1;padding:16px;border-radius:18px">
+      <span style="font-size:34px" aria-hidden="true">🎥</span>
+      <div style="flex:1;min-width:200px"><b style="font-size:17px">مش متأكد لسه؟ احجز ديمو</b><div class="muted" style="margin:2px 0 0">نوريك السيستم شغال على عيادتك في ٢٠ دقيقة — أونلاين أو عندك، ببلاش.</div></div>
+      <button class="btn" type="button" onclick="J.demo()">احجز ديمو</button>
+    </section>
     <div id="rest">${T ? '<div class="loading">جارٍ تحميل الباقات...</div>' : ''}</div>`;
   if (T) renderPlans();
+}
+/* =========================================================
+   احجز ديمو
+   ========================================================= */
+function renderDemo() {
+  const box = $('demoBox'); if (!box) return;
+  const d = S.demo || (S.demo = { mode: 'online', time: 'afternoon' });
+  const ch = (name, val, cur, lbl) => `<label class="opt" style="padding:10px 14px;flex-direction:row;align-items:center;justify-content:center"><input type="radio" name="${name}" value="${val}" ${cur === val ? 'checked' : ''} onchange="J.demoSet('${name}',this.value)"><b>${lbl}</b></label>`;
+  box.setAttribute('style', 'border:2px solid #E3C67E;background:#FFFBF1;padding:16px;border-radius:18px');
+  box.innerHTML = `<h2 class="step-t" style="margin-top:0"><span aria-hidden="true">🎥</span> احجز ديمو ببلاش</h2>
+    <form id="demoF" novalidate style="display:flex;flex-direction:column;gap:12px">
+      <div class="types" role="radiogroup" aria-label="النوع" style="grid-template-columns:repeat(2,minmax(0,1fr))">${Object.entries(TYPES).map(([k, t]) => `<label class="opt" style="padding:10px 14px;flex-direction:row;align-items:center;gap:8px"><input type="radio" name="dtype" value="${k}" ${(d.type || S.type) === k ? 'checked' : ''} onchange="J.demoSet('type',this.value)"><span aria-hidden="true">${t.ic}</span><b>${esc(t.short)}</b></label>`).join('')}</div>
+      <div class="grid2">
+        <label class="f">اسم العيادة / الشركة *<input name="name" required maxlength="120" autocomplete="organization" value="${esc(d.name)}"></label>
+        <label class="f">اسمك<input name="contact" maxlength="120" autocomplete="name" value="${esc(d.contact)}"></label>
+        <label class="f">رقم الواتساب *<input name="phone" required dir="ltr" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="01xxxxxxxxx" value="${esc(d.phone)}"></label>
+        <label class="f">المحافظة / المدينة<input name="city" maxlength="80" value="${esc(d.city)}"></label>
+      </div>
+      <div><b style="font-size:14px">الديمو يكون</b><div class="types" style="margin-top:6px;grid-template-columns:repeat(2,minmax(0,1fr))">${ch('mode', 'online', d.mode, '💻 أونلاين')}${ch('mode', 'visit', d.mode, '🏥 في مكانك')}</div></div>
+      <div><b style="font-size:14px">أنسب معاد</b><div class="types" style="margin-top:6px;grid-template-columns:repeat(3,minmax(0,1fr))">${ch('time', 'morning', d.time, 'الصبح')}${ch('time', 'afternoon', d.time, 'بعد الضهر')}${ch('time', 'evening', d.time, 'بالليل')}</div></div>
+      <input name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;width:1px;height:1px;padding:0;border:0;overflow:hidden;clip:rect(0 0 0 0);opacity:0;pointer-events:none">
+      <div id="derr"></div>
+      <button class="btn big" type="submit">احجز الديمو</button>
+      ${S.info?.wa ? `<a class="btn ghost" style="text-decoration:none;text-align:center" target="_blank" rel="noopener" href="${esc(waLink('السلام عليكم 👋 عايز أحجز ديمو لسيستم Beam Care'))}">💬 أو كلّمنا واتساب على طول</a>` : ''}
+    </form>`;
+  if (!S.demoAt) S.demoAt = Date.now();
+  $('demoF').addEventListener('input', () => { $('derr').innerHTML = ''; const f = $('demoF'); ['name', 'contact', 'phone', 'city'].forEach(k => d[k] = f[k].value); });
+  $('demoF').addEventListener('submit', demoSubmit);
+}
+const DEMO_MODE = { online: 'أونلاين', visit: 'في المكان' }, DEMO_TIME = { morning: 'الصبح', afternoon: 'بعد الضهر', evening: 'بالليل' };
+async function demoSubmit(e) {
+  e.preventDefault();
+  const f = e.target, d = S.demo, bad = m => { $('derr').innerHTML = `<div class="err">${esc(m)}</div>`; };
+  if (f.website.value) { $('demoBox').innerHTML = '<div class="ok">✓ تم الحجز!</div>'; return; }
+  const name = f.name.value.trim(), phone = latin(f.phone.value).replace(/[^\d+]/g, '');
+  const type = d.type || S.type || 'clinic';
+  if (!name) { f.name.focus(); return bad('اكتب اسم العيادة أو الشركة'); }
+  if (!/^\+?\d{10,15}$/.test(phone)) { f.phone.focus(); return bad('اكتب رقم واتساب صحيح'); }
+  if (Date.now() - (S.demoAt || 0) < 3000) return bad('لحظة واحدة… راجع بياناتك واضغط تاني.');
+  let sent = []; try { sent = JSON.parse(LS.get('bc-req-times') || '[]').filter(t => Date.now() - t < 864e5); } catch (x) {}
+  if (sent.length >= 3) return bad('بعت طلبات كتير النهارده من الجهاز ده. كلّمنا على واتساب.');
+  let plan = null; try { plan = (await loadPlans(type))[0] || null; } catch (x) {}
+  const txt = `🎥 طلب ديمو — ${DEMO_MODE[d.mode]} · ${DEMO_TIME[d.time]}`;
+  const base = { type, name, phone, planId: plan?.id || '', months: 1, start: ymd(new Date()), status: 'new', createdAt: serverTimestamp(), planName: String(plan?.name || '').slice(0, 120), price: 0, total: 0 };
+  const opt = { contact: f.contact.value.trim(), city: f.city.value.trim() };
+  Object.entries(opt).forEach(([k, v]) => { if (v) base[k] = v; });
+  const btn = f.querySelector('[type=submit]'); btn.disabled = true; btn.textContent = 'جارٍ الحجز...';
+  let ok = false;
+  try { await addDoc(collection(db, 'requests'), { ...base, kind: 'demo', demoMode: d.mode, demoTime: d.time, notes: txt }); ok = true; }
+  catch (e1) { try { await addDoc(collection(db, 'requests'), { ...base, kind: 'sub', notes: txt }); ok = true; } catch (e2) { console.error(e2); } }
+  if (!ok) { btn.disabled = false; btn.textContent = 'احجز الديمو'; return bad('ما قدرناش نبعت — اتأكد من النت وجرّب تاني، أو كلّمنا واتساب.'); }
+  LS.set('bc-req-times', JSON.stringify([...sent, Date.now()]));
+  const wa = waLink(`السلام عليكم 👋 حجزت ديمو لـ ${name}\n${txt}`);
+  $('demoBox').innerHTML = `<div style="text-align:center;display:flex;flex-direction:column;gap:10px;align-items:center"><div style="font-size:46px">🎉</div><h2 style="margin:0">تم حجز الديمو!</h2>
+    <p class="muted" style="margin:0">هنكلّمك على واتساب <b dir="ltr">${esc(phone)}</b> ونحدد المعاد ${esc(DEMO_TIME[d.time])}.</p>
+    ${wa ? `<a class="btn ghost" style="text-decoration:none" target="_blank" rel="noopener" href="${esc(wa)}">💬 ابعتلنا رسالة دلوقتي</a>` : ''}</div>`;
 }
 async function renderPlans() {
   const T = TYPES[S.type], box = $('rest');
@@ -443,6 +504,8 @@ window.J = {
   pickPlan: id => { const had = !!$('reqF'); S.planId = id; renderForm(); if (!had) setTimeout(() => $('s3')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100); },
   setMonths: m => { S.months = Number(m) || 1; renderSum(); },
   setKind: k => { S.kind = k; if ($('reqF')) S.draft = Object.fromEntries(new FormData($('reqF'))); renderForm(); },
+  demo: async () => { await loadInfo().catch(() => {}); renderDemo(); setTimeout(() => $('demoBox')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50); },
+  demoSet: (k, v) => { S.demo[k] = v; },
   copy: (t, b) => { navigator.clipboard?.writeText(t).then(() => { b.textContent = 'تم النسخ ✓'; setTimeout(() => { b.textContent = 'نسخ'; }, 1500); }).catch(() => {}); },
 };
 
