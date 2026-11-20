@@ -105,6 +105,76 @@ body.lk-dark .btn,body.lk-dark .side button.on{color:#111}
 body.lk-dark .btn.ghost{color:var(--brand);background:transparent}
 body.lk-dark .chip.mute{background:#2A2A2E}
 body.lk-dark th{color:var(--muted)}
+
+/* ===== الثيم الزجاجي: كروت شفافة فوق خلفية بتتغير من لوحة Beam Care ===== */
+body.lk-gd{--card:rgba(22,34,60,.18)}body.lk-gl{--card:rgba(255,255,255,.3)}
+body.lk-glass{background:#0B1426!important;--gpane:rgba(16,26,48,.52);--gsolid:rgba(14,22,40,.86);--gline:rgba(255,255,255,.13);--ghi:rgba(255,255,255,.08)}
+body.lk-gl{background:#E8EEF7!important;--gpane:rgba(255,255,255,.26);--gsolid:rgba(255,255,255,.9);--gline:rgba(255,255,255,.75);--ghi:rgba(255,255,255,.6)}
+body.lk-glass::before{content:"";position:fixed;inset:-30px;z-index:-2;background:var(--gbg,none) center/cover no-repeat,var(--gdef);filter:blur(var(--gblur,0px)) saturate(1.1)}
+body.lk-glass::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none}
+body.lk-gd{--gdef:radial-gradient(60% 50% at 85% 10%,rgba(227,190,106,.38),transparent 70%),radial-gradient(55% 45% at 10% 85%,rgba(56,104,190,.45),transparent 70%),radial-gradient(40% 35% at 40% 40%,rgba(120,80,170,.22),transparent 70%),linear-gradient(160deg,#0E1B36,#08101F)}
+body.lk-gd::after{background:linear-gradient(180deg,rgba(6,12,24,.08),rgba(6,12,24,.28))}
+body.lk-gl{--gdef:radial-gradient(60% 50% at 85% 8%,rgba(227,190,106,.45),transparent 70%),radial-gradient(55% 45% at 8% 88%,rgba(90,140,220,.40),transparent 70%),radial-gradient(40% 35% at 45% 45%,rgba(200,170,230,.30),transparent 70%),linear-gradient(160deg,#F4F7FC,#E2EAF6)}
+body.lk-gl::after{background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.15))}
+body.lk-glass .layout,body.lk-glass main,body.lk-glass .main{background:transparent!important}
+body.lk-glass .card,body.lk-glass .top,body.lk-glass .side,body.lk-glass .stat,body.lk-glass .clinic-card,body.lk-glass .lg-card,body.lk-glass .mbar,body.lk-glass .login-card{background:var(--gpane)!important;-webkit-backdrop-filter:blur(10px) saturate(160%);backdrop-filter:blur(10px) saturate(160%);border:1px solid var(--gline)!important;box-shadow:inset 0 1px 0 var(--ghi),0 10px 30px rgba(0,0,0,.14)!important;color:var(--ink)}
+body.lk-glass .card{border-radius:20px!important}
+body.lk-glass .top{border-radius:0 0 20px 20px}
+/* القراية أهم: الجداول والنوافذ والخانات شبه مصمتة */
+body.lk-glass .modal,body.lk-glass table,body.lk-glass .tbl-wrap{background:var(--gsolid)!important;-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);border:1px solid var(--gline)}
+body.lk-glass .modal{box-shadow:0 30px 80px rgba(0,0,0,.35)!important}
+body.lk-glass input,body.lk-glass select,body.lk-glass textarea{background:var(--gsolid)!important;color:var(--ink)!important;border-color:var(--gline)!important}
+body.lk-glass th{background:transparent!important}
+body.lk-glass td,body.lk-glass th{border-color:var(--gline)!important}
+body.lk-gd .side button{color:var(--ink)}
+body.lk-gd .side button.on{background:linear-gradient(180deg,#F3D99A,#C9A24A)!important;color:#0B1F3F!important}
+body.lk-gd .side button.on .nico{stroke:#0B1F3F!important}
+body.lk-gd .btn{background:linear-gradient(180deg,#F3D99A,#C9A24A)!important;color:#0B1F3F!important;border:0}
+body.lk-gd .btn.ghost{background:rgba(255,255,255,.08)!important;color:var(--ink)!important;border:1px solid var(--gline)!important}
+body.lk-gd .notice.info{background:rgba(120,160,230,.18);color:#DCE7FA}
+body.lk-gd .notice.warn{background:rgba(227,190,106,.18);color:#F3D99A}
+body.lk-gd .notice.ok{background:rgba(70,190,120,.18);color:#BFF0D2}
+body.lk-gd .chip.mute{background:rgba(255,255,255,.1)!important}
+body.lk-gd .meta{color:var(--muted)}
+body.lk-gl .btn.ghost{background:rgba(255,255,255,.55)!important}
+
+/* --- قريب من شكل Glassy Dashboard: شريط أيقونات عائم، وكل حاجة كبسولات --- */
+body.lk-gd{--gpane:rgba(28,24,22,.16);--gsolid:rgba(22,20,20,.62);--gline:rgba(255,255,255,.14);--ghi:rgba(255,255,255,.09);--card:rgba(30,26,24,.18);--gacc1:#F6C27C;--gacc2:#DE8B3C}
+body.lk-gl{--gacc1:#F6C27C;--gacc2:#DE8B3C}
+body.lk-gl{--gdef:url("bg/glass-light.jpg") center/cover no-repeat,linear-gradient(160deg,#F4F7FC,#E2EAF6)}
+body.lk-glass .navpill{display:none!important}
+body.lk-gd{--gdef:url("bg/glass-warm.jpg") center/cover no-repeat,radial-gradient(45% 40% at 82% 12%,rgba(246,170,90,.42),transparent 70%),radial-gradient(40% 40% at 15% 80%,rgba(120,80,50,.55),transparent 70%),radial-gradient(35% 30% at 55% 55%,rgba(60,90,160,.25),transparent 70%),linear-gradient(160deg,#2A211C,#0F0D0C)}
+body.lk-glass .top{background:transparent!important;border:0!important;box-shadow:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+body.lk-glass .top-ic,body.lk-glass .hamb{border-radius:999px!important;background:var(--gpane)!important;-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);border:1px solid var(--gline)!important;color:var(--ink)!important}
+body.lk-glass .card,body.lk-glass .stat,body.lk-glass .clinic-card{border-radius:26px!important}
+body.lk-glass .btn{border-radius:999px!important}
+body.lk-gd .btn,body.lk-gl .btn:not(.ghost){background:linear-gradient(180deg,var(--gacc1),var(--gacc2))!important;color:#2A1606!important;border:0!important;box-shadow:0 8px 22px rgba(222,139,60,.35)!important}
+body.lk-gd .btn.ghost{background:rgba(255,255,255,.07)!important;color:var(--ink)!important;border:1px solid var(--gline)!important;box-shadow:none!important}
+body.lk-glass input,body.lk-glass select{border-radius:14px!important}
+body.lk-gd .stat b,body.lk-gd .card h2,body.lk-gd h2{color:#fff}
+body.lk-gd .stat b{font-size:30px}
+body.lk-gd a{color:var(--gacc1)}
+@media (min-width:901px){
+  body.lk-glass .layout{gap:0}
+  body.lk-glass.nav-rail .side{margin:14px 14px 14px 0;height:calc(100vh - 89px)!important;top:76px!important;border-radius:40px!important;padding:14px 10px!important;background:rgba(14,12,12,.55)!important;border:1px solid var(--gline)!important;-webkit-backdrop-filter:blur(22px);backdrop-filter:blur(22px);scrollbar-width:none}
+  body.lk-gl.nav-rail .side{background:rgba(255,255,255,.55)!important}
+  body.lk-glass.nav-rail .side::-webkit-scrollbar{display:none}
+  body.lk-glass.nav-rail .side:hover{border-radius:28px!important}
+  body.lk-glass.nav-rail .side button{border-radius:999px!important;min-height:46px!important;color:var(--muted)!important;background:transparent!important;box-shadow:none!important}
+  body.lk-glass.nav-rail .side button:hover:not(.on){background:rgba(255,255,255,.08)!important;color:var(--ink)!important}
+  body.lk-glass.nav-rail .side:not(:hover) button{width:50px;height:50px;min-height:50px!important;margin:0 auto;padding:0!important}
+  body.lk-glass.nav-rail .side button.on{background:#fff!important;color:#161210!important;box-shadow:0 6px 18px rgba(0,0,0,.3)!important}
+  body.lk-glass.nav-rail .side button.on .nico{stroke:#161210!important;color:#161210!important}
+  body.lk-gl.nav-rail .side button.on{background:linear-gradient(180deg,var(--gacc1),var(--gacc2))!important}
+}
+body.lk-glass .mbar{left:12px!important;right:12px!important;bottom:calc(10px + env(safe-area-inset-bottom,0px))!important;border-radius:30px!important;padding-bottom:6px!important;background:rgba(14,12,12,.6)!important}
+body.lk-gl .mbar{background:rgba(255,255,255,.7)!important}
+body.lk-glass .side button.on{background:#fff!important;color:#161210!important;border-radius:999px!important;box-shadow:0 6px 18px rgba(0,0,0,.25)!important}body.lk-glass .side button.on .nico{stroke:#161210!important;color:#161210!important}body.lk-gl .side button.on{background:linear-gradient(180deg,var(--gacc1),var(--gacc2))!important}
+body.lk-gd .card,body.lk-gd .stat,body.lk-gd h2,body.lk-gd h3{text-shadow:0 1px 8px rgba(0,0,0,.35)}
+body.lk-gl .card,body.lk-gl .stat{text-shadow:0 1px 6px rgba(255,255,255,.5)}
+/* الأجهزة الضعيفة: من غير بلور، والكروت أتقل */
+body.lk-glass.g-lite .card,body.lk-glass.g-lite .top,body.lk-glass.g-lite .side,body.lk-glass.g-lite .stat,body.lk-glass.g-lite .modal,body.lk-glass.g-lite table{-webkit-backdrop-filter:none!important;backdrop-filter:none!important;background:var(--gsolid)!important}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){body.lk-glass .card,body.lk-glass .top,body.lk-glass .side,body.lk-glass .stat{background:var(--gsolid)!important}}
 .side .navsec{font-size:11.5px;font-weight:700;color:var(--muted);padding:12px 14px 4px;letter-spacing:.2px}
 .side .nico{width:21px;height:21px}
 @media (min-width:901px){
@@ -2144,6 +2214,8 @@ A.demoPhoneSave = async e => {
    ========================================================= */
 // c: [brand, brand-d, gold, gold-l, bg, line, muted, ink, mint]
 const LOOKS = {
+  glassD:   { name: 'زجاجي غامق ✨', desc: 'كروت زجاج شفافة فوق خلفية بتتغير (مناسبات ومواسم) · كحلي ودهبي', c: ['#E3BE6A', '#C9A24A', '#E3BE6A', '#F3D99A', '#0B1426', 'rgba(255,255,255,.14)', '#AEB9CC', '#F2F5FA', '#2A3A57'], dark: true, glass: 'd', nav: 'rail', icons: 'outline', pm: ['glassD', 'icons'] },
+  glassL:   { name: 'زجاجي فاتح ✨', desc: 'كروت زجاج فاتحة فوق خلفية بتتغير (مناسبات ومواسم) · كحلي ودهبي', c: ['#12305E', '#0B1F3F', '#B98A35', '#D7AE57', '#EEF2F8', 'rgba(255,255,255,.7)', '#4F5F78', '#10203A', '#E3EAF5'], glass: 'l', nav: 'rail', icons: 'outline', pm: ['glassL', 'icons'] },
   b3d:      { name: 'Beam فاتح (جديد)', desc: 'كحلي ودهبي على خلفية فاتحة · قائمة جانبية · ينفع معاه 3D', c: ['#12305E', '#0B1F3F', '#C9A24A', '#E3BE6A', '#E9EEF6', '#DCE3EE', '#55657F', '#13213A', '#E6EDF8'], icons: 'outline', nav: 'side', pm: ['beam3d', 'side'] },
   classic:  { name: 'كلاسيكي',      desc: 'ألوان Beam Care: كحلي وذهبي · أيقونات بخطوط رفيعة · قائمة جانبية', c: ['#163A6B', '#0E2747', '#B98A35', '#D7AE57', '#F3F5F9', '#DCE2EC', '#5D6B82', '#13233D', '#BFD0EA'], icons: 'outline', nav: 'side', pm: ['navy', 'side'] },
   petrol:   { name: 'بترولي',      desc: 'الأخضر البترولي والنحاسي (الألوان السابقة) · أيقونات رفيعة · قائمة جانبية', c: ['#2F6F68', '#1F4E49', '#C98F4E', '#DDA86E', '#F4F6F5', '#DCE5E2', '#5E7E79', '#1E3B38', '#A9CEC4'], icons: 'outline', nav: 'side', pm: ['emerald', 'side'] },
@@ -2188,7 +2260,7 @@ const navIco = k => `<svg class="nico" viewBox="0 0 24 24" aria-hidden="true">${
 function applyLook(key) {
   const L = LOOKS[key];
   let st = document.getElementById('lookCss');
-  document.body.classList.remove('lk-3d', 'lk-dark', 'nav-top', 'nav-rail', 'nav-bottom', 'ico-filled', 'ico-duotone', 'ico-circle', 'ico-square', 'lk-on');
+  document.body.classList.remove('lk-glass', 'lk-gd', 'lk-gl', 'lk-3d', 'lk-dark', 'nav-top', 'nav-rail', 'nav-bottom', 'ico-filled', 'ico-duotone', 'ico-circle', 'ico-square', 'lk-on');
   if (S.clinic ? S.clinic.d3 : (S.isDev && DEV_D3)) document.body.classList.add('lk-3d');
   if (!L) { st?.remove(); return; }
   if (!st) { st = document.createElement('style'); st.id = 'lookCss'; document.head.appendChild(st); }
@@ -2197,8 +2269,48 @@ function applyLook(key) {
   document.documentElement.style.setProperty('--brand', c[0]);
   document.body.classList.add('lk-on');
   if (L.dark) document.body.classList.add('lk-dark');
+  if (L.glass) { document.body.classList.remove('lk-3d'); document.body.classList.add('lk-glass', 'lk-g' + L.glass); glassBgApply(); glassBgLoad(S.clinic ? 'clinic' : 'panel', S.clinic?.id || ''); }
   if (L.nav !== 'side') document.body.classList.add('nav-' + L.nav);
   if (L.icons !== 'outline') document.body.classList.add('ico-' + L.icons);
+}
+// خلفية الثيم الزجاجي (بتتحدد من لوحة Beam Care) — الصورة في --gbg
+let GBG = '';
+function glassBgApply(url) {
+  if (url !== undefined) GBG = url || '';
+  const b = document.body; b.style.setProperty('--gbg', GBG ? `url("${GBG}")` : 'none'); b.style.setProperty('--gblur', GBG ? '1px' : '0px');
+  try { const weak = (navigator.deviceMemory && navigator.deviceMemory <= 2) || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4 && /Android/.test(navigator.userAgent)); b.classList.toggle('g-lite', !!weak); } catch (e) {}
+}
+// مين يشوف أنهي خلفية: المناسبة (بميعاد) تكسب الدايمة، والمخصوصة لعيادة تكسب العامة
+const BG_WHO = { all: 'الكل', clinics: 'كل العيادات', maint: 'كل شركات الصيانة', panel: 'لوحة Beam Care', one: 'عيادات/شركات معيّنة' };
+function bgPick(cfg, me) {
+  const today = todayStr(); let best = null, bs = -1;
+  (cfg?.list || []).forEach(r => {
+    if (r.off || !r.bg) return;
+    const dated = !!(r.from || r.to);
+    if ((r.from && today < r.from) || (r.to && today > r.to)) return;
+    const ok = r.who === 'all' || (r.who === 'clinics' && me.kind === 'clinic') || (r.who === 'maint' && me.kind === 'maint') || (r.who === 'panel' && me.kind === 'panel')
+      || (r.who === 'one' && (r.ids || []).includes((me.kind === 'clinic' ? 'c:' : 'm:') + me.id));
+    if (!ok) return;
+    const sc = (dated ? 10 : 0) + (r.who === 'one' ? 2 : r.who === 'all' ? 0 : 1);
+    if (sc >= bs) { bs = sc; best = r; }
+  });
+  return best;
+}
+let BGCFG = null, BG_LOADING = null;
+async function glassBgLoad(kind, id) {
+  try {
+    if (!BGCFG) BGCFG = await (BG_LOADING ||= getDoc(doc(db, 'pub', 'bgcfg')).then(d => d.exists() ? d.data() : {}, () => ({})));
+    if (!document.body.classList.contains('lk-glass')) return;
+    const r = bgPick(BGCFG, { kind, id }); if (!r) return glassBgApply('');
+    glassBgApply(await bgData(r.bg));
+  } catch (e) { console.warn('bg', e); }
+}
+async function bgData(id) {
+  const k = 'bc-bg-' + id; let d = null; try { d = localStorage.getItem(k); } catch (e) {}
+  if (d) return d;
+  const x = await getDoc(doc(db, 'pub', 'bg_' + id)); d = x.exists() ? x.data().d || '' : '';
+  try { Object.keys(localStorage).filter(z => z.startsWith('bc-bg-')).forEach(z => localStorage.removeItem(z)); if (d) localStorage.setItem(k, d); } catch (e) {}
+  return d;
 }
 function lookAnnounce(key) {
   try {
@@ -2237,6 +2349,7 @@ async function devLooks() {
     <div class="card" style="display:flex;flex-direction:column;gap:10px"><div class="row" style="gap:8px;align-items:center"><h3 style="flex:1">🧊 طريقة العرض 3D</h3><span class="chip ${all.filter(t => t.d3).length ? 'ok' : 'mute'}">شغّال عند ${all.filter(t => t.d3).length}</span></div>
       <p class="meta" style="margin:0">كروت وأزرار بارزة وقائمة عائمة. ده منفصل عن الألوان: تقدر تشغّله مع أي شكل من الأشكال اللي تحت، ولما تغيّر الألوان الـ3D بيفضل زي ما هو.</p>
       <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" onclick="A.d3All('clinic',true)">شغّله لكل العيادات</button><button class="btn ghost sm" onclick="A.d3All('maint',true)">لكل شركات الصيانة</button><button class="btn ghost sm" onclick="A.d3OneModal()">لعميل واحد (تشغيل/إيقاف)…</button><button class="btn ghost sm" onclick="A.d3All('clinic',false)">إيقافه للعيادات</button><button class="btn ghost sm" onclick="A.d3All('maint',false)">إيقافه لشركات الصيانة</button></div></div>
+    ${await bgCardHTML(all)}
     <p class="meta">اختر الشكل وأرسله كتحديث. يجد العميل الشكل الجديد فور فتح النظام، ومعه رسالة قصيرة "🎉 شكل جديد للنظام". (هذا غير شكل لوحتك أنت — فذاك من "🎨 شكل اللوحة" بالأسفل.)</p>
     <div class="cards">${Object.entries(LOOKS).map(([k, L]) => `<div class="card" style="display:flex;flex-direction:column;gap:10px">
       ${lookMini(L)}
@@ -2248,6 +2361,63 @@ async function devLooks() {
         <button class="btn ghost sm" onclick="A.lookOneModal('${k}')">لعميل واحد…</button>
       </div></div>`).join('')}</div>`);
 }
+/* ----- خلفيات الثيم الزجاجي: مكتبة + مين يشوف أنهي خلفية وإمتى ----- */
+const bgCfgRef = () => doc(db, 'pub', 'bgcfg');
+async function bgCfgGet() { const d = await getDoc(bgCfgRef()); return d.exists() ? d.data() : { items: [], list: [] }; }
+async function bgCfgSave(c) { await setDoc(bgCfgRef(), { items: c.items || [], list: c.list || [], at: Date.now() }); BGCFG = null; BG_LOADING = null; if (LOOKS[DEV_THEME]?.glass) glassBgLoad('panel', ''); }
+const bgState = r => { const t = todayStr(); if (r.off) return ['متوقفة', 'mute']; if (r.from && t < r.from) return ['جاية ' + r.from, 'warn']; if (r.to && t > r.to) return ['خلصت', 'mute']; return ['شغالة', 'ok']; };
+async function bgCardHTML(all) {
+  const c = await bgCfgGet(); S.bgCfg = c; S.bgTen = all;
+  const it = id => (c.items || []).find(x => x.id === id), nm = id => all.find(t => t.id === id.slice(2))?.name || id.slice(2);
+  const whoTxt = r => r.who === 'one' ? (r.ids || []).map(nm).join('، ') : BG_WHO[r.who] || r.who;
+  const today = k => { const r = bgPick(c, { kind: k, id: '-' }); return r ? esc(it(r.bg)?.name || '') : 'الافتراضية'; };
+  return `<div class="card" style="display:flex;flex-direction:column;gap:12px">
+    <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap"><h3 style="flex:1">🖼️ خلفيات الثيم الزجاجي</h3><button class="btn sm" onclick="A.bgUp()">⬆️ رفع خلفية</button><button class="btn gold sm" onclick="A.bgRule()">+ اختار مين يشوفها</button></div>
+    <p class="meta" style="margin:0">الثيم ثابت، والخلفية بتتغير. ارفع صورة من الموبايل أو الكمبيوتر، واختار تظهر عند مين ومن إمتى لإمتى (رمضان، العيد…). لما المدة تخلص بترجع لوحدها.</p>
+    <div class="meta">النهارده ظاهر: العيادات ← <b>${today('clinic')}</b> · شركات الصيانة ← <b>${today('maint')}</b> · لوحتك ← <b>${today('panel')}</b></div>
+    ${(c.items || []).length ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px">${c.items.map(x => `<div style="border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column">
+      <img src="${x.t}" alt="" style="width:100%;aspect-ratio:16/10;object-fit:cover"><div style="padding:6px 8px;display:flex;gap:6px;align-items:center"><b style="flex:1;font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(x.name)}</b><button class="btn ghost sm" onclick="A.bgDel('${x.id}')" aria-label="مسح">🗑️</button></div></div>`).join('')}</div>` : '<div class="notice info">لسه مفيش خلفيات — الثيم شغال بالخلفية الافتراضية. دوس «رفع خلفية».</div>'}
+    ${(c.list || []).length ? `<div style="display:flex;flex-direction:column;gap:6px">${c.list.map((r, i) => { const st = bgState(r); return `<div style="display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:8px;flex-wrap:wrap">
+      ${it(r.bg) ? `<img src="${it(r.bg).t}" alt="" style="width:64px;height:40px;object-fit:cover;border-radius:8px">` : ''}<div style="flex:1;min-width:160px"><b>${esc(r.name || it(r.bg)?.name || '')}</b><div class="meta" style="font-size:12px">${esc(whoTxt(r))}${r.from || r.to ? ` · ${r.from || '…'} ← ${r.to || '…'}` : ' · دايمًا'}</div></div>
+      <span class="chip ${st[1]}">${st[0]}</span><button class="btn ghost sm" onclick="A.bgRule(${i})">تعديل</button><button class="btn ghost sm" onclick="A.bgRuleDel(${i})">مسح</button></div>`; }).join('')}</div>` : ''}
+  </div>`;
+}
+async function bgCompress(file) {
+  const img = await new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => no(new Error('الصورة مش مفهومة')); i.src = URL.createObjectURL(file); });
+  const sc = Math.min(1, 1920 / Math.max(img.width, img.height)), cv = document.createElement('canvas'); cv.width = Math.round(img.width * sc); cv.height = Math.round(img.height * sc);
+  cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+  let q = .82, d; do { d = cv.toDataURL('image/webp', q); if (!d.startsWith('data:image/webp')) d = cv.toDataURL('image/jpeg', q); q -= .08; } while (d.length > 850000 && q > .3);
+  const t = document.createElement('canvas'), ts = 320 / cv.width; t.width = 320; t.height = Math.round(cv.height * ts); t.getContext('2d').drawImage(cv, 0, 0, t.width, t.height);
+  return { d, t: t.toDataURL('image/jpeg', .7) };
+}
+A.bgUp = () => { const f = document.createElement('input'); f.type = 'file'; f.accept = 'image/*'; f.style.display = 'none'; document.body.appendChild(f); f.onchange = async () => { const file = f.files?.[0]; f.remove(); if (!file) return;
+  const name = (file.name || 'خلفية').replace(/\.[^.]+$/, '').slice(0, 40);
+  openModal(`<h3>🖼️ رفع خلفية</h3>${LOADING}<p class="meta">بنصغّر الصورة ونرفعها…</p>`);
+  try { const r = await bgCompress(file), c = await bgCfgGet(); if ((c.items || []).length >= 30) throw new Error('المكتبة فيها ٣٠ خلفية — امسح حاجة الأول');
+    const id = Date.now().toString(36); await setDoc(doc(db, 'pub', 'bg_' + id), { d: r.d, name, at: Date.now() });
+    c.items = [...(c.items || []), { id, name, t: r.t }]; await bgCfgSave(c); S.bgCfg = c; A.closeModal(); toast('اترفعت ✓ — اختار مين يشوفها'); await A.dev('looks'); A.bgRule(undefined, id);
+  } catch (e) { A.closeModal(); toast('تعذّر الرفع: ' + (e.message || e)); } }; f.click(); };
+A.bgDel = async id => { const c = S.bgCfg || await bgCfgGet(); const used = (c.list || []).filter(r => r.bg === id).length;
+  if (!confirm(used ? `الخلفية دي مستخدمة في ${used} اختيار وهيتمسحوا معاها. نمسحها؟` : 'نمسح الخلفية دي؟')) return;
+  c.items = c.items.filter(x => x.id !== id); c.list = (c.list || []).filter(r => r.bg !== id);
+  try { await bgCfgSave(c); await deleteDoc(doc(db, 'pub', 'bg_' + id)).catch(() => {}); A.dev('looks'); } catch (e) { toast('تعذّر: ' + (e.code || e.message)); } };
+A.bgRuleDel = async i => { const c = S.bgCfg; if (!confirm('نمسح الاختيار ده؟ (الخلفية نفسها هتفضل في المكتبة)')) return; c.list.splice(i, 1); await bgCfgSave(c); A.dev('looks'); };
+A.bgRule = (i, pre) => { const c = S.bgCfg || { items: [], list: [] }; if (!c.items?.length) return toast('ارفع خلفية الأول');
+  const r = i !== undefined ? c.list[i] : { bg: pre || c.items[c.items.length - 1].id, who: 'clinics', ids: [], from: '', to: '', name: '' };
+  const ten = (S.bgTen || []).filter(t => t.product === 'clinic' || t.product === 'maint');
+  openModal(`<h3>🖼️ الخلفية دي تظهر عند مين؟</h3><form class="fcol" onsubmit="A.bgRuleSave(event,${i ?? -1})">
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px">${c.items.map(x => `<label style="position:relative;cursor:pointer"><input type="radio" name="bg" value="${x.id}" ${x.id === r.bg ? 'checked' : ''} style="position:absolute;top:6px;right:6px;width:18px;height:18px"><img src="${x.t}" alt="" style="width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:10px;display:block"><span class="meta" style="font-size:12px">${esc(x.name)}</span></label>`).join('')}</div>
+    <label class="f">اسم (اختياري)<input name="name" value="${esc(r.name || '')}" placeholder="مثلًا: رمضان ٢٠٢٧"></label>
+    <label class="f">تظهر عند<select name="who" onchange="document.getElementById('bgIds').style.display=this.value==='one'?'flex':'none'">${Object.entries(BG_WHO).map(([k, l]) => `<option value="${k}" ${k === r.who ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+    <div id="bgIds" class="fcol" style="gap:4px;max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:8px;display:${r.who === 'one' ? 'flex' : 'none'}">${ten.map(t => { const k = (t.product === 'clinic' ? 'c:' : 'm:') + t.id; return `<label class="chk"><input type="checkbox" name="id_${k}" ${(r.ids || []).includes(k) ? 'checked' : ''}> ${t.product === 'clinic' ? '🏥' : '🛠️'} ${esc(t.name || t.id)}</label>`; }).join('') || '<span class="meta">مفيش عملاء</span>'}</div>
+    <div class="grid2"><label class="f">من (اختياري)<input type="date" name="from" value="${esc(r.from || '')}"></label><label class="f">لحد (اختياري)<input type="date" name="to" value="${esc(r.to || '')}"></label></div>
+    <p class="meta" style="margin:0">من غير تاريخ = دايمًا. ولو فيه خلفية بتاريخ (مناسبة) شغالة النهارده، هي اللي بتظهر، ولما تخلص ترجع الدايمة لوحدها.</p>
+    ${formActs()}</form>`); };
+A.bgRuleSave = async (e, i) => { e.preventDefault(); const f = e.target, c = S.bgCfg;
+  const r = { bg: f.bg.value, name: f.name.value.trim(), who: f.who.value, ids: f.who.value === 'one' ? [...f.querySelectorAll('[name^=id_]')].filter(x => x.checked).map(x => x.name.slice(3)) : [], from: f.from.value, to: f.to.value };
+  if (r.who === 'one' && !r.ids.length) return toast('اختار عيادة أو شركة واحدة على الأقل'); if (r.from && r.to && r.to < r.from) return toast('تاريخ النهاية قبل البداية');
+  c.list = c.list || []; i >= 0 ? (c.list[i] = r) : c.list.push(r);
+  try { await bgCfgSave(c); A.closeModal(); toast('اتحفظ ✓ — هتظهر عندهم أول ما يفتحوا السيستم'); A.dev('looks'); } catch (er) { toast('تعذّر: ' + (er.code || er.message)); } };
 async function setD3(t, on) {
   const P = PRODUCTS[t.product];
   await updateDoc(tdoc(P, t.id), { d3: !!on });
@@ -2665,6 +2835,62 @@ const MK_VIDS_ALL = {
   { f: 'beamcare-maint-video-v.mp4', t: 'فيديو طولي (موبايل)', d: 'مناسب لستوري واتساب وريلز فيسبوك وإنستجرام.', ar: '9/16' },
   { f: 'beamcare-maint-video-h.mp4', t: 'فيديو عرضي', d: 'مناسب للعرض على الكمبيوتر أو الشاشة أو يوتيوب.', ar: '16/9' }] };
 const mkVids = () => MK_VIDS_ALL[mkIsM() ? 'maint' : 'clinic'];
+// فيديوهات الأقسام: الرقم وكود التجربة بيتحطوا على آخر مشهد من الإعدادات (يتغيروا من غير ما نعمل الفيديو تاني)
+const MK_SEC = { clinic: [{"f": "vid/c01-bookings.mp4", "t": "الحجوزات والحجز أونلاين", "cta": 28.2, "d": 35.6}, {"f": "vid/c02-clients.mp4", "t": "ملف العميل والجلسات", "cta": 28.2, "d": 35.6}, {"f": "vid/c03-packages.mp4", "t": "الباقات والعروض", "cta": 28.2, "d": 35.6}, {"f": "vid/c04-accounts.mp4", "t": "الحسابات والخزينة والفواتير", "cta": 28.2, "d": 35.6}, {"f": "vid/c05-inventory.mp4", "t": "المخزن والمشتريات", "cta": 28.2, "d": 35.6}, {"f": "vid/c06-staff.mp4", "t": "الموظفين والحضور والمرتبات", "cta": 28.2, "d": 35.6}, {"f": "vid/c07-reports.mp4", "t": "التقارير والتقرير اليومي", "cta": 28.2, "d": 35.6}, {"f": "vid/c08-notifs.mp4", "t": "الإشعارات وسجل النشاط", "cta": 28.2, "d": 35.6}, {"f": "vid/c09-campaigns.mp4", "t": "رسايل العملاء والحملات", "cta": 28.2, "d": 35.6}, {"f": "vid/c10-excel.mp4", "t": "نقل البيانات من وإلى Excel", "cta": 28.2, "d": 35.6}, {"f": "vid/c11-privacy.mp4", "t": "الخصوصية والصلاحيات", "cta": 28.2, "d": 35.6}], maint: [] };
+const mkSecs = () => MK_SEC[mkIsM() ? 'maint' : 'clinic'] || [];
+const MKV_QR = { x: 300, y: 640, s: 480 }, MKV_NUM = { x: 540, y: 1560 };
+function mkvOverlayHTML(i, c) {
+  return `<div class="mkv-ov" data-i="${i}" style="position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .35s">
+    ${c.joinQr ? `<img src="${c.joinQr}" alt="" style="position:absolute;left:${MKV_QR.x / 10.8}%;top:${MKV_QR.y / 19.2}%;width:${MKV_QR.s / 10.8}%">` : ''}
+    ${c.phone ? `<div class="mkv-num" dir="ltr" style="position:absolute;left:0;right:0;top:${(MKV_NUM.y - 62) / 19.2}%;text-align:center;font-weight:800;color:#0E2650;font-family:Cairo,Tahoma,sans-serif">${esc(c.phone)}</div>` : ''}</div>`;
+}
+function mkvWire() {
+  document.querySelectorAll('.mkv-box').forEach(box => {
+    const v = box.querySelector('video'), ov = box.querySelector('.mkv-ov'), n = box.querySelector('.mkv-num'), it = mkSecs()[+box.dataset.i];
+    const fit = () => { if (n) n.style.fontSize = (box.clientWidth * 80 / 1080) + 'px'; };
+    fit(); new ResizeObserver(fit).observe(box);
+    const tick = () => { ov.style.opacity = v.currentTime >= it.cta + 0.9 ? 1 : 0; };
+    v.addEventListener('timeupdate', tick); v.addEventListener('seeked', tick);
+  });
+}
+// تجهيز الفيديو برقمك: بيتعرض ويتسجّل جوه المتصفح (بياخد نفس مدة الفيديو)
+A.mkvSave = async (i, share) => {
+  const it = mkSecs()[i], c = await mkCtx();
+  const types = ['video/mp4;codecs=avc1.42E01E', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'];
+  const mime = window.MediaRecorder && types.find(t => MediaRecorder.isTypeSupported(t));
+  if (!mime || !HTMLCanvasElement.prototype.captureStream) return toast('المتصفح ده مش بيدعم تجهيز الفيديو — جرّب من كروم');
+  let stop = false;
+  openModal(`<h3>🎬 بنجهّز الفيديو برقمك</h3><p class="meta">${esc(it.t)} — خلّي الصفحة دي مفتوحة لحد ما يخلص (حوالي ${Math.round(it.d).toLocaleString('ar-EG')} ثانية).</p>
+    <div style="height:14px;border-radius:9px;background:var(--line);overflow:hidden"><i id="mkvBar" style="display:block;height:100%;width:0;background:var(--gold,#C9A24A);transition:width .3s"></i></div>
+    <div class="acts"><button class="btn ghost" onclick="window.__mkvStop&&window.__mkvStop()">إلغاء</button></div>`);
+  window.__mkvStop = () => { stop = true; A.closeModal(); };
+  try {
+    const blobIn = await fetch(BC_FILE(it.f)).then(r => { if (!r.ok) throw new Error('الفيديو مش موجود'); return r.blob(); });
+    const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.src = URL.createObjectURL(blobIn);
+    await new Promise((ok, no) => { v.onloadeddata = ok; v.onerror = () => no(new Error('تعذّر فتح الفيديو')); });
+    const cv = document.createElement('canvas'); cv.width = 1080; cv.height = 1920; const g = cv.getContext('2d');
+    let qr = null; if (c.joinQr) { qr = new Image(); qr.src = c.joinQr; await qr.decode().catch(() => { qr = null; }); }
+    try { await document.fonts.load('800 80px Cairo'); } catch (e) {}
+    const draw = () => { g.drawImage(v, 0, 0, 1080, 1920); const a = Math.max(0, Math.min(1, (v.currentTime - it.cta - 0.9) / 0.4));
+      if (a > 0) { g.globalAlpha = a; if (qr) g.drawImage(qr, MKV_QR.x, MKV_QR.y, MKV_QR.s, MKV_QR.s);
+        if (c.phone) { g.font = '800 80px Cairo, Tahoma, sans-serif'; g.fillStyle = '#0E2650'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.direction = 'ltr'; g.fillText(c.phone, MKV_NUM.x, MKV_NUM.y); }
+        g.globalAlpha = 1; } };
+    draw();
+    const rec = new MediaRecorder(cv.captureStream(30), { mimeType: mime, videoBitsPerSecond: 8e6 }), parts = [];
+    rec.ondataavailable = e => e.data.size && parts.push(e.data);
+    const done = new Promise(ok => rec.onstop = ok);
+    rec.start(500); await v.play();
+    await new Promise(ok => { v.addEventListener('ended', () => ok(), { once: true }); const loop = () => { if (stop) { v.pause(); return ok(); } draw(); const b = document.getElementById('mkvBar'); if (b) b.style.width = Math.min(100, v.currentTime / it.d * 100) + '%';
+      if (v.ended) return ok(); (v.requestVideoFrameCallback ? v.requestVideoFrameCallback(loop) : requestAnimationFrame(loop)); }; loop(); });
+    draw(); rec.stop(); await done; URL.revokeObjectURL(v.src);
+    if (stop) return;
+    const ext = mime.startsWith('video/mp4') ? 'mp4' : 'webm', name = `Beam Care - ${it.t}.${ext}`, file = new File(parts, name, { type: mime.split(';')[0] });
+    A.closeModal();
+    if (share && navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file] }); return; } catch (e) { if (e?.name === 'AbortError') return; } }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    toast(ext === 'webm' ? 'اتحمّل ✓ (لو عايزه MP4 جهّزه من كروم على الكمبيوتر)' : 'اتحمّل ✓');
+  } catch (e) { A.closeModal(); toast('تعذّر تجهيز الفيديو: ' + (e.message || e)); }
+};
 A.vidSave = async (i, share) => {
   const v = mkVids()[i], name = 'Beam Care - ' + (mkIsM() ? 'شركات الصيانة - ' : '') + (i ? 'عرضي' : 'طولي') + '.mp4';
   if (!share) { const a = document.createElement('a'); a.href = BC_FILE(v.f); a.download = name; document.body.appendChild(a); a.click(); a.remove(); return; }
@@ -2678,12 +2904,19 @@ async function devMkt() {
   const tab = S.mkTab || 'posts', c = await mkCtx();
   const M = mkIsM(), prods = `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:5px;width:fit-content;max-width:100%">${[['clinic', '🏥 سيستم العيادات'], ['maint', '🛠️ سيستم شركات الصيانة']].map(([k, l]) => `<button class="btn ${(M ? 'maint' : 'clinic') === k ? '' : 'ghost'} sm" onclick="S.mkProd='${k}';A.dev('mkt')">${l}</button>`).join('')}</div>`;
   const tabs = prods + `<div class="tabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px"><button class="btn ${tab === 'posts' ? '' : 'ghost'} sm" onclick="S.mkTab='posts';A.dev('mkt')">🖼️ الصور الدعائية</button><button class="btn ${tab === 'preso' ? '' : 'ghost'} sm" onclick="S.mkTab='preso';A.dev('mkt')">🎞️ العرض التقديمي</button><button class="btn ${tab === 'video' ? '' : 'ghost'} sm" onclick="S.mkTab='video';A.dev('mkt')">🎬 الفيديو</button></div>`;
-  if (tab === 'video') return devShell('mkt', `<div class="head"><h2>التسويق</h2></div>${tabs}
+  if (tab === 'video') { devShell('mkt', `<div class="head"><h2>التسويق</h2></div>${tabs}
+    ${mkSecs().length ? `<div class="section-t">🎬 فيديو لكل قسم</div><p class="meta">ابعت للعميل فيديو القسم اللي بيسأل عليه. في آخر كل فيديو كود التجربة المجانية${c.phone ? ` ورقمك <b dir="ltr">${esc(c.phone)}</b>` : ''} — بيتغيروا من الإعدادات ← صفحة طلب الاشتراك. دوس «تحميل برقمك» والفيديو بيتجهّز في نفس مدته.</p>
+    ${c.phone ? '' : '<div class="notice warn">أضف رقم الواتساب من الإعدادات ← صفحة طلب الاشتراك عشان يظهر في آخر الفيديو.</div>'}
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;align-items:start;margin-bottom:22px">${mkSecs().map((v, i) => `<div class="card" style="display:flex;flex-direction:column;gap:10px;padding:12px">
+      <div class="mkv-box" data-i="${i}" style="position:relative;width:100%;aspect-ratio:9/16;border-radius:10px;overflow:hidden;background:#0B1A33"><video src="${BC_FILE(v.f)}" controls playsinline preload="metadata" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain"></video>${mkvOverlayHTML(i, c)}</div>
+      <b>${(i + 1).toLocaleString('ar-EG')} · ${esc(v.t)}</b>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">${navigator.canShare ? `<button class="btn gold sm" onclick="A.mkvSave(${i},true)">📤 ابعته</button>` : ''}<button class="btn ${navigator.canShare ? 'ghost' : 'gold'} sm" onclick="A.mkvSave(${i})">⬇️ تحميل برقمك</button></div></div>`).join('')}</div>
+    <div class="section-t">🎞️ فيديو تعريفي بالنظام كله</div>` : ''}
     <p class="meta">فيديو قصير بيعرض النظام، وفي آخره كود التسجيل ورقمك. ابعته على واتساب أو انشره ستوري أو ريلز. تقدر تحط عليه مزيكا من CapCut لو حبيت.</p>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;align-items:start">${mkVids().map((v, i) => `<div class="card" style="display:flex;flex-direction:column;gap:10px;padding:12px">
       <video src="${BC_FILE(v.f)}" controls playsinline preload="metadata" style="width:100%;aspect-ratio:${v.ar};max-height:70vh;object-fit:contain;border-radius:10px;background:#0B1A33"></video>
       <b>${esc(v.t)}</b><p class="meta" style="margin:0">${esc(v.d)}</p>
-      <div style="display:flex;gap:6px;flex-wrap:wrap">${navigator.canShare ? `<button class="btn gold sm" onclick="A.vidSave(${i},true)">📤 ابعته</button>` : ''}<button class="btn ${navigator.canShare ? 'ghost' : 'gold'} sm" onclick="A.vidSave(${i})">⬇️ تحميل</button></div></div>`).join('')}</div>`);
+      <div style="display:flex;gap:6px;flex-wrap:wrap">${navigator.canShare ? `<button class="btn gold sm" onclick="A.vidSave(${i},true)">📤 ابعته</button>` : ''}<button class="btn ${navigator.canShare ? 'ghost' : 'gold'} sm" onclick="A.vidSave(${i})">⬇️ تحميل</button></div></div>`).join('')}</div>`); mkvWire(); return; }
   if (tab === 'preso') return devShell('mkt', `<div class="head"><h2>التسويق</h2></div>${tabs}
     <div class="card" style="display:flex;flex-direction:column;gap:12px"><b style="font-size:17px">عرض نظام ${M ? 'شركات الصيانة' : 'العيادات'} على العميل</b><p class="meta">${PZD().length} شريحة تشرح النظام لصاحب ${M ? 'الشركة' : 'العيادة'}. افتحه من الهاتف أو اللابتوب، وتنقّل بالسحب أو بالأسهم. زر «الملاحظات» يُظهر لك ما تقوله في كل شريحة.</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn gold" onclick="A.preso(0)">▶️ ابدأ العرض</button>${navigator.canShare ? '<button class="btn" onclick="A.pzShare(true)">📤 ابعته PDF</button>' : ''}<button class="btn ghost" onclick="A.pzShare(false)">⬇️ تحميل PDF</button></div>
@@ -4145,7 +4378,7 @@ async function renderHome() {
       if (done < 4) onb = `<div class="card" style="display:flex;flex-direction:column;gap:12px;border:1.5px solid var(--gold-l)">
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><h3 style="flex:1;margin:0">👋 أهلًا بك — ابدأ عملك في ٤ خطوات</h3><span class="chip mute">${done.toLocaleString('ar-EG')} من ٤</span><button class="btn ghost sm" onclick="A.onbHide()">إخفاء</button></div>
         <div style="height:6px;border-radius:99px;background:var(--line);overflow:hidden"><span style="display:block;height:100%;width:${done * 25}%;background:var(--brand)"></span></div>
-        ${st.map(([ok, t, d, bt, on], i) => `<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px;border-radius:14px;${i === next ? 'background:color-mix(in srgb,var(--brand) 7%,#fff);border:1.5px solid var(--brand)' : 'border:1px solid var(--line)'}${ok ? ';opacity:.6' : ''}">
+        ${st.map(([ok, t, d, bt, on], i) => `<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px;border-radius:14px;${i === next ? 'background:color-mix(in srgb,var(--brand) 7%,var(--card));border:1.5px solid var(--brand)' : 'border:1px solid var(--line)'}${ok ? ';opacity:.6' : ''}">
           <span style="width:32px;height:32px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:800;flex:none;${ok ? 'background:var(--brand);color:#fff' : 'border:2px solid var(--brand);color:var(--brand)'}">${ok ? '✓' : (i + 1).toLocaleString('ar-EG')}</span>
           <span style="flex:1;min-width:180px;display:flex;flex-direction:column"><b>${t}</b><span class="meta" style="font-size:13px">${d}</span></span>
           ${ok ? '' : `<button class="btn ${i === next ? '' : 'ghost'} sm" onclick="${on}">${bt}</button>`}</div>`).join('')}</div>`;
