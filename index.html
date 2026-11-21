@@ -2640,7 +2640,7 @@ function applyDevTheme() {
   applyLook(LOOKS[DEV_THEME] ? DEV_THEME : 'classic');
   if (!DEV_THEME_SYNC && S.isDev && devBoss()) {
     DEV_THEME_SYNC = true;
-    getDoc(doc(db, 'devcfg', 'ui')).then(d => { const hasD3 = d.exists() && 'd3' in d.data(), d3 = hasD3 && !!d.data().d3; if (hasD3 && d3 !== DEV_D3) { DEV_D3 = d3; try { localStorage.setItem('bc-dev-3d', d3 ? '1' : '0'); } catch (e) {} applyLook(LOOKS[DEV_THEME] ? DEV_THEME : 'classic'); } const k = d.exists() && d.data().look; if (k && LOOKS[k] && k !== DEV_THEME) { DEV_THEME = k; try { localStorage.setItem('bc-dev-look', k); } catch (e) {} if (S.devView) A.dev(S.devView === 'tenant' ? 'home' : S.devView); } }).catch(() => {});
+    getDoc(doc(db, 'devcfg', 'ui')).then(d => { const lk = d.exists() && d.data().look; if (lk && LOOKS[lk] && lk !== DEV_THEME) { DEV_THEME = lk; try { localStorage.setItem('bc-dev-look', lk); } catch (e) {} applyLook(lk); try { sbAfter(); } catch (e) {} } const hasD3 = d.exists() && 'd3' in d.data(), d3 = hasD3 && !!d.data().d3; if (hasD3 && d3 !== DEV_D3) { DEV_D3 = d3; try { localStorage.setItem('bc-dev-3d', d3 ? '1' : '0'); } catch (e) {} applyLook(LOOKS[DEV_THEME] ? DEV_THEME : 'classic'); } const k = d.exists() && d.data().look; if (k && LOOKS[k] && k !== DEV_THEME) { DEV_THEME = k; try { localStorage.setItem('bc-dev-look', k); } catch (e) {} if (S.devView) A.dev(S.devView === 'tenant' ? 'home' : S.devView); } }).catch(() => {});
   }
 }
 function clearDevTheme() { applyLook(null); }
