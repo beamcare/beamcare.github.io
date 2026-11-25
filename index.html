@@ -894,6 +894,21 @@ const PRODUCTS = {
       { key: 'aiScan', internal: true, label: '🔒 قراءة الشاشة بالذكاء الاصطناعي (أدق — ليها تكلفة، بتظهر ليك إنت بس)' },
     ],
   },
+  /* الصيدليات: زي شركات الصيانة — كل صيدلية ليها قاعدة بيانات Firebase لوحدها، وبتتسجل في نفس مجموعة الشركات بـ product: 'pharm' */
+  pharm: {
+    key: 'pharm', name: 'Beam Care Pharmacy', short: 'الصيدليات', one: 'الصيدلية', newLabel: '+ صيدلية جديدة',
+    col: 'companies', userKey: 'companyId', ready: true, remote: true, viewAs: false, importer: false,
+    emailDomain: 'beamcare-ph.app', countCol: 'custs', appPath: 'ph/',
+    roles: { owner: { label: 'صاحب الصيدلية' }, pharm: { label: 'صيدلي' }, cashier: { label: 'كاشير' }, stock: { label: 'مسؤول مخزن' }, acc: { label: 'محاسب' }, delivery: { label: 'دليفري' } },
+    modules: [], linkedRole: '', rolePerms: {},
+    limits: [
+      { key: 'maxUsers', label: 'المستخدمون (الموظفون)', min: 0, def: 5, count: 'staff' },
+      { key: 'maxBranches', label: 'الفروع', min: 1, def: 1 },
+    ],
+    features: [
+      { key: 'whiteLabel', top: true, label: 'السيستم يظهر باسم الصيدلية ولوجوها' },
+    ],
+  },
 };
 const PRODUCT_LIST = Object.values(PRODUCTS);
 const prodOf = t => PRODUCTS[t?.product] || PRODUCTS.clinic;
@@ -933,15 +948,16 @@ function parseFbCfg(text) {
   });
   return o.apiKey && o.projectId ? o : null;
 }
-function remoteFieldsHTML(t) {
+function remoteFieldsHTML(t, P) {
+  P = P || prodOf(t);
   const mods = t?.mods || {};
   const fbTxt = t?.fb ? JSON.stringify(t.fb, null, 1) : '';
   return `
-    <div class="section-t">الربط بنظام الشركة</div>
-    <label class="f">رابط نظام الشركة (اتركه فارغًا للشركات الجديدة — سيُنشأ تلقائيًا)<input name="url" dir="ltr" placeholder="${esc(MAINT_APP)}?c=..." value="${esc(t?.url)}"></label>
-    <label class="f">بيانات Firebase الخاصة بالشركة (الصق firebaseConfig كاملة)<textarea name="fb" dir="ltr" rows="4" placeholder="apiKey: ..., projectId: ...">${esc(fbTxt)}</textarea></label>
+    <div class="section-t">الربط بنظام ${P.one}</div>
+    <label class="f">رابط نظام ${P.one} (اتركه فارغًا لو جديد — سيُنشأ تلقائيًا)<input name="url" dir="ltr" placeholder="${esc(P.appPath ? BC_BASE + P.appPath : MAINT_APP)}?c=..." value="${esc(t?.url)}"></label>
+    <label class="f">بيانات Firebase الخاصة بـ${P.one} (الصق firebaseConfig كاملة)<textarea name="fb" dir="ltr" rows="4" placeholder="apiKey: ..., projectId: ...">${esc(fbTxt)}</textarea></label>
     <div class="grid2">
-      <label class="f">اسم مستخدم المطوّر في نظام الشركة<input name="duser" dir="ltr" autocomplete="off" value="${esc(S.dConn?.user || '')}"></label>
+      <label class="f">اسم مستخدم المطوّر في نظام ${P.one}<input name="duser" dir="ltr" autocomplete="off" value="${esc(S.dConn?.user || '')}"></label>
       <label class="f">كلمة مرور المطوّر ${t ? '(اتركها فارغة إن لم تكن ستغيّرها)' : ''}<input name="dpass" type="password" dir="ltr" autocomplete="new-password"></label>
     </div>
     <div class="section-t">عند انتهاء الاشتراك</div>
@@ -951,9 +967,9 @@ function remoteFieldsHTML(t) {
       <label class="f">بعد فترة السماح<select name="mode"><option value="read" ${t?.mode !== 'full' ? 'selected' : ''}>قراءة فقط</option><option value="full" ${t?.mode === 'full' ? 'selected' : ''}>قفل كامل</option></select></label>
     </div>
     <label class="f">رقم Beam Care الذي يظهر لهم للتجديد<input name="rphone" dir="ltr" inputmode="tel" value="${esc(t?.renewPhone || '')}"></label>
-    ${themeFieldsHTML(t)}
-    <div class="section-t">أجزاء النظام المفعّلة</div>
-    <div class="grid2">${PIONEER_PARTS.map(([k, l]) => `<label class="chk"><input type="checkbox" name="part_${k}" ${mods[k] === false ? '' : 'checked'}> ${esc(l)}</label>`).join('')}</div>`;
+    ${P.key === 'maint' ? themeFieldsHTML(t) : ''}
+    ${P.key !== 'maint' ? '' : `<div class="section-t">أجزاء النظام المفعّلة</div>`}
+    ${P.key !== 'maint' ? '' : `<div class="grid2">${PIONEER_PARTS.map(([k, l]) => `<label class="chk"><input type="checkbox" name="part_${k}" ${mods[k] === false ? '' : 'checked'}> ${esc(l)}</label>`).join('')}</div>`}`;
 }
 function remoteFieldsRead(f, data) {
   data.url = f.url.value.trim();
@@ -968,7 +984,7 @@ function remoteFieldsRead(f, data) {
   data.layout = f.layout?.value || '';
   data.d3 = !!f.d3?.checked;
   data.mods = {};
-  PIONEER_PARTS.forEach(([k]) => { if (!f['part_' + k].checked) data.mods[k] = false; });
+  PIONEER_PARTS.forEach(([k]) => { if (f['part_' + k] && !f['part_' + k].checked) data.mods[k] = false; });
 }
 const REM = {};
 // أي حاجة بتستنى سيرفر تاني: لو اتأخرت نطلع برسالة بدل ما الصفحة تعلّق
@@ -977,14 +993,14 @@ async function remoteConn(t, fresh) {
   if (REM[t.id] && !fresh) return REM[t.id];
   if (REM[t.id]) { try { await deleteApp(REM[t.id].app); } catch (e) {} delete REM[t.id]; }
   if (!t.fb?.apiKey) throw new Error('لا توجد بيانات بعد Firebase لهذه الشركة — أضفها من "تعديل البيانات والباقة"');
-  const cs = await getDoc(doc(db, PRODUCTS.maint.col, t.id, 'meta', 'conn'));
+  const cs = await getDoc(doc(db, prodOf(t).col, t.id, 'meta', 'conn'));
   const conn = cs.exists() ? cs.data() : {};
   if (!conn.user || !conn.pass) throw new Error('لم يُضف اسم مستخدم وكلمة مرور المطوّر بعد — أضفهما من "تعديل البيانات والباقة"');
   const old = getApps().find(a => a.name === 'co_' + t.id);
   if (old) { try { await deleteApp(old); } catch (e) {} }
   const app = initializeApp(t.fb, 'co_' + t.id);
   const rauth = getAuth(app), rdb = getFirestore(app);
-  const email = conn.user.includes('@') ? conn.user : conn.user.trim().toLowerCase() + '@' + (t.emailDomain || PIONEER_DOMAIN);
+  const email = conn.user.includes('@') ? conn.user : conn.user.trim().toLowerCase() + '@' + (t.emailDomain || prodOf(t).emailDomain || PIONEER_DOMAIN);
   try { await withTimeout(signInWithEmailAndPassword(rauth, email, conn.pass), 15000, 'timeout'); }
   catch (e) {
     try { await deleteApp(app); } catch (x) {}
@@ -1000,9 +1016,9 @@ function subDocOf(t) {
   const lock = new Date(until + 'T00:00:00'); lock.setDate(lock.getDate() + grace + 1);
   return {
     on: true, until, grace, warn: Number(t.warn ?? 7), mode: t.trial ? 'full' : (t.mode || 'read'), stop: t.active === false, trial: !!t.trial,
-    maxUsers: Number(t.plan?.maxUsers) || 0, maxClients: Number(t.plan?.maxCustomers) || 0,
+    maxUsers: Number(t.plan?.maxUsers) || 0, maxClients: Number(t.plan?.maxCustomers) || 0, maxBranches: Number(t.plan?.maxBranches) || 0,
     mods: t.mods || {}, whiteLabel: !!t.whiteLabel, ownerPerms: !!t.features?.ownerManagesPerms, webReq: !!t.features?.webReq, shiftLock: !!t.features?.shiftLock, idCards: !!t.features?.idCards, liveOffice: !!t.features?.liveOffice, aiScan: !!t.features?.aiScan,
-    contact: t.renewPhone || '', vendor: 'Beam Care', product: PRODUCTS.maint.name, planName: t.planName || '',
+    contact: t.renewPhone || '', vendor: 'Beam Care', product: prodOf(t).name, planName: t.planName || '',
     upd: !!t.upd, updMsg: t.updMsg || '', updUntil: t.updUntil || '', theme: t.theme || '', layout: t.layout || '', icons: t.icons || '', d3: !!t.d3, look: t.look || '', lookName: (typeof LOOKS !== 'undefined' && LOOKS[t.look]?.name) || '',
     lockAt: Timestamp.fromDate(lock), updatedAt: new Date().toISOString(), by: 'panel', tid: t.id,
   };
@@ -1041,7 +1057,7 @@ async function loadRemoteInto(t) {
     const [us, sec, cl, sub] = await withTimeout(Promise.all([
       getDocs(collection(r.db, 'users')),
       getDocs(collection(r.db, 'secrets')).catch(() => null),
-      getDocs(collection(r.db, 'clients')),
+      getDocs(collection(r.db, prodOf(t).countCol || 'clients')),
       getDoc(doc(r.db, 'meta', 'sub')).catch(() => null),
     ]), 20000, 'نظام الشركة لا يستجيب الآن — حاول مرة أخرى بعد قليل');
     const pw = {}; sec?.docs.forEach(d => { pw[d.id] = d.data(); });
@@ -1075,7 +1091,7 @@ function remoteUsersBody(P) {
   const order = Object.keys(P.roles);
   if (S.dRemoteErr) return `<div class="notice warn">${esc(S.dRemoteErr)}</div>`;
   const staff = S.dUsers.filter(u => !isLinked(P, u)).length;
-  return `<div class="head"><h3 style="flex:1">المستخدمون (${staff} موظف · ${S.dUsers.length - staff} عيادة)</h3></div>
+  return `<div class="head"><h3 style="flex:1">المستخدمون (${staff} موظف${P.linkedRole ? ` · ${S.dUsers.length - staff} عيادة` : ''})</h3></div>
     <p class="meta">إضافة المستخدمين وتعديلهم تتم من داخل نظام الشركة. تُسجَّل كلمة المرور عند إنشاء المستخدم أو تغيير كلمة مروره من داخل النظام.</p>
     ${S.dUsers.length ? `<div class="card tbl-wrap" style="padding:0"><table>
       <thead><tr><th>الاسم</th><th>اسم الدخول</th><th>الدور</th><th>كلمة المرور</th><th>آخر تغيير</th><th>الحالة</th><th></th></tr></thead>
@@ -1134,9 +1150,9 @@ A.enterSys = async (go, cred) => {
   const w = window.open(url + '#bc-login', '_blank');
   if (!w) return toast('منع المتصفح فتح صفحة جديدة — اسمح بالنوافذ المنبثقة للوحة');
   let conn = cred || {};
-  if (!cred) { try { const cs = await getDoc(doc(db, PRODUCTS.maint.col, c.id, 'meta', 'conn')); conn = cs.exists() ? cs.data() : {}; } catch (e) {} }
+  if (!cred) { try { const cs = await getDoc(doc(db, (S.dp || PRODUCTS.maint).col, c.id, 'meta', 'conn')); conn = cs.exists() ? cs.data() : {}; } catch (e) {} }
   if (!conn.user || !conn.pass) return toast('لا يوجد حساب مطوّر مسجل لهذه الشركة');
-  const email = conn.user.includes('@') ? conn.user : conn.user.trim().toLowerCase() + '@' + (c.emailDomain || PIONEER_DOMAIN);
+  const email = conn.user.includes('@') ? conn.user : conn.user.trim().toLowerCase() + '@' + (c.emailDomain || prodOf(c).emailDomain || PIONEER_DOMAIN);
   const h = e => {
     if (e.source !== w || e.origin !== origin || e.data?.type !== 'pm-ready') return;
     w.postMessage({ type: 'bc-login', email, pass: conn.pass, go: go || '' }, origin);
@@ -2660,12 +2676,13 @@ A.devThemeSet = k => {
   A.closeModal(); A.dev(S.devView && S.devView !== 'tenant' ? S.devView : 'home');
   setTimeout(A.devThemeModal, 50);
 };
-const DEV_NAV_ICO = { mkt: 'megaphone', errors: 'alert', home: 'home', reqs: 'inbox', 't:clinic': 'clinic', 't:maint': 'wrench', looks: 'palette', plans: 'packages', billing: 'payments', team: 'staff', settings: 'csettings' };
+const DEV_NAV_ICO = { mkt: 'megaphone', errors: 'alert', home: 'home', reqs: 'inbox', 't:clinic': 'clinic', 't:maint': 'wrench', 't:pharm': 'inventory', looks: 'palette', plans: 'packages', billing: 'payments', team: 'staff', settings: 'csettings' };
 /* ----- فريق Beam Care: يوزرات الشركة الأساسية وصلاحياتهم ----- */
 const DEV_PERMS = [['reqs', 'طلبات الاشتراك'], ['tenants', 'العيادات وشركات الصيانة (الفتح والتجديد والمستخدمون)'], ['plans', 'باقات الاشتراك والأسعار'], ['billing', 'إيرادات الاشتراكات (الأموال)'], ['looks', 'أشكال النظام'], ['myco', 'شركتي (نظام الصيانة)'], ['mkt', 'التسويق (الصور الدعائية والعرض التقديمي)']];
 const DEV_JOBS = { manager: { l: 'مدير', p: ['reqs', 'tenants', 'plans', 'billing', 'looks', 'myco', 'mkt'] }, sales: { l: 'مبيعات', p: ['reqs', 'tenants', 'mkt'] }, support: { l: 'دعم فني', p: ['tenants', 'looks'] }, accounts: { l: 'حسابات', p: ['billing', 'reqs'] }, custom: { l: 'مخصص (تختار بنفسك)', p: [] } };
-const BC_VER = '2.13.0';
+const BC_VER = '2.14.0';
 const BC_RELEASES = [
+  ['2.14.0', '2026-11-26', ['💊 منتج جديد: Beam Care Pharmacy — سيستم إدارة الصيدليات (الكاشير، الأصناف والتشغيلات، الصلاحية، المشتريات، النواقص، الورديات)']],
   ['2.13.0', '2026-11-24', ['🏢 ميزة جديدة لشركات الصيانة: مكتب الشركة الحي (تتفعّل من مميزات الباكدج)']],
   ['2.12.0', '2026-11-22', ['🪪 ميزة جديدة لشركات الصيانة: كارت الموظف بـ QR للتحقق (تتفعّل من مميزات الباكدج)']],
   ['2.11.0', '2026-11-21', ['✨ أشكال جديدة للقائمة: أيقونات ملوّنة بتكبر لما تقف عليها، وشريط زي الماك، ونيون منوّر، وأيقونات بلوحة فرعية — والقائمة بتتفتح بالأسماء بزرار صغير']],
@@ -3328,8 +3345,9 @@ A.dev = async view => {
   }
 };
 async function loadAllTenants() {
-  const lists = await Promise.all(PRODUCT_LIST.map(P => getDocs(tcol(P)).then(s => s.docs.map(d => ({ ...d.data(), id: d.id, product: d.data().product || P.key }))).catch(() => [])));
-  S.tenants = lists.flat().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ar'));
+  const lists = await Promise.all(PRODUCT_LIST.filter((P, i, a) => a.findIndex(x => x.col === P.col) === i).map(P => getDocs(tcol(P)).then(s => s.docs.map(d => ({ ...d.data(), id: d.id, product: d.data().product || P.key }))).catch(() => [])));
+  const seen = new Set();
+  S.tenants = lists.flat().filter(t => { if (seen.has(t.id)) return false; seen.add(t.id); return true; }).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ar'));
   return S.tenants;
 }
 async function loadPlans() {
@@ -3542,7 +3560,7 @@ A.tenantModal = async (pk, id) => {
       <label class="f">طريقة الدفع<select name="method">${methodOpts('cash')}</select></label>
       <label class="f">ملاحظة<input name="note"></label>
     </div>`}
-    ${P.remote ? remoteFieldsHTML(t) : ''}
+    ${P.remote ? remoteFieldsHTML(t, P) : ''}
     <div class="section-t">الشكل</div>
     <div class="grid2">
       <label class="f">اللون<input name="color" type="color" value="${esc(t?.color || '#163A6B')}" style="padding:4px"></label>
@@ -3622,12 +3640,12 @@ A.saveTenant = async (e, pk, id) => {
       data.startAt = Timestamp.fromDate(new Date(f.sd.value + 'T00:00:00'));
       data.expiresAt = Timestamp.fromDate(endOfDay(f.ed.value));
       if (f.isTrial) data.trial = !!f.isTrial.checked;
-      if (P.remote && !data.url) data.url = MAINT_APP + '?c=' + id;
+      if (P.remote && !data.url) data.url = (P.appPath ? BC_BASE + P.appPath : MAINT_APP) + '?c=' + id;
       batch.update(tdoc(P, id), data);
     } else {
       const ref = doc(tcol(P));
       id = ref.id;
-      if (P.remote && !data.url) data.url = MAINT_APP + '?c=' + id;
+      if (P.remote && !data.url) data.url = (P.appPath ? BC_BASE + P.appPath : MAINT_APP) + '?c=' + id;
       let tdays = Number(f.trialDays?.value) || 0;
       const start = new Date(f.sd.value + 'T00:00:00');
       const manualTrial = f.subKind?.value === 'trial';
@@ -3818,11 +3836,11 @@ function renderTenant() {
         </div></td></tr>`).join('')}</tbody></table></div>`
       : `<div class="card empty">لا يوجد مستخدمون بعد. ابدأ بصاحب ${esc(P.one)}.</div>`}`;
   }
-  const tabs = P.remote ? [['sub', 'الاشتراك'], ['users', 'المستخدمون وكلمات المرور'], ['backups', 'النسخ الاحتياطية'], ['audit', 'سجل التعديلات'], ['archive', 'الأرشيف'], ['ann', 'الإعلانات'], ['gs', 'Google Sheet']] : [['sub', 'الاشتراك'], ['branches', 'الفروع'], ['users', 'المستخدمون وكلمات المرور'], ...(P.key === 'clinic' ? [['backups', 'النسخ الاحتياطية'], ['gs', 'Google Sheet']] : [])];
+  const tabs = P.key === 'pharm' ? [['sub', 'الاشتراك'], ['users', 'المستخدمون وكلمات المرور']] : P.remote ? [['sub', 'الاشتراك'], ['users', 'المستخدمون وكلمات المرور'], ['backups', 'النسخ الاحتياطية'], ['audit', 'سجل التعديلات'], ['archive', 'الأرشيف'], ['ann', 'الإعلانات'], ['gs', 'Google Sheet']] : [['sub', 'الاشتراك'], ['branches', 'الفروع'], ['users', 'المستخدمون وكلمات المرور'], ...(P.key === 'clinic' ? [['backups', 'النسخ الاحتياطية'], ['gs', 'Google Sheet']] : [])];
   if (P.importer) tabs.push(['import', 'استيراد من Excel']);
   devShell('tenant', `
     <div><button class="btn ghost sm" onclick="A.dev('t:${P.key}')">→ كل ${esc(P.short)}</button></div>
-    <div class="head">${logoHTML(b, 48)}<h2>${esc(c.name)}</h2><span class="chip mute">${esc(P.name)}</span>${statusChip(c)}${P.remote ? `${MYCO?.tenantId === c.id ? '<span class="chip warn">⭐ شركتي</span>' : `<button class="btn ghost sm" onclick="A.setMyCo('${c.id}')">⭐ هذه شركتي</button>`}<button class="btn gold sm" onclick="A.enterSys()">ادخل إلى النظام</button>` : P.viewAs ? `<button class="btn gold sm" onclick="A.enterClinic()">ادخل إلى النظام</button>` : ''}</div>
+    <div class="head">${logoHTML(b, 48)}<h2>${esc(c.name)}</h2><span class="chip mute">${esc(P.name)}</span>${statusChip(c)}${P.remote ? `${P.key !== 'maint' ? '' : MYCO?.tenantId === c.id ? '<span class="chip warn">⭐ شركتي</span>' : `<button class="btn ghost sm" onclick="A.setMyCo('${c.id}')">⭐ هذه شركتي</button>`}<button class="btn gold sm" onclick="A.enterSys()">ادخل إلى النظام</button>` : P.viewAs ? `<button class="btn gold sm" onclick="A.enterClinic()">ادخل إلى النظام</button>` : ''}</div>
     <div class="tabs">${tabs.map(([k, l]) => `<button class="${tab === k ? 'on' : ''}" onclick="A.tenantTab('${k}')">${l}</button>`).join('')}</div>${body}`);
 }
 const waNum = p => { let s = latinDigits(p).replace(/\D/g, ''); if (s.startsWith('0')) s = '20' + s.slice(1); return s; };
