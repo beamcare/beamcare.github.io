@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0E1B33">
+<title>اطلب من الصيدلية</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#F3EEE8;--card:rgba(255,255,255,.78);--ink:#14213D;--mu:#5E6B82;--line:rgba(20,33,61,.1);--ac:#E8833A;--ac2:#F2611D;--nv:#0E1B33;--gd:#E3BE6A;--gr:#16A34A;--rd:#E5484D;--am:#D97706;--bl:#2F6FE4}
+*{box-sizing:border-box}html,body{margin:0}body{font-family:Cairo,system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:15px;min-height:100dvh;
+ background-image:radial-gradient(900px 500px at 100% -10%,rgba(232,131,58,.18),transparent 60%),radial-gradient(700px 500px at -10% 30%,rgba(47,111,228,.12),transparent 60%)}
+.wrap{max-width:720px;margin:0 auto;padding:14px max(14px,env(safe-area-inset-left)) 110px max(14px,env(safe-area-inset-right))}
+.hd{display:flex;gap:12px;align-items:center;background:var(--nv);color:#fff;border-radius:22px;padding:14px 16px;box-shadow:0 10px 30px rgba(14,27,51,.25)}
+.lg{width:54px;height:54px;border-radius:16px;background:#1B2D52;display:grid;place-items:center;overflow:hidden;flex-shrink:0}.lg img{width:100%;height:100%;object-fit:cover}
+.hd h1{margin:0;font-size:19px}.hd .s{color:#C9D3E3;font-size:13px}
+.card{background:var(--card);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.7);border-radius:20px;padding:14px;box-shadow:0 8px 24px rgba(20,33,61,.07);margin-top:12px}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}.tabs button{flex:1 1 auto;border:0;border-radius:14px;padding:10px 12px;font:inherit;font-weight:700;background:rgba(255,255,255,.6);color:var(--ink);cursor:pointer}.tabs button.on{background:var(--ac);color:#fff}
+input,textarea,select{font:inherit;width:100%;border:1.5px solid var(--line);border-radius:14px;padding:11px 13px;background:#fff;color:var(--ink)}textarea{min-height:90px;resize:vertical}
+label.f{display:flex;flex-direction:column;gap:5px;font-weight:600;font-size:14px;margin-top:10px}
+.btn{border:0;border-radius:14px;padding:12px 16px;font:inherit;font-weight:800;background:var(--ac);color:#fff;cursor:pointer}.btn.o{background:#fff;color:var(--ink);border:1.5px solid var(--line)}.btn.sm{padding:7px 12px;font-size:14px;border-radius:11px}.btn:disabled{opacity:.5}
+.it{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px dashed var(--line)}.it:last-child{border:0}.it .n{flex:1;min-width:0}.it b{display:block;direction:ltr;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mut{color:var(--mu)}.sm{font-size:13px}.xs{font-size:12px}.num{font-variant-numeric:tabular-nums}
+.chip{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:3px 10px;font-size:12.5px;font-weight:700;background:rgba(20,33,61,.07);border:0;font-family:inherit;color:inherit;cursor:pointer}.chip.on{background:var(--ac);color:#fff}.chip.r{background:#FDE7E7;color:#9A2B2E}.chip.g{background:#DDF3E4;color:#1E6B3A}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.sp{flex:1}
+.qty{display:flex;align-items:center;gap:6px}.qty button{width:32px;height:32px;border-radius:10px;border:1.5px solid var(--line);background:#fff;font:inherit;font-weight:800;cursor:pointer}
+.note{border-radius:14px;padding:10px 12px;font-size:13.5px;background:rgba(47,111,228,.09);margin-top:10px}.note.r{background:#FDE7E7;color:#7A2224}.note.a{background:#FEF3C7;color:#6B4A07}
+.bar{position:fixed;left:0;right:0;bottom:0;padding:10px max(14px,env(safe-area-inset-left)) calc(10px + env(safe-area-inset-bottom));background:rgba(243,238,232,.92);backdrop-filter:blur(10px);border-top:1px solid var(--line)}
+.bar .in{max-width:720px;margin:auto;display:flex;gap:10px;align-items:center}
+.empty{text-align:center;padding:26px 10px;color:var(--mu)}.big{font-size:44px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}@media(max-width:480px){.g2{grid-template-columns:1fr}}
+.ok{color:var(--gr)}.hide{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"><div class="empty"><div class="big">💊</div>بيفتح…</div></div>
+<div class="bar hide" id="bar"><div class="in"><div class="sp"><b id="bt">0 صنف</b><div class="mut xs" id="bs"></div></div><button class="btn" id="bgo">كمّل الطلب ←</button></div></div>
+<script>
+"use strict";
+/* ================================================================
+   اقتراح علاج حسب الشكوى — أدوية من غير روشتة بس، وبيشيل أي دوا
+   بيتعارض مع حالة المريض. مساعدة للصيدلي، والقرار الأخير ليه.
+   (الملف ده بيتنسخ زي ما هو في صفحة الطلب أونلاين)
+   ================================================================ */
+const SX_CONDS=[['preg','حامل'],['bf','بترضع رضاعة طبيعية'],['htn','ضغط عالي'],['dm','سكر'],['heart','أمراض قلب'],['asthma','ربو أو حساسية صدر'],['ulcer','قرحة أو نزيف في المعدة'],['kidney','مشاكل في الكلى'],['liver','مشاكل في الكبد'],['glauc','مياه زرقا على العين'],['prost','تضخم بروستاتا'],['anticoag','بياخد دوا سيولة (زي الماريفان)']];
+const SX_ALG=[['nsaid','مسكنات زي البروفين والفولتارين'],['aspirin','أسبرين'],['pen','بنسلين'],['sulfa','سلفا']];
+/* كل مادة: ممنوعة مع إيه، وأقل سن (بالسنين)، وحساسية */
+const SX_ING=[
+ ['PARACETAMOL|ACETAMINOPHEN',{x:['liver'],age:0}],
+ ['IBUPROFEN',{x:['preg','ulcer','kidney','asthma','anticoag','heart','htn'],age:0.5,alg:['nsaid']}],
+ ['DICLOFENAC',{x:['preg','ulcer','kidney','asthma','anticoag','heart','htn'],age:14,alg:['nsaid']}],
+ ['NAPROXEN',{x:['preg','ulcer','kidney','asthma','anticoag','heart','htn'],age:12,alg:['nsaid']}],
+ ['MEFENAMIC',{x:['preg','ulcer','kidney','asthma','anticoag','heart','htn'],age:14,alg:['nsaid']}],
+ ['KETOPROFEN',{x:['preg','asthma'],age:15,alg:['nsaid']}],
+ ['ACETYLSALICYLIC|ASPIRIN',{x:['preg','bf','ulcer','kidney','asthma','anticoag'],age:16,alg:['nsaid','aspirin']}],
+ ['METHYL SALICYLATE',{x:['anticoag'],age:12,alg:['aspirin']}],
+ ['CHLORPHENIRAMINE|PHENIRAMINE|DIPHENHYDRAMINE|BROMPHENIRAMINE',{x:['glauc','prost'],age:6}],
+ ['LORATADINE|DESLORATADINE|CETIRIZINE|LEVOCETIRIZINE|FEXOFENADINE',{x:[],age:2}],
+ ['PSEUDOEPHEDRINE|PHENYLEPHRINE',{x:['htn','heart','prost','glauc','preg','dm'],age:12}],
+ ['XYLOMETAZOLINE|OXYMETAZOLINE',{x:['htn','heart','glauc'],age:6}],
+ ['DEXTROMETHORPHAN',{x:[],age:6}],
+ ['GUAIFENESIN',{x:[],age:4}],['AMBROXOL|BROMHEXINE|CARBOCISTEINE',{x:[],age:2}],
+ ['ALUMINIUM HYDROXIDE|ALUMINUM HYDROXIDE|MAGNESIUM HYDROXIDE|MAGALDRATE|CALCIUM CARBONATE',{x:['kidney'],age:6}],
+ ['SIMETHICONE|DIMETICONE|DIMETHICONE',{x:[],age:0}],
+ ['FAMOTIDINE',{x:[],age:12}],['OMEPRAZOLE|ESOMEPRAZOLE|PANTOPRAZOLE',{x:[],age:18}],
+ ['LOPERAMIDE',{x:['preg'],age:12}],['NIFUROXAZIDE',{x:[],age:6}],['RACECADOTRIL',{x:[],age:0.25}],
+ ['REHYDRATION|ORAL SALTS|ORS',{x:[],age:0}],
+ ['LACTULOSE',{x:[],age:0}],['GLYCERIN|GLYCEROL',{x:[],age:0}],['BISACODYL',{x:['preg'],age:10}],['SENNA|SENNOSIDE',{x:['preg','bf'],age:12}],
+ ['HYOSCINE|SCOPOLAMINE',{x:['glauc','prost'],age:6}],['DROTAVERINE',{x:[],age:6}],['ALVERINE',{x:['preg'],age:12}],
+ ['DIMENHYDRINATE|MECLIZINE|MECLOZINE|CINNARIZINE',{x:['glauc','prost'],age:6}],
+ ['BENZOCAINE|LIDOCAINE|LIGNOCAINE',{x:[],age:2}],['CHLORHEXIDINE|HEXETIDINE',{x:[],age:6}],['BENZYDAMINE',{x:[],age:6}],
+ ['CLOTRIMAZOLE|MICONAZOLE|ECONAZOLE|ISOCONAZOLE',{x:[],age:0}],['TERBINAFINE',{x:[],age:12}],
+ ['HYDROCORTISONE',{x:[],age:2}],['CALAMINE|ZINC OXIDE',{x:[],age:0}],
+ ['SILVER SULFADIAZINE|SULPHADIAZINE',{x:['preg'],age:0.2,alg:['sulfa']}],['POVIDONE',{x:[],age:0}],
+ ['NAPHAZOLINE|TETRYZOLINE|TETRAHYDROZOLINE',{x:['glauc'],age:12}],['CARMELLOSE|CARBOXYMETHYLCELLULOSE|HYPROMELLOSE|HYALURONATE|POLYVINYL ALCOHOL',{x:[],age:0}],
+ ['ZINC|ASCORBIC|VITAMIN C',{x:[],age:0}],['MENTHOL|CAMPHOR|EUCALYPT',{x:[],age:6}],
+ ['BENZOYL PEROXIDE|SALICYLIC ACID',{x:[],age:12}]];
+const SX=[
+ {k:'head',n:'صداع',e:'🤕',ing:['PARACETAMOL','IBUPROFEN','NAPROXEN'],red:'صداع شديد ومفاجئ، أو معاه ترجيع أو زغللة أو تنميل، أو سخونية وتيبّس في الرقبة'},
+ {k:'fever',n:'سخونية',e:'🌡️',ing:['PARACETAMOL','IBUPROFEN'],red:'حرارة فوق 39 أو أكتر من 3 أيام، أو طفل أقل من 3 شهور، أو تشنجات'},
+ {k:'cold',n:'برد وزكام ورشح',e:'🤧',ing:['PARACETAMOL','PSEUDOEPHEDRINE','LORATADINE','CHLORPHENIRAMINE','XYLOMETAZOLINE','ZINC|ASCORBIC'],red:'نهجان أو ضيق نفس، أو حرارة عالية مستمرة'},
+ {k:'dcough',n:'كحة ناشفة',e:'😮‍💨',ing:['DEXTROMETHORPHAN','MENTHOL'],red:'كحة أكتر من 3 أسابيع، أو فيها دم، أو معاها ضيق نفس'},
+ {k:'wcough',n:'كحة ببلغم',e:'😷',ing:['AMBROXOL','GUAIFENESIN'],red:'كحة أكتر من 3 أسابيع، أو بلغم فيه دم، أو حرارة عالية'},
+ {k:'throat',n:'التهاب في الزور',e:'🗣️',ing:['BENZYDAMINE','CHLORHEXIDINE','PARACETAMOL'],red:'صعوبة في البلع أو التنفس، أو صديد مع حرارة عالية'},
+ {k:'allergy',n:'حساسية وعطس',e:'🌼',ing:['LORATADINE','CETIRIZINE','FEXOFENADINE','CHLORPHENIRAMINE'],red:'تورّم في الوش أو الشفايف، أو ضيق تنفس — ده طوارئ'},
+ {k:'acid',n:'حموضة وحرقان في المعدة',e:'🔥',ing:['ALUMINIUM HYDROXIDE','FAMOTIDINE','OMEPRAZOLE'],red:'ترجيع دم، أو براز أسود، أو وجع في الصدر'},
+ {k:'gas',n:'انتفاخ وغازات',e:'🎈',ing:['SIMETHICONE'],red:'انتفاخ شديد مع ترجيع أو وقف إخراج'},
+ {k:'colic',n:'مغص وتقلصات في البطن',e:'🌀',ing:['HYOSCINE','DROTAVERINE','ALVERINE'],red:'وجع شديد مستمر (خصوصاً تحت على اليمين)، أو معاه حرارة وترجيع'},
+ {k:'diar',n:'إسهال',e:'🚽',ing:['REHYDRATION','NIFUROXAZIDE','RACECADOTRIL','LOPERAMIDE'],red:'إسهال فيه دم، أو حرارة عالية، أو جفاف، أو طفل صغير أكتر من يوم'},
+ {k:'const',n:'إمساك',e:'🧱',ing:['LACTULOSE','GLYCERIN','BISACODYL','SENNA'],red:'إمساك مع وجع شديد أو ترجيع أو دم'},
+ {k:'nausea',n:'دوخة سفر وترجيع',e:'🚗',ing:['DIMENHYDRINATE','MECLIZINE','CINNARIZINE'],red:'ترجيع مستمر أو فيه دم، أو معاه وجع شديد'},
+ {k:'tooth',n:'وجع سنان',e:'🦷',ing:['IBUPROFEN','PARACETAMOL','BENZOCAINE'],red:'ورم في الوش أو حرارة — دكتور سنان بسرعة'},
+ {k:'muscle',n:'وجع عضلات وضهر ومفاصل',e:'💪',ing:['IBUPROFEN','PARACETAMOL','DICLOFENAC','KETOPROFEN','MENTHOL'],red:'وجع بعد خبطة قوية، أو تنميل وضعف في الرجل'},
+ {k:'period',n:'تقلصات الدورة',e:'🌸',ing:['IBUPROFEN','MEFENAMIC','HYOSCINE','PARACETAMOL'],red:'نزيف شديد أو وجع مش طبيعي'},
+ {k:'fungal',n:'فطريات في الجلد',e:'🦶',ing:['CLOTRIMAZOLE','MICONAZOLE','TERBINAFINE'],red:'انتشار كبير أو صديد أو حرارة'},
+ {k:'itch',n:'هرش وحساسية جلد',e:'🩹',ing:['HYDROCORTISONE','CALAMINE','LORATADINE','CETIRIZINE'],red:'طفح منتشر مع حرارة أو تورّم'},
+ {k:'burn',n:'حروق بسيطة',e:'♨️',ing:['SILVER SULFADIAZINE','POVIDONE'],red:'حرق كبير أو في الوش أو اليدين، أو فيه فقاقيع كتير — ده طوارئ'},
+ {k:'eye',n:'احمرار وحرقان في العين',e:'👁️',ing:['CARMELLOSE','NAPHAZOLINE'],red:'وجع شديد، أو زغللة، أو صديد'},
+ {k:'mouth',n:'قرحة في الفم',e:'👄',ing:['BENZOCAINE','CHLORHEXIDINE'],red:'قرحة أكتر من أسبوعين أو بتتكرر كتير'},
+ {k:'acne',n:'حبوب في الوش',e:'✨',ing:['BENZOYL PEROXIDE'],red:''}];
+const SX_NOTE='ده اقتراح مساعد لأدوية بتتصرف من غير روشتة — الصيدلي بيراجعه، وده مش بديل عن الدكتور.';
+const sxRule=re=>SX_ING.find(([k])=>k.split('|').some(x=>re.split('|').includes(x)))||null;
+function sxIngRe(key){const r=sxRule(key);return new RegExp('\\b('+(r?r[0]:key)+')','i')}
+/* p = {sym,age,sex,preg,conds:[],algs:[],n}  —  list = [{id,name,ar,sci,price,ok,form,rx,ctl}] */
+function sxSuggest(p,list){const S0=SX.find(x=>x.k===p.sym);if(!S0)return {picks:[],out:[],red:''};const age=Number(p.age);const kid=age>0&&age<12;
+  const conds=new Set([...(p.conds||[]),...(p.preg?['preg']:[])]);const algs=new Set(p.algs||[]);
+  const why=[];const bad=sci=>{for(const [k,r] of SX_ING){if(!new RegExp('\\b('+k+')','i').test(sci))continue;
+    const c=r.x.find(x=>conds.has(x));if(c)return 'مش مناسب مع '+(SX_CONDS.find(z=>z[0]===c)||['',''])[1];
+    if(p.age!==''&&p.age!=null&&age<r.age)return 'مش مناسب للسن ده';const a=(r.alg||[]).find(x=>algs.has(x));if(a)return 'عنده حساسية من '+(SX_ALG.find(z=>z[0]===a)||['',''])[1]}return ''};
+  const liq=it=>/SYR|SUSP|DROP|SUPP|شراب|نقط|لبوس|SACH|EFF/i.test((it.name||'')+' '+(it.form||''));
+  const picks=[],out=[],used=new Set();
+  S0.ing.forEach((key,rank)=>{const re=sxIngRe(key);let C=list.filter(it=>it.sci&&re.test(it.sci)&&!it.rx&&!it.ctl);if(!C.length)return;
+    const C2=[];C.forEach(it=>{const b=bad(it.sci);if(b){if(!out.some(o=>o.k===key))out.push({k:key,it,why:b})}else C2.push(it)});
+    C2.sort((a,b)=>(b.ok?1:0)-(a.ok?1:0)||(kid?(liq(b)?1:0)-(liq(a)?1:0):(liq(a)?1:0)-(liq(b)?1:0))||(a.sci.split('+').length-b.sci.split('+').length)||(a.price||0)-(b.price||0));
+    const it=C2.find(x=>!used.has(x.id));if(it){used.add(it.id);picks.push({it,rank,key})}});
+  return {picks:picks.slice(0,Math.max(1,Number(p.n)||3)),out,red:S0.red,name:S0.n}}
+
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money=v=>(Math.round((Number(v)||0)*100)/100).toLocaleString('en',{minimumFractionDigits:0,maximumFractionDigits:2});
+const norm=s=>String(s||'').toLowerCase().replace(/[أإآا]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/\s+/g,' ').trim();
+const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const BC='https://firestore.googleapis.com/v1/projects/beamcare-clinic/databases/(default)/documents/',BCK='AIzaSyBF42mXPiwrPm4QKd55YtZVUtmZcbr3s_0';
+const CO=(new URLSearchParams(location.search).get('c')||'demo').replace(/[^A-Za-z0-9_-]/g,'');
+let CFG=null,SHOP=null,TAB='items',Q='',CART=LS.get('ord-cart:'+CO,[]),TXT='',RX='',LOC=null,SXP={sym:'',age:'',sex:'',preg:false,conds:[],algs:[]};
+const fromFs=v=>{if(!v)return null;if('stringValue' in v)return v.stringValue;if('integerValue' in v)return Number(v.integerValue);if('doubleValue' in v)return v.doubleValue;if('booleanValue' in v)return v.booleanValue;if('nullValue' in v)return null;if('timestampValue' in v)return v.timestampValue;if('arrayValue' in v)return (v.arrayValue.values||[]).map(fromFs);if('mapValue' in v){const o={};const f=v.mapValue.fields||{};for(const k in f)o[k]=fromFs(f[k]);return o}return null};
+const toFs=v=>{if(v==null)return {nullValue:null};if(typeof v==='boolean')return {booleanValue:v};if(typeof v==='number')return Number.isInteger(v)?{integerValue:String(v)}:{doubleValue:v};if(typeof v==='string')return {stringValue:v};if(Array.isArray(v))return {arrayValue:{values:v.map(toFs)}};const f={};for(const k in v)if(v[k]!==undefined)f[k]=toFs(v[k]);return {mapValue:{fields:f}}};
+const DOC=()=>`https://firestore.googleapis.com/v1/projects/${CFG.projectId}/databases/(default)/documents/`;
+const DEMO=new URLSearchParams(location.search).get('demo')==='1';
+const DEMO_SHOP={name:'صيدلية الشفاء',phone:'0222000000',br:'main',fee:15,sx:true,sxN:3,items:[['d1','Panadol Extra','بانادول اكسترا','PARACETAMOL+CAFFEINE',78,'drug',1,0,0,'علبة|شريط|قرص',[78,39,3.25]],['d2','Panadol Advance','بانادول أدفانس','PARACETAMOL',63,'drug',1,0,0,'علبة|شريط',[63,31.5]],['d3','Brufen 400mg','بروفين 400','IBUPROFEN',69,'drug',1,0,0,'علبة|شريط',[69,23]],['d4','Cataflam 50mg','كتافلام 50','DICLOFENAC POTASSIUM',44,'drug',1,0,0,'علبة|شريط',[44,22]],['d5','Congestal','كونجستال','PARACETAMOL+PSEUDOEPHEDRINE+CHLORPHENIRAMINE',54,'drug',1,0,0,'علبة|شريط',[54,27]],['d6','Otrivin Adult','أوتريفين','XYLOMETAZOLINE',42,'drug',1,0,0,'عبوة',[42]],['d7','Claritine 10mg','كلاريتين','LORATADINE',54,'drug',1,0,0,'علبة|شريط',[54,27]],['d8','Telfast 120mg','تلفاست 120','FEXOFENADINE',96,'drug',1,0,0,'علبة|شريط',[96,48]],['d9','Antinal 200mg','أنتينال','NIFUROXAZIDE',26,'drug',1,0,0,'علبة|شريط',[26,13]],['d10','Buscopan 10mg','بسكوبان','HYOSCINE BUTYLBROMIDE',38,'drug',1,0,0,'علبة|شريط',[38,19]],['d11','Mucosolvan Syrup','ميوكوسولفان شراب','AMBROXOL',44,'drug',1,0,0,'زجاجة',[44]],['d12','Tussivan-N','توسيفان ن','DEXTROMETHORPHAN',28,'drug',1,0,0,'زجاجة',[28]],['d13','Cetal Syrup','سيتال شراب','PARACETAMOL',24,'drug',1,0,0,'زجاجة',[24]],['d14','Brufen Syrup','بروفين شراب','IBUPROFEN',30,'drug',1,0,0,'زجاجة',[30]],['d15','Maalox Plus','مالوكس بلس','ALUMINIUM HYDROXIDE+MAGNESIUM HYDROXIDE+SIMETHICONE',36,'drug',1,0,0,'زجاجة',[36]],['d16','Daktarin Cream','دكتارين كريم','MICONAZOLE',40,'drug',1,0,0,'أنبوبة',[40]],['d17','Augmentin 1g','أوجمنتين 1 جم','AMOXICILLIN+CLAVULANIC ACID',198,'drug',1,0,1,'علبة|شريط',[198,99]],['d18','Tramal 50mg','ترامال 50','TRAMADOL',45,'drug',1,1,1,'علبة',[45]],['d19','Pampers Baby-Dry 4 (44)','بامبرز مقاس 4','',420,'baby',1,0,0,'باكيت|حفاضة',[420,11]],['d20','Molfix 5 (36)','مولفكس مقاس 5','',310,'baby',1,0,0,'باكيت|حفاضة',[310,10]],['d21','Kleenex Tissues 150','مناديل كلينكس','',35,'paper',1,0,0,'علبة',[35]],['d22','Nivea Soft Cream 200ml','كريم نيفيا سوفت','',165,'skin',1,0,0,'علبة',[165]],['d23','Head & Shoulders 400ml','شامبو هيد آند شولدرز','',175,'hair',1,0,0,'زجاجة',[175]],['d24','BD Syringe 5cc','سرنجة 5 سم','',320,'med',1,0,0,'علبة|سرنجة',[320,4]],['d25','Hemani Castor Oil','زيت خروع هيماني','',60,'oil',0,0,0,'زجاجة',[60]]]};
+async function boot(){if(DEMO){SHOP={...DEMO_SHOP};SHOP.items=SHOP.items.map(x=>({id:x[0],name:x[1],ar:x[2],sci:x[3],price:x[4],cat:x[5],ok:!!x[6],ctl:!!x[7],rx:!!x[8],u:String(x[9]).split('|'),up:x[10],k:norm(x[1]+' '+x[2]+' '+x[3])}));render();return}
+  if(!CO)return fail('اللينك ناقص — اطلبه من الصيدلية');
+  try{const r=await fetch(BC+'brands/'+encodeURIComponent(CO)+'?key='+BCK);if(!r.ok)return fail('الصيدلية دي مش موجودة');const j=await r.json();const f=fromFs({mapValue:{fields:j.fields||{}}});CFG=f.fb;if(!CFG?.apiKey)return fail('الطلب أونلاين لسه مش متفعّل للصيدلية دي');
+   const s=await fetch(DOC()+'pub/shop?key='+CFG.apiKey);if(!s.ok)return fail('الطلب أونلاين لسه مش متفعّل للصيدلية دي');const sj=await s.json();SHOP=fromFs({mapValue:{fields:sj.fields||{}}});
+   SHOP.items=(SHOP.items||[]).map(x=>({id:x[0],name:x[1],ar:x[2],sci:x[3],price:x[4],cat:x[5],ok:!!x[6],ctl:!!x[7],rx:!!x[8],u:String(x[9]||'علبة').split('|'),up:x[10]||[x[4]],k:norm(x[1]+' '+x[2]+' '+x[3])}));
+   document.title='اطلب من '+SHOP.name;const last=LS.get('ord-last:'+CO,null);if(last&&Date.now()-last.t<6*3600e3)return showDone(last);render()}catch(e){console.error(e);fail('مفيش إنترنت — جرّب تاني')}}
+function fail(t){$('#app').innerHTML=`<div class="card empty"><div class="big">😕</div><b>${esc(t)}</b></div>`}
+const head=()=>`<div class="hd"><div class="lg">${SHOP.logo?`<img src="${esc(SHOP.logo)}" alt="">`:'<svg width="28" height="28" viewBox="0 0 24 24"><rect x="9.5" y="3" width="5" height="18" rx="1.6" fill="#E3BE6A"/><rect x="3" y="9.5" width="18" height="5" rx="1.6" fill="#E3BE6A"/></svg>'}</div><div style="min-width:0"><h1>${esc(SHOP.name)}</h1><div class="s">اطلب أدويتك وتوصلك لحد البيت 🛵${SHOP.phone?` · <span dir="ltr">${esc(SHOP.phone)}</span>`:''}</div></div></div>`;
+const cartN=()=>CART.reduce((a,x)=>a+x.q,0);const cartT=()=>CART.reduce((a,x)=>a+x.q*(x.p||0),0);const save=()=>LS.set('ord-cart:'+CO,CART);
+function render(){const tabs=[['items','🛒 اختار أصناف'],['text','📝 اكتب طلبك / روشتة'],...(SHOP.sx?[['sx','🩺 مش عارف الدوا؟']]:[])];
+  $('#app').innerHTML=head()+`<div class="tabs">${tabs.map(([k,t])=>`<button class="${TAB===k?'on':''}" data-t="${k}">${t}</button>`).join('')}</div><div id="body"></div>`;
+  $$('[data-t]').forEach(b=>b.onclick=()=>{TAB=b.dataset.t;render()});body();bar()}
+function bar(){const n=CART.length,has=n||TXT.trim()||RX;$('#bar').classList.toggle('hide',!has||TAB==='done'||TAB==='out');$('#bt').textContent=n?`${n} ${n===1?'صنف':n===2?'صنفين':'أصناف'} · ${money(cartT())} ج`:'طلب مكتوب';$('#bs').textContent=SHOP.fee?'+ توصيل '+money(SHOP.fee)+' ج تقريباً':'';$('#bgo').onclick=checkout}
+function itemRow(it){const c=CART.find(x=>x.iid===it.id);return `<div class="it"><div class="n"><b>${esc(it.name)}</b><div class="mut xs">${esc(it.ar||'')}${it.ctl?' · <span style="color:var(--rd)">محتاج صورة الروشتة</span>':it.rx?' · بروشتة':''}</div></div><div style="text-align:left"><div class="num" style="font-weight:800">${money(it.price)} ج</div>${it.ok?'':'<div class="xs" style="color:var(--rd)">مش متوفر دلوقتي</div>'}</div>${c?`<div class="qty"><button data-m="${it.id}">−</button><b class="num">${c.q}</b><button data-p="${it.id}">+</button></div>`:`<button class="btn sm ${it.ok?'':'o'}" data-a="${it.id}">${it.ok?'+ أضف':'اطلبه'}</button>`}</div>`}
+function body(){const B=$('#body');
+  if(TAB==='items'){const q=norm(Q);const L=q.length>=2?SHOP.items.filter(it=>it.k.includes(q)).sort((a,b)=>(b.ok-a.ok)||(a.k.indexOf(q)-b.k.indexOf(q))).slice(0,40):[];
+    B.innerHTML=`<div class="card"><input id="q" placeholder="🔍 اكتب اسم الدوا أو المنتج (عربي أو إنجليزي)" value="${esc(Q)}" autocomplete="off"><div id="res">${q.length<2?(CART.length?'':'<div class="empty sm">اكتب أول حرفين من اسم الصنف</div>'):L.map(itemRow).join('')||'<div class="empty sm">مش لاقي الصنف ده — اكتبه في «اكتب طلبك» وهنشوفه لك</div>'}</div></div>
+     ${CART.length?`<div class="card"><b>طلبك</b>${CART.map(c=>{const it=SHOP.items.find(x=>x.id===c.iid)||{name:c.name,u:[c.un]};return `<div class="it"><div class="n"><b>${esc(c.name)}</b>${it.u&&it.u.length>1?`<select data-u="${c.iid}" style="width:auto;padding:4px 8px;margin-top:4px;font-size:13px">${it.u.map((u,i)=>`<option value="${i}" ${c.ui==i?'selected':''}>${esc(u)}</option>`).join('')}</select>`:`<div class="mut xs">${esc(c.un||'')}</div>`}</div><span class="num">${money(c.p*c.q)} ج</span><div class="qty"><button data-m="${c.iid}">−</button><b class="num">${c.q}</b><button data-p="${c.iid}">+</button></div></div>`}).join('')}</div>`:''}`;
+    const qi=$('#q');qi.oninput=()=>{Q=qi.value;const p=qi.selectionStart;body();const n=$('#q');n.focus();n.setSelectionRange(p,p)};
+    $$('[data-a]').forEach(b=>b.onclick=()=>{const it=SHOP.items.find(x=>x.id===b.dataset.a);CART.push({iid:it.id,name:it.name,q:1,ui:0,un:it.u[0],p:it.up[0]||it.price,ctl:it.ctl});save();body();bar()});
+    $$('[data-p]').forEach(b=>b.onclick=()=>{const c=CART.find(x=>x.iid===b.dataset.p);c.q++;save();body();bar()});
+    $$('[data-m]').forEach(b=>b.onclick=()=>{const c=CART.find(x=>x.iid===b.dataset.m);c.q--;if(c.q<=0)CART.splice(CART.indexOf(c),1);save();body();bar()});
+    $$('[data-u]').forEach(s=>s.onchange=()=>{const c=CART.find(x=>x.iid===s.dataset.u);const it=SHOP.items.find(x=>x.id===c.iid);c.ui=Number(s.value);c.un=it.u[c.ui];c.p=it.up[c.ui]||it.price;save();body();bar()})}
+  else if(TAB==='text'){B.innerHTML=`<div class="card"><label class="f">اكتب اللي محتاجه<textarea id="tx" placeholder="مثلاً: علبة بانادول، وشريط كونجستال، وباكيت بامبرز مقاس 4">${esc(TXT)}</textarea></label>
+     <label class="f">📷 صورة الروشتة (لو فيه)<input type="file" id="rx" accept="image/*" capture="environment"></label><div id="rxp">${RX?`<img src="${RX}" style="max-height:180px;border-radius:12px;margin-top:8px">`:''}</div><div class="note sm">الصيدلي هيراجع طلبك ويكلّمك يأكد معاك السعر قبل ما يبعته.</div></div>`;
+    $('#tx').oninput=e=>{TXT=e.target.value;bar()};$('#rx').onchange=async e=>{const f=e.target.files[0];if(!f)return;RX=await small(f);$('#rxp').innerHTML=`<img src="${RX}" style="max-height:180px;border-radius:12px;margin-top:8px">`;bar()}}
+  else if(TAB==='sx'){const conds=SX_CONDS.filter(c=>c[0]!=='preg');
+    B.innerHTML=`<div class="card"><div class="note sm">اختار شكوتك وجاوب على الأسئلة — وهنقترح عليك أدوية مناسبة ليك من الموجود عندنا، والصيدلي هيراجعها ويكلّمك قبل ما نبعت.</div>
+     <div class="f" style="margin-top:12px;font-weight:700">بتشتكي من إيه؟</div><div class="row" style="margin-top:6px">${SX.map(x=>`<button class="chip ${SXP.sym===x.k?'on':''}" data-s="${x.k}">${x.e} ${x.n}</button>`).join('')}</div>
+     <div class="g2"><label class="f">السن<input id="sa" type="number" min="0" max="110" inputmode="numeric" value="${esc(SXP.age)}" placeholder="بالسنين"></label><label class="f">النوع<select id="ss"><option value="">—</option><option value="m" ${SXP.sex==='m'?'selected':''}>ذكر</option><option value="f" ${SXP.sex==='f'?'selected':''}>أنثى</option></select></label></div>
+     <label class="row ${SXP.sex==='f'?'':'hide'}" style="margin-top:8px" id="spg"><input type="checkbox" id="sp" ${SXP.preg?'checked':''} style="width:auto"> حامل</label>
+     <div class="f" style="margin-top:12px;font-weight:700">عندك مرض من دول؟</div><div class="row" style="margin-top:6px">${conds.map(([k,t])=>`<label class="chip ${SXP.conds.includes(k)?'on':''}"><input type="checkbox" data-c="${k}" ${SXP.conds.includes(k)?'checked':''} hidden>${esc(t)}</label>`).join('')}</div>
+     <div class="f" style="margin-top:12px;font-weight:700">عندك حساسية من دوا؟</div><div class="row" style="margin-top:6px">${SX_ALG.map(([k,t])=>`<label class="chip ${SXP.algs.includes(k)?'on':''}"><input type="checkbox" data-al="${k}" ${SXP.algs.includes(k)?'checked':''} hidden>${esc(t)}</label>`).join('')}</div></div><div id="sxr"></div>`;
+    const run=()=>{const el=$('#sxr');if(!SXP.sym){el.innerHTML='';return}if(SXP.age===''){el.innerHTML='<div class="card note a">اكتب السن علشان نختار الدوا المناسب</div>';return}
+      const r=sxSuggest({...SXP,n:SHOP.sxN||3},SHOP.items.filter(it=>!it.cat||it.cat==='drug'));
+      el.innerHTML=`<div class="card">${r.red?`<div class="note r">⚠️ <b>روح لدكتور على طول لو:</b> ${esc(r.red)}</div>`:''}<b style="display:block;margin-top:10px">مقترح ليك:</b>${r.picks.map(x=>itemRow(x.it)+`<div class="mut xs en" style="direction:ltr;text-align:right;margin-top:-6px">${esc(x.it.sci)}</div>`).join('')||'<div class="empty sm">مش لاقيين دوا مناسب عندنا — اكتب طلبك والصيدلي هيكلّمك</div>'}<div class="mut xs" style="margin-top:8px">${esc(SX_NOTE)}</div></div>`;
+      el.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{const it=SHOP.items.find(x=>x.id===b.dataset.a);CART.push({iid:it.id,name:it.name,q:1,ui:0,un:it.u[0],p:it.up[0]||it.price});save();run();bar()});
+      el.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{const c=CART.find(x=>x.iid===b.dataset.p);c.q++;save();run();bar()});el.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{const c=CART.find(x=>x.iid===b.dataset.m);c.q--;if(c.q<=0)CART.splice(CART.indexOf(c),1);save();run();bar()})};
+    $$('[data-s]').forEach(b=>b.onclick=()=>{SXP.sym=b.dataset.s;$$('[data-s]').forEach(x=>x.classList.toggle('on',x.dataset.s===SXP.sym));run()});
+    $('#sa').oninput=e=>{SXP.age=e.target.value;run()};$('#ss').onchange=e=>{SXP.sex=e.target.value;$('#spg').classList.toggle('hide',SXP.sex!=='f');if(SXP.sex!=='f')SXP.preg=false;run()};$('#sp').onchange=e=>{SXP.preg=e.target.checked;run()};
+    $$('[data-c]').forEach(c=>c.onchange=()=>{SXP.conds=$$('[data-c]:checked').map(x=>x.dataset.c);c.parentNode.classList.toggle('on',c.checked);run()});
+    $$('[data-al]').forEach(c=>c.onchange=()=>{SXP.algs=$$('[data-al]:checked').map(x=>x.dataset.al);c.parentNode.classList.toggle('on',c.checked);run()});run()}}
+function small(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,1100/Math.max(im.width,im.height));const c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);g.drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.6))};im.onerror=rej;im.src=r.result};r.onerror=rej;r.readAsDataURL(file)})}
+function checkout(){const me=LS.get('ord-me',{});TAB='out';$('#bar').classList.add('hide');const needRx=CART.some(c=>c.ctl)&&!RX;
+  $('#app').innerHTML=head()+`<div class="card"><b style="font-size:17px">بيانات التوصيل</b>
+   <label class="f">الاسم<input id="nm" value="${esc(me.name||'')}" autocomplete="name"></label><label class="f">رقم الموبايل<input id="ph" value="${esc(me.phone||'')}" inputmode="tel" dir="ltr" autocomplete="tel"></label>
+   <label class="f">العنوان بالتفصيل<textarea id="ad" style="min-height:70px" placeholder="الشارع، رقم العمارة، الدور، علامة مميزة">${esc(me.addr||'')}</textarea></label>
+   <div class="row" style="margin-top:10px"><button class="btn o" id="gl">📍 حدّد موقعي على الخريطة</button><span id="lt" class="sm mut">${LOC?'<span class="ok">✓ الموقع اتحدد</span>':'علشان الطيار يوصلك أسرع'}</span></div>
+   ${needRx?`<div class="note r">فيه صنف في طلبك محتاج صورة الروشتة.</div><label class="f">📷 صورة الروشتة<input type="file" id="rx2" accept="image/*" capture="environment"></label>`:''}
+   <label class="f">ملاحظة للصيدلي (اختياري)<input id="nt" value="${esc(TXT&&!CART.length?'':'')}"></label>
+   <div class="note sm">${CART.length?`${CART.length} صنف · ${money(cartT())} ج`:'طلب مكتوب'}${SHOP.fee?' + توصيل '+money(SHOP.fee)+' ج تقريباً':''} — الصيدلية هتكلّمك تأكد الطلب قبل ما يتبعت، والدفع عند الاستلام.</div>
+   <div class="row" style="margin-top:12px"><button class="btn o" id="bk">→ رجوع</button><span class="sp"></span><button class="btn" id="snd">ابعت الطلب ✓</button></div><div id="er" class="note r hide"></div></div>`;
+  $('#bk').onclick=()=>{TAB='items';render()};
+  $('#gl').onclick=()=>{if(!navigator.geolocation){$('#lt').textContent='الموبايل مش بيدعم تحديد الموقع';return}$('#lt').textContent='بيحدد…';navigator.geolocation.getCurrentPosition(p=>{LOC={lat:Math.round(p.coords.latitude*1e6)/1e6,lng:Math.round(p.coords.longitude*1e6)/1e6};$('#lt').innerHTML='<span class="ok">✓ الموقع اتحدد</span>'},()=>{$('#lt').textContent='مقدرناش نحدد الموقع — اكتب العنوان بالتفصيل'},{enableHighAccuracy:true,timeout:15000})};
+  const r2=$('#rx2');if(r2)r2.onchange=async e=>{const f=e.target.files[0];if(f)RX=await small(f)};
+  $('#snd').onclick=send}
+async function send(){const nm=$('#nm').value.trim(),ph=$('#ph').value.replace(/\D/g,''),ad=$('#ad').value.trim(),er=$('#er');const bad=t=>{er.textContent=t;er.classList.remove('hide')};
+  if(nm.length<2)return bad('اكتب اسمك');if(!/^01\d{9}$/.test(ph))return bad('اكتب رقم موبايل صحيح (11 رقم)');if(!ad&&!LOC)return bad('اكتب العنوان أو حدّد موقعك');if(!CART.length&&!TXT.trim()&&!RX)return bad('طلبك فاضي');if(CART.some(c=>c.ctl)&&!RX)return bad('صوّر الروشتة الأول');
+  const b=$('#snd');b.disabled=true;b.textContent='بيتبعت…';LS.set('ord-me',{name:nm,phone:ph,addr:ad});
+  const no='W-'+String(Date.now()).slice(-5);const d={no,src:'online',st:'new',at:new Date().toISOString(),day:new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10),br:SHOP.br||'main',name:nm,phone:ph,addr:ad,items:CART.map(c=>({iid:c.iid,name:c.name,q:c.q,ui:c.ui||0,un:c.un||'',p:c.p||0})),text:[TXT.trim(),$('#nt').value.trim()].filter(Boolean).join(' — ')};
+  if(LOC)d.loc=LOC;if(RX)d.rxImg=RX;if(SXP.sym)d.sx={sym:SXP.sym,name:(SX.find(x=>x.k===SXP.sym)||{}).n||'',age:String(SXP.age||''),sex:SXP.sex,conds:SXP.preg?[...SXP.conds,'preg']:SXP.conds,algs:SXP.algs};
+  if(DEMO){await new Promise(r=>setTimeout(r,600));CART=[];save();TXT='';RX='';$('#app').innerHTML=head()+`<div class="card empty"><div class="big">🎉</div><b style="font-size:20px">وصل للصيدلية ✓</b><div style="margin-top:6px">دي نسخة تجريبية — في الحقيقة الطلب بيظهر عند الصيدلية فوراً ويوصلهم إشعار.</div><div class="mut sm" style="margin-top:6px">رقم الطلب <b class="num" dir="ltr">${no}</b></div><button class="btn sm" style="margin-top:12px" onclick="TAB='items';render()">طلب جديد</button></div>`;return}
+  try{const r=await fetch(DOC()+'orders?key='+CFG.apiKey,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fields:toFs(d).mapValue.fields})});if(!r.ok)throw new Error(await r.text());const j=await r.json();const id=j.name.split('/').pop();
+   notify(nm,d);const last={id,no,t:Date.now()};LS.set('ord-last:'+CO,last);CART=[];save();TXT='';RX='';showDone(last)}
+  catch(e){console.error(e);b.disabled=false;b.textContent='ابعت الطلب ✓';bad('الطلب ما اتبعتش — اتأكد من النت وجرّب تاني')}}
+async function notify(nm,d){try{const r=await fetch(BC+'pub/push?key='+BCK);const j=await r.json();const u=(j.fields?.url?.stringValue||'').replace(/\/+$/,'');if(!u)return;
+  await fetch(u+'/notify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({t:'p-'+CO,kind:'ph',title:'🛵 طلب أونلاين جديد',body:nm+' — '+(d.items.map(x=>x.name).join('، ')||d.text||'طلب مكتوب').slice(0,120)}),keepalive:true})}catch(e){}}
+const STT={new:['وصل للصيدلية ✓','الصيدلي هيراجع طلبك ويكلّمك'],conf:['بيتجهز 💊','الصيدلية بتجهز طلبك'],out:['في الطريق ليك 🛵','الطيار خرج بطلبك'],done:['اتسلّم ✓','بالشفا'],cancel:['اتلغى','كلّم الصيدلية لو عندك سؤال']};
+async function showDone(last){TAB='done';$('#bar').classList.add('hide');let st='new';try{const r=await fetch(DOC()+'orders/'+last.id+'?key='+CFG.apiKey);if(r.ok){const j=await r.json();st=j.fields?.st?.stringValue||'new'}}catch(e){}const s=STT[st]||STT.new;
+  $('#app').innerHTML=head()+`<div class="card empty"><div class="big">${st==='cancel'?'😕':'🎉'}</div><b style="font-size:20px">${s[0]}</b><div style="margin-top:6px">${s[1]}</div><div class="mut sm" style="margin-top:6px">رقم الطلب <b class="num" dir="ltr">${esc(last.no)}</b></div>
+   ${SHOP.phone?`<div class="row" style="justify-content:center;margin-top:14px"><a class="btn o" href="tel:${esc(SHOP.phone)}">📞 كلّم الصيدلية</a></div>`:''}<div class="row" style="justify-content:center;margin-top:10px"><button class="btn o sm" id="rf">🔄 تحديث الحالة</button><button class="btn sm" id="nw">طلب جديد</button></div></div>`;
+  $('#rf').onclick=()=>showDone(last);$('#nw').onclick=()=>{LS.set('ord-last:'+CO,null);TAB='items';render()}}
+boot();
+</script>
+</body>
+</html>
