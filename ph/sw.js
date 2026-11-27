@@ -1,5 +1,5 @@
 /* Beam Care Pharmacy — بيخلّي السيستم يفتح حتى لو النت قاطع */
-const C='ph-v1.2.0';
+const C='ph-v1.2.1';
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(C).then(c=>c.addAll(['./','index.html','manifest.json','icon-192.png','drugs.json','../bg/glass-light.jpg','../bg/glass-warm.jpg']).catch(()=>{})))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==C&&x.startsWith('ph-')).map(x=>caches.delete(x)))).then(()=>self.clients.claim()))});
 self.addEventListener('fetch',e=>{const r=e.request;if(r.method!=='GET')return;const u=new URL(r.url);
